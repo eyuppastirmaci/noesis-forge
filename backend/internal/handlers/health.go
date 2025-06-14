@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -40,13 +41,12 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 		statusCode = http.StatusServiceUnavailable
 	}
 
-	response := gin.H{
-		"status":    status,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"checks":    checks,
+	data := gin.H{
+		"status": status,
+		"checks": checks,
 	}
 
-	c.JSON(statusCode, response)
+	utils.SuccessResponse(c, statusCode, data)
 }
 
 // ReadinessCheck checks if the service is ready to serve requests
@@ -55,25 +55,21 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	dbStatus := h.checkDatabase()
 
 	if dbStatus["status"] == "up" {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "ready",
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-		})
+		data := gin.H{
+			"status": "ready",
+		}
+		utils.SuccessResponse(c, http.StatusOK, data, "Service is ready")
 	} else {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":    "not ready",
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-			"reason":    "database not available",
-		})
+		utils.ServiceUnavailableResponse(c, "Service is not ready")
 	}
 }
 
 // LivenessCheck checks if the service is alive
 func (h *HealthHandler) LivenessCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "alive",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
+	data := gin.H{
+		"status": "alive",
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Service is alive")
 }
 
 func (h *HealthHandler) checkDatabase() map[string]interface{} {

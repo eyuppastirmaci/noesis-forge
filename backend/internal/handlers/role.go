@@ -5,6 +5,7 @@ import (
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -44,214 +45,166 @@ func (h *RoleHandler) RegisterRoutes(r *gin.RouterGroup) {
 func (h *RoleHandler) GetRoles(c *gin.Context) {
 	roles, err := h.roleService.GetRoles(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "FETCH_FAILED",
-			"message": err.Error(),
-		})
+		utils.InternalServerErrorResponse(c, "Failed to fetch roles", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := gin.H{
 		"roles": roles,
-	})
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Roles retrieved successfully")
 }
 
 func (h *RoleHandler) GetRoleByID(c *gin.Context) {
 	roleIDStr := c.Param("id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "INVALID_ID",
-			"message": "Invalid role ID format",
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid role ID format")
 		return
 	}
 
 	role, err := h.roleService.GetRoleByID(c.Request.Context(), roleID)
 	if err != nil {
-		status := http.StatusInternalServerError
 		if err.Error() == "role not found" {
-			status = http.StatusNotFound
+			utils.NotFoundResponse(c, "ROLE_NOT_FOUND", err.Error())
+		} else {
+			utils.InternalServerErrorResponse(c, "Failed to fetch role", err.Error())
 		}
-		c.JSON(status, gin.H{
-			"code":    "FETCH_FAILED",
-			"message": err.Error(),
-		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := gin.H{
 		"role": role,
-	})
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Role retrieved successfully")
 }
 
 func (h *RoleHandler) CreateRole(c *gin.Context) {
 	var req services.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	role, err := h.roleService.CreateRole(c.Request.Context(), &req)
 	if err != nil {
-		status := http.StatusBadRequest
 		if err.Error() == "role name already exists" {
-			status = http.StatusConflict
+			utils.ConflictResponse(c, "ROLE_NAME_EXISTS", err.Error())
+		} else {
+			utils.ErrorResponse(c, http.StatusBadRequest, "CREATION_FAILED", err.Error())
 		}
-		c.JSON(status, gin.H{
-			"code":    "CREATION_FAILED",
-			"message": err.Error(),
-		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Role created successfully",
-		"role":    role,
-	})
+	data := gin.H{
+		"role": role,
+	}
+	utils.SuccessResponse(c, http.StatusCreated, data, "Role created successfully")
 }
 
 func (h *RoleHandler) UpdateRole(c *gin.Context) {
 	roleIDStr := c.Param("id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "INVALID_ID",
-			"message": "Invalid role ID format",
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid role ID format")
 		return
 	}
 
 	var req services.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	role, err := h.roleService.UpdateRole(c.Request.Context(), roleID, &req)
 	if err != nil {
-		status := http.StatusBadRequest
 		if err.Error() == "role not found" {
-			status = http.StatusNotFound
+			utils.NotFoundResponse(c, "ROLE_NOT_FOUND", err.Error())
 		} else if err.Error() == "cannot modify system role" {
-			status = http.StatusForbidden
+			utils.ForbiddenResponse(c, "SYSTEM_ROLE_IMMUTABLE", err.Error())
+		} else {
+			utils.ErrorResponse(c, http.StatusBadRequest, "UPDATE_FAILED", err.Error())
 		}
-		c.JSON(status, gin.H{
-			"code":    "UPDATE_FAILED",
-			"message": err.Error(),
-		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Role updated successfully",
-		"role":    role,
-	})
+	data := gin.H{
+		"role": role,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Role updated successfully")
 }
 
 func (h *RoleHandler) DeleteRole(c *gin.Context) {
 	roleIDStr := c.Param("id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "INVALID_ID",
-			"message": "Invalid role ID format",
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid role ID format")
 		return
 	}
 
 	err = h.roleService.DeleteRole(c.Request.Context(), roleID)
 	if err != nil {
-		status := http.StatusBadRequest
 		if err.Error() == "role not found" {
-			status = http.StatusNotFound
+			utils.NotFoundResponse(c, "ROLE_NOT_FOUND", err.Error())
 		} else if err.Error() == "cannot delete system role" {
-			status = http.StatusForbidden
+			utils.ForbiddenResponse(c, "SYSTEM_ROLE_IMMUTABLE", err.Error())
+		} else {
+			utils.ErrorResponse(c, http.StatusBadRequest, "DELETION_FAILED", err.Error())
 		}
-		c.JSON(status, gin.H{
-			"code":    "DELETION_FAILED",
-			"message": err.Error(),
-		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Role deleted successfully",
-	})
+	utils.SuccessResponse(c, http.StatusOK, nil, "Role deleted successfully")
 }
 
 func (h *RoleHandler) GetPermissions(c *gin.Context) {
 	permissions, err := h.roleService.GetPermissions(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "FETCH_FAILED",
-			"message": err.Error(),
-		})
+		utils.InternalServerErrorResponse(c, "Failed to fetch permissions", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := gin.H{
 		"permissions": permissions,
-	})
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Permissions retrieved successfully")
 }
 
 func (h *RoleHandler) GetPermissionsByCategory(c *gin.Context) {
 	category := c.Param("category")
 	if category == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "INVALID_CATEGORY",
-			"message": "Category is required",
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_CATEGORY", "Category is required")
 		return
 	}
 
 	permissions, err := h.roleService.GetPermissionsByCategory(c.Request.Context(), category)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "FETCH_FAILED",
-			"message": err.Error(),
-		})
+		utils.InternalServerErrorResponse(c, "Failed to fetch permissions by category", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := gin.H{
 		"permissions": permissions,
-	})
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Permissions retrieved successfully")
 }
 
 func (h *RoleHandler) AssignRole(c *gin.Context) {
 	var req services.AssignRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	err := h.roleService.AssignRole(c.Request.Context(), req.UserID, req.RoleID)
 	if err != nil {
-		status := http.StatusBadRequest
 		if err.Error() == "user not found" || err.Error() == "role not found" {
-			status = http.StatusNotFound
+			utils.NotFoundResponse(c, "RESOURCE_NOT_FOUND", err.Error())
+		} else {
+			utils.ErrorResponse(c, http.StatusBadRequest, "ASSIGNMENT_FAILED", err.Error())
 		}
-		c.JSON(status, gin.H{
-			"code":    "ASSIGNMENT_FAILED",
-			"message": err.Error(),
-		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Role assigned successfully",
-	})
+	utils.SuccessResponse(c, http.StatusOK, nil, "Role assigned successfully")
 }

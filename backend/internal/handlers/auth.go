@@ -5,6 +5,7 @@ import (
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -41,212 +42,163 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req services.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	user, err := h.authService.Register(c.Request.Context(), &req)
 	if err != nil {
 		status := http.StatusBadRequest
+		code := "REGISTRATION_FAILED"
 		if err.Error() == "email already exists" || err.Error() == "username already exists" {
 			status = http.StatusConflict
+			code = "USER_ALREADY_EXISTS"
 		}
-		c.JSON(status, gin.H{
-			"code":    "REGISTRATION_FAILED",
-			"message": err.Error(),
-		})
+		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Registration successful",
-		"user":    user,
-	})
+	data := gin.H{
+		"user": user,
+	}
+	utils.SuccessResponse(c, http.StatusCreated, data, "Registration successful")
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req services.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	user, tokens, err := h.authService.Login(c.Request.Context(), &req)
 	if err != nil {
 		status := http.StatusUnauthorized
+		code := "LOGIN_FAILED"
 		if err.Error() == "account is locked" {
 			status = http.StatusForbidden
+			code = "ACCOUNT_LOCKED"
 		}
-		c.JSON(status, gin.H{
-			"code":    "LOGIN_FAILED",
-			"message": err.Error(),
-		})
+		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"user":    user,
-		"tokens":  tokens,
-	})
+	data := gin.H{
+		"user":   user,
+		"tokens": tokens,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Login successful")
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req services.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	tokens, err := h.authService.RefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    "REFRESH_FAILED",
-			"message": err.Error(),
-		})
+		utils.UnauthorizedResponse(c, "REFRESH_FAILED", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Token refreshed successfully",
-		"tokens":  tokens,
-	})
+	data := gin.H{
+		"tokens": tokens,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Token refreshed successfully")
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req services.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	err := h.authService.Logout(c.Request.Context(), req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "LOGOUT_FAILED",
-			"message": err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "LOGOUT_FAILED", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logout successful",
-	})
+	utils.SuccessResponse(c, http.StatusOK, nil, "Logout successful")
 }
 
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    "UNAUTHORIZED",
-			"message": err.Error(),
-		})
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
 		return
 	}
 
 	user, err := h.authService.GetProfile(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    "USER_NOT_FOUND",
-			"message": err.Error(),
-		})
+		utils.NotFoundResponse(c, "USER_NOT_FOUND", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := gin.H{
 		"user": user,
-	})
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Profile retrieved successfully")
 }
 
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    "UNAUTHORIZED",
-			"message": err.Error(),
-		})
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
 		return
 	}
 
 	var req services.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	user, err := h.authService.UpdateProfile(c.Request.Context(), userID, &req)
 	if err != nil {
 		status := http.StatusBadRequest
+		code := "UPDATE_FAILED"
 		if err.Error() == "username already exists" {
 			status = http.StatusConflict
+			code = "USERNAME_ALREADY_EXISTS"
 		}
-		c.JSON(status, gin.H{
-			"code":    "UPDATE_FAILED",
-			"message": err.Error(),
-		})
+		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile updated successfully",
-		"user":    user,
-	})
+	data := gin.H{
+		"user": user,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Profile updated successfully")
 }
 
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"code":    "UNAUTHORIZED",
-			"message": err.Error(),
-		})
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
 		return
 	}
 
 	var req services.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": "Invalid request data",
-			"error":   err.Error(),
-		})
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
 	err = h.authService.ChangePassword(c.Request.Context(), userID, &req)
 	if err != nil {
 		status := http.StatusBadRequest
+		code := "PASSWORD_CHANGE_FAILED"
 		if err.Error() == "invalid old password" {
 			status = http.StatusUnauthorized
+			code = "INVALID_OLD_PASSWORD"
 		}
-		c.JSON(status, gin.H{
-			"code":    "PASSWORD_CHANGE_FAILED",
-			"message": err.Error(),
-		})
+		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Password changed successfully",
-	})
+	utils.SuccessResponse(c, http.StatusOK, nil, "Password changed successfully")
 }
