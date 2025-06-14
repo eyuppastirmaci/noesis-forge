@@ -3,16 +3,16 @@ info:
   title: NoesisForge API
   description: |
     NoesisForge backend API documentation. This API provides authentication, user management, and role-based access control functionality.
-    
+
     ## Authentication
     This API uses JWT (JSON Web Token) for authentication. Include the access token in the Authorization header:
     ```
     Authorization: Bearer <access_token>
     ```
-    
+
     ## Rate Limiting
     API requests are rate-limited to 100 requests per minute per IP address.
-    
+
   version: 1.0.0
   contact:
     name: NoesisForge API Support
@@ -45,6 +45,69 @@ components:
       bearerFormat: JWT
 
   schemas:
+    # Standard API Response schemas
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        statusCode:
+          type: integer
+          description: HTTP status code
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        data:
+          type: object
+          nullable: true
+          description: Response data
+        message:
+          type: string
+          nullable: true
+          description: Success message
+        error:
+          $ref: "#/components/schemas/ApiError"
+          nullable: true
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        details:
+          type: string
+          nullable: true
+          description: Detailed error information
+        field:
+          type: string
+          nullable: true
+          description: Field that caused the error
+        validationErrors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationError"
+          nullable: true
+
+    ValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+          description: Field name
+        message:
+          type: string
+          description: Validation error message
+        value:
+          type: object
+          nullable: true
+          description: Invalid value
+
     User:
       type: object
       properties:
@@ -104,7 +167,7 @@ components:
           format: uuid
           description: Assigned role ID
         role:
-          $ref: '#/components/schemas/Role'
+          $ref: "#/components/schemas/Role"
 
     Role:
       type: object
@@ -137,7 +200,7 @@ components:
         permissions:
           type: array
           items:
-            $ref: '#/components/schemas/Permission'
+            $ref: "#/components/schemas/Permission"
 
     Permission:
       type: object
@@ -191,9 +254,6 @@ components:
         status:
           type: string
           enum: [healthy, unhealthy]
-        timestamp:
-          type: string
-          format: date-time
         checks:
           type: object
           properties:
@@ -218,18 +278,110 @@ components:
                     max_open:
                       type: integer
 
-    Error:
-      type: object
-      properties:
-        code:
-          type: string
-          description: Error code
-        message:
-          type: string
-          description: Error message
-        error:
-          type: string
-          description: Detailed error information (optional)
+    HealthResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/HealthStatus"
+
+    ReadinessResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [ready]
+
+    LivenessResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [alive]
+
+    # Success response schemas
+    UserResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: "#/components/schemas/User"
+
+    LoginResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: "#/components/schemas/User"
+                tokens:
+                  $ref: "#/components/schemas/TokenPair"
+
+    TokenResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tokens:
+                  $ref: "#/components/schemas/TokenPair"
+
+    RoleResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                role:
+                  $ref: "#/components/schemas/Role"
+
+    RolesResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                roles:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Role"
+
+    PermissionsResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Permission"
 
     RegisterRequest:
       type: object
@@ -391,7 +543,7 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: API information
           content:
             application/json:
@@ -418,18 +570,18 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: Service is healthy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthStatus'
-        '503':
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
           description: Service is unhealthy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthStatus'
+                $ref: "#/components/schemas/HealthResponse"
 
   /health/ready:
     get:
@@ -438,34 +590,33 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: Service is ready
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ready
-                  timestamp:
-                    type: string
-                    format: date-time
-        '503':
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
           description: Service is not ready
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: not ready
-                  timestamp:
-                    type: string
-                    format: date-time
-                  reason:
-                    type: string
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: SERVICE_UNAVAILABLE
+                          message:
+                            type: string
+                            example: Service is not ready
 
   /health/live:
     get:
@@ -474,19 +625,12 @@ paths:
       tags:
         - Health
       responses:
-        '200':
+        "200":
           description: Service is alive
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: alive
-                  timestamp:
-                    type: string
-                    format: date-time
+                $ref: "#/components/schemas/LivenessResponse"
 
   /auth/register:
     post:
@@ -499,7 +643,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: "#/components/schemas/RegisterRequest"
             example:
               email: user@example.com
               username: johndoe
@@ -507,30 +651,54 @@ paths:
               password: securepassword123
               passwordConfirm: securepassword123
       responses:
-        '201':
+        "201":
           description: User registered successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Registration successful
-                  user:
-                    $ref: '#/components/schemas/User'
-        '400':
+                $ref: "#/components/schemas/UserResponse"
+        "400":
           description: Validation error or registration failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: VALIDATION_ERROR
+                          message:
+                            type: string
+                            example: Invalid request data
+        "409":
           description: Email or username already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: USER_ALREADY_EXISTS
+                          message:
+                            type: string
+                            example: email already exists
 
   /auth/login:
     post:
@@ -543,44 +711,81 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
             example:
               email: user@example.com
               password: securepassword123
               remember: false
       responses:
-        '200':
+        "200":
           description: Login successful
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Login successful
-                  user:
-                    $ref: '#/components/schemas/User'
-                  tokens:
-                    $ref: '#/components/schemas/TokenPair'
-        '400':
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
           description: Validation error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: VALIDATION_ERROR
+                          message:
+                            type: string
+                            example: Invalid request data
+        "401":
           description: Invalid credentials
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: LOGIN_FAILED
+                          message:
+                            type: string
+                            example: invalid credentials
+        "403":
           description: Account is locked
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: ACCOUNT_LOCKED
+                          message:
+                            type: string
+                            example: account is locked
 
   /auth/refresh:
     post:
@@ -593,34 +798,58 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshTokenRequest'
+              $ref: "#/components/schemas/RefreshTokenRequest"
             example:
               refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       responses:
-        '200':
+        "200":
           description: Token refreshed successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Token refreshed successfully
-                  tokens:
-                    $ref: '#/components/schemas/TokenPair'
-        '400':
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
           description: Validation error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: VALIDATION_ERROR
+                          message:
+                            type: string
+                            example: Invalid request data
+        "401":
           description: Invalid or expired refresh token
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: REFRESH_FAILED
+                          message:
+                            type: string
+                            example: invalid or expired refresh token
 
   /auth/logout:
     post:
@@ -633,26 +862,48 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshTokenRequest'
+              $ref: "#/components/schemas/RefreshTokenRequest"
             example:
               refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       responses:
-        '200':
+        "200":
           description: Logout successful
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Logout successful
-        '400':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Logout successful
+                      data:
+                        nullable: true
+        "400":
           description: Validation error or logout failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: LOGOUT_FAILED
+                          message:
+                            type: string
+                            example: logout failed
 
   /auth/profile:
     get:
@@ -663,27 +914,54 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Profile retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  user:
-                    $ref: '#/components/schemas/User'
-        '401':
+                $ref: "#/components/schemas/UserResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "404":
           description: User not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: USER_NOT_FOUND
+                          message:
+                            type: string
+                            example: user not found
 
     put:
       summary: Update user profile
@@ -697,42 +975,81 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateProfileRequest'
+              $ref: "#/components/schemas/UpdateProfileRequest"
             example:
               name: John Doe Updated
               bio: Software Developer
               avatar: https://example.com/avatar.jpg
       responses:
-        '200':
+        "200":
           description: Profile updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Profile updated successfully
-                  user:
-                    $ref: '#/components/schemas/User'
-        '400':
+                $ref: "#/components/schemas/UserResponse"
+        "400":
           description: Validation error or update failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: VALIDATION_ERROR
+                          message:
+                            type: string
+                            example: Invalid request data
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "409":
           description: Username already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: USERNAME_ALREADY_EXISTS
+                          message:
+                            type: string
+                            example: username already exists
 
   /auth/change-password:
     put:
@@ -747,33 +1064,70 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChangePasswordRequest'
+              $ref: "#/components/schemas/ChangePasswordRequest"
             example:
               oldPassword: currentpassword123
               newPassword: newsecurepassword456
       responses:
-        '200':
+        "200":
           description: Password changed successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Password changed successfully
-        '400':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Password changed successfully
+                      data:
+                        nullable: true
+        "400":
           description: Validation error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: VALIDATION_ERROR
+                          message:
+                            type: string
+                            example: Invalid request data
+        "401":
           description: Unauthorized or invalid old password
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: INVALID_OLD_PASSWORD
+                          message:
+                            type: string
+                            example: invalid old password
 
   /roles:
     get:
@@ -784,35 +1138,75 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Roles retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  roles:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Role'
-        '401':
+                $ref: "#/components/schemas/RolesResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: FORBIDDEN
+                          message:
+                            type: string
+                            example: admin access required
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: INTERNAL_ERROR
+                          message:
+                            type: string
+                            example: Failed to fetch roles
 
     post:
       summary: Create new role
@@ -826,7 +1220,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateRoleRequest'
+              $ref: "#/components/schemas/CreateRoleRequest"
             example:
               name: moderator
               displayName: Moderator
@@ -835,42 +1229,96 @@ paths:
                 - 550e8400-e29b-41d4-a716-446655440001
                 - 550e8400-e29b-41d4-a716-446655440002
       responses:
-        '201':
+        "201":
           description: Role created successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Role created successfully
-                  role:
-                    $ref: '#/components/schemas/Role'
-        '400':
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
           description: Validation error or creation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: CREATION_FAILED
+                          message:
+                            type: string
+                            example: creation failed
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: FORBIDDEN
+                          message:
+                            type: string
+                            example: admin access required
+        "409":
           description: Role name already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: ROLE_NAME_EXISTS
+                          message:
+                            type: string
+                            example: role name already exists
 
   /roles/{id}:
     get:
@@ -889,39 +1337,96 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Role retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  role:
-                    $ref: '#/components/schemas/Role'
-        '400':
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
           description: Invalid role ID format
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: INVALID_ID
+                          message:
+                            type: string
+                            example: Invalid role ID format
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: FORBIDDEN
+                          message:
+                            type: string
+                            example: admin access required
+        "404":
           description: Role not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: ROLE_NOT_FOUND
+                          message:
+                            type: string
+                            example: role not found
 
     put:
       summary: Update role
@@ -943,49 +1448,103 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateRoleRequest'
+              $ref: "#/components/schemas/UpdateRoleRequest"
             example:
               displayName: Updated Moderator
               description: Updated description
               permissionIDs:
                 - 550e8400-e29b-41d4-a716-446655440001
       responses:
-        '200':
+        "200":
           description: Role updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Role updated successfully
-                  role:
-                    $ref: '#/components/schemas/Role'
-        '400':
+                $ref: "#/components/schemas/RoleResponse"
+        "400":
           description: Validation error or update failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UPDATE_FAILED
+                          message:
+                            type: string
+                            example: update failed
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required or cannot modify system role
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: SYSTEM_ROLE_IMMUTABLE
+                          message:
+                            type: string
+                            example: cannot modify system role
+        "404":
           description: Role not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: ROLE_NOT_FOUND
+                          message:
+                            type: string
+                            example: role not found
 
     delete:
       summary: Delete role
@@ -1003,40 +1562,107 @@ paths:
             type: string
             format: uuid
       responses:
-        '200':
+        "200":
           description: Role deleted successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Role deleted successfully
-        '400':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Role deleted successfully
+                      data:
+                        nullable: true
+        "400":
           description: Invalid role ID format or deletion failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: DELETION_FAILED
+                          message:
+                            type: string
+                            example: deletion failed
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required or cannot delete system role
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: SYSTEM_ROLE_IMMUTABLE
+                          message:
+                            type: string
+                            example: cannot delete system role
+        "404":
           description: Role not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: ROLE_NOT_FOUND
+                          message:
+                            type: string
+                            example: role not found
 
   /roles/permissions:
     get:
@@ -1047,35 +1673,75 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Permissions retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  permissions:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Permission'
-        '401':
+                $ref: "#/components/schemas/PermissionsResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: FORBIDDEN
+                          message:
+                            type: string
+                            example: admin access required
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: INTERNAL_ERROR
+                          message:
+                            type: string
+                            example: Failed to fetch permissions
 
   /roles/permissions/categories/{category}:
     get:
@@ -1094,41 +1760,96 @@ paths:
             type: string
             enum: [document, search, chat, admin]
       responses:
-        '200':
+        "200":
           description: Permissions retrieved successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  permissions:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Permission'
-        '400':
+                $ref: "#/components/schemas/PermissionsResponse"
+        "400":
           description: Category is required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: INVALID_CATEGORY
+                          message:
+                            type: string
+                            example: Category is required
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: FORBIDDEN
+                          message:
+                            type: string
+                            example: admin access required
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: INTERNAL_ERROR
+                          message:
+                            type: string
+                            example: Failed to fetch permissions by category
 
   /roles/assign:
     post:
@@ -1143,45 +1864,112 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssignRoleRequest'
+              $ref: "#/components/schemas/AssignRoleRequest"
             example:
               userID: 550e8400-e29b-41d4-a716-446655440000
               roleID: 550e8400-e29b-41d4-a716-446655440001
       responses:
-        '200':
+        "200":
           description: Role assigned successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Role assigned successfully
-        '400':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Role assigned successfully
+                      data:
+                        nullable: true
+        "400":
           description: Validation error or assignment failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: ASSIGNMENT_FAILED
+                          message:
+                            type: string
+                            example: assignment failed
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '403':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: UNAUTHORIZED
+                          message:
+                            type: string
+                            example: unauthorized
+        "403":
           description: Admin access required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: FORBIDDEN
+                          message:
+                            type: string
+                            example: admin access required
+        "404":
           description: User or role not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                            example: RESOURCE_NOT_FOUND
+                          message:
+                            type: string
+                            example: user not found
 
 security:
-  - BearerAuth: [] 
+  - BearerAuth: []
