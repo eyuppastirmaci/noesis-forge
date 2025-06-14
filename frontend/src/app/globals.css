@@ -1,9 +1,31 @@
 @import "tailwindcss";
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
   overflow-y: hidden;
 }
 
+@layer base {
+  :root {
+    --primary: #1f1f1f;
+    --accent: #fafafa;
+    --primary-soft: #2d2d2d;
+    --accent-soft: #f5f5f5;
+  }
+
+  .dark {
+    --primary: #f9f9f9;
+    --accent: #18181b;
+    --primary-soft: #e8e8e8;
+    --accent-soft: #27272a;
+  }
+
+  body {
+    color: var(--primary);
+    background-color: var(--accent);
+    transition: color 0.3s ease, background-color 0.3s ease;
+  }
+}
