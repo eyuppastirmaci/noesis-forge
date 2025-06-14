@@ -5,7 +5,25 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Settings, LogOut, User } from "lucide-react";
+import {
+  ChevronDown,
+  Settings,
+  LogOut,
+  User,
+  FileUp,
+  FileClock,
+  Bell,
+  Loader,
+  Bot,
+  Activity,
+  List,
+  ListTree,
+  Server,
+  LoaderCircle,
+  Sparkle,
+  ListOrdered,
+} from "lucide-react";
+import IconButton from "../ui/IconButton";
 
 export default function Header() {
   const [mounted, setMounted] = useState(false);
@@ -119,12 +137,12 @@ export default function Header() {
         width: dropdownPosition.width,
         zIndex: 9999,
       }}
-      className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-100"
+      className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95 d"
     >
       <Link
         href="/settings"
         onClick={() => setIsDropdownOpen(false)}
-        className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--foreground)] no-underline transition-colors rounded-t-md hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
+        className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--foreground)] no-underline rounded-t-md hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
       >
         <Settings className="w-4 h-4 text-[var(--foreground-secondary)]" />
         <span>Settings</span>
@@ -135,7 +153,7 @@ export default function Header() {
           handleLogout();
           setIsDropdownOpen(false);
         }}
-        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-[var(--error)] transition-colors bg-transparent border-none text-left rounded-b-md hover:bg-red-50 dark:hover:bg-red-950/20"
+        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-[var(--error)] bg-transparent border-none text-left rounded-b-md hover:bg-red-50 dark:hover:bg-red-950/20"
       >
         <LogOut className="w-4 h-4 text-[var(--error)]" />
         <span>Logout</span>
@@ -153,15 +171,35 @@ export default function Header() {
               alt="Noesis Forge"
               width={220}
               height={220}
-              className={`object-contain opacity-90 hover:opacity-100 transition-opacity duration-500 ease-in-out`}
+              className={`object-contain opacity-90 hover:opacity-100 `}
             />
           </Link>
+          <div>BreadCrumb</div>
         </div>
 
-        <div className="relative">
+        <div>Global Search</div>
+
+        <div className="relative flex items-center gap-3">
+          {/* Upload */}
+          <IconButton Icon={FileUp} onClick={() => {}} />
+
+          {/* Recent Documents */}
+          <IconButton Icon={FileClock} onClick={() => {}} />
+
+          {/* Notifications */}
+          <IconButton Icon={Bell} onClick={() => {}} />
+
+          {/* Processing Queue */}
+          <IconButton Icon={ListOrdered} onClick={() => {}} />
+
+          {/* AI Status */}
+          <IconButton Icon={Sparkle} onClick={() => {}} />
+
+          <div className="text-[var(--foreground-secondary)] mx-1.5">|</div>
+
           <div
             ref={avatarRef}
-            className="flex items-center gap-2 cursor-pointer p-2 rounded-lg transition-colors hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
+            className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
             onClick={toggleDropdown}
           >
             <div className="w-8 h-8 bg-[var(--background)] border border-[var(--border)] rounded-full flex items-center justify-center">
@@ -169,7 +207,7 @@ export default function Header() {
             </div>
             <span className="text-sm font-medium select-none">username</span>
             <ChevronDown
-              className={`w-4 h-4 text-[var(--foreground-secondary)] transition-transform ${
+              className={`w-4 h-4 text-[var(--foreground-secondary)] ${
                 isDropdownOpen ? "rotate-180" : ""
               }`}
             />

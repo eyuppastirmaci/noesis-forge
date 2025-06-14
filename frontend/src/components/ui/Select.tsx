@@ -170,7 +170,7 @@ export function Select({
         maxHeight: "15rem",
         overflowY: "auto"
       }}
-      className="animate-in fade-in-0 zoom-in-95 duration-100"
+      className="animate-in fade-in-0 zoom-in-95 "
     >
       {options.map((option, index) => (
         <div
@@ -190,7 +190,6 @@ export function Select({
             cursor: "pointer",
             color: "var(--foreground)",
             fontSize: "0.875rem",
-            transition: "background-color 150ms",
             backgroundColor: option.value === value 
               ? "var(--accent-soft)" 
               : focusedIndex === index 
@@ -263,7 +262,6 @@ export function Select({
             borderRadius: "0.375rem",
             color: "var(--foreground)",
             fontSize: "0.875rem",
-            transition: "all 200ms",
             cursor: disabled ? "not-allowed" : "pointer",
             opacity: disabled ? 0.5 : 1,
             outline: isOpen ? "2px solid var(--foreground)" : "none",
@@ -311,7 +309,6 @@ export function Select({
               width: "1rem",
               height: "1rem",
               color: "var(--foreground-secondary)",
-              transition: "transform 200ms",
               transform: isOpen ? "rotate(180deg)" : "rotate(0deg)"
             }}
           />

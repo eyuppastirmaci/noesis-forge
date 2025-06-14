@@ -146,6 +146,14 @@ body {
     --foreground-secondary: var(--color-gray-700);
     --border: var(--color-gray-200);
     --border-hover: var(--color-gray-300);
+
+    /* IconButton Specific Variables - Light Mode */
+    --icon-button-border: var(--color-gray-400);
+    --icon-button-border-hover: var(--color-gray-600);
+    --icon-button-border-active: var(--color-gray-800);
+    --icon-button-icon: var(--color-gray-600);
+    --icon-button-icon-hover: var(--color-gray-800);
+    --icon-button-icon-active: var(--color-gray-900);
   }
 
   .dark {
@@ -162,11 +170,18 @@ body {
     --foreground-secondary: var(--color-gray-400);
     --border: var(--color-gray-800);
     --border-hover: var(--color-gray-700);
+
+    /* IconButton Specific Variables - Dark Mode */
+    --icon-button-border: var(--color-gray-500);
+    --icon-button-border-hover: var(--color-gray-400);
+    --icon-button-border-active: var(--color-gray-200);
+    --icon-button-icon: var(--color-gray-300);
+    --icon-button-icon-hover: var(--color-gray-200);
+    --icon-button-icon-active: var(--color-gray-50);
   }
 
   body {
     color: var(--primary);
     background-color: var(--accent);
-    transition: color 0.3s ease, background-color 0.3s ease;
   }
 }

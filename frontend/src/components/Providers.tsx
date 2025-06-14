@@ -6,7 +6,6 @@ export function Providers({ children, ...props }: ThemeProviderProps) {
     return (
         <ThemeProvider 
             {...props} 
-            disableTransitionOnChange={false}
             storageKey="noesis-theme"
         >
             {children}
