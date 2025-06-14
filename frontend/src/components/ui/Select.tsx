@@ -163,12 +163,14 @@ export function Select({
         left: dropdownPosition.left,
         width: dropdownPosition.width,
         zIndex: 9999,
+        backgroundColor: "var(--background-secondary)",
+        border: "1px solid var(--border)",
+        borderRadius: "0.375rem",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        maxHeight: "15rem",
+        overflowY: "auto"
       }}
-      className="
-        bg-card border border-border rounded-md shadow-lg
-        max-h-60 overflow-auto
-        animate-in fade-in-0 zoom-in-95 duration-100
-      "
+      className="animate-in fade-in-0 zoom-in-95 duration-100"
     >
       {options.map((option, index) => (
         <div
@@ -180,28 +182,53 @@ export function Select({
           aria-selected={option.value === value}
           onClick={(event) => handleOptionClick(option.value, event)}
           onMouseEnter={() => setFocusedIndex(index)}
-          className={`
-            flex items-center gap-2 px-3 py-2 cursor-pointer
-            text-foreground text-sm
-            transition-colors duration-150
-            ${option.value === value 
-              ? "bg-primary/10 text-primary font-medium" 
-              : "hover:bg-secondary"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 0.75rem",
+            cursor: "pointer",
+            color: "var(--foreground)",
+            fontSize: "0.875rem",
+            transition: "background-color 150ms",
+            backgroundColor: option.value === value 
+              ? "var(--accent-soft)" 
+              : focusedIndex === index 
+                ? "var(--accent-soft)" 
+                : "transparent",
+            fontWeight: option.value === value ? "500" : "400",
+            borderTopLeftRadius: index === 0 ? "0.375rem" : "0",
+            borderTopRightRadius: index === 0 ? "0.375rem" : "0",
+            borderBottomLeftRadius: index === options.length - 1 ? "0.375rem" : "0",
+            borderBottomRightRadius: index === options.length - 1 ? "0.375rem" : "0"
+          }}
+          onMouseOver={(e) => {
+            if (option.value !== value && focusedIndex !== index) {
+              e.currentTarget.style.backgroundColor = "var(--accent-soft)";
             }
-            ${focusedIndex === index ? "bg-secondary" : ""}
-            ${index === 0 ? "rounded-t-md" : ""}
-            ${index === options.length - 1 ? "rounded-b-md" : ""}
-          `}
+          }}
+          onMouseOut={(e) => {
+            if (option.value !== value && focusedIndex !== index) {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }
+          }}
         >
           {option.icon && (
-            <span className={`${option.value === value ? "text-primary" : "text-foreground/70"}`}>
+            <span style={{ 
+              color: option.value === value ? "var(--foreground)" : "var(--foreground-secondary)" 
+            }}>
               {option.icon}
             </span>
           )}
           <span>{option.label}</span>
           {option.value === value && (
-            <div className="ml-auto">
-              <div className="w-2 h-2 bg-primary rounded-full"></div>
+            <div style={{ marginLeft: "auto" }}>
+              <div style={{ 
+                width: "0.5rem", 
+                height: "0.5rem", 
+                backgroundColor: "var(--foreground)", 
+                borderRadius: "50%" 
+              }}></div>
             </div>
           )}
         </div>
@@ -224,33 +251,69 @@ export function Select({
           tabIndex={disabled ? -1 : 0}
           onClick={toggleDropdown}
           onKeyDown={handleKeyDown}
-          className={`
-            flex items-center justify-between w-full h-10 px-3
-            bg-card border border-border rounded-md
-            text-foreground text-sm
-            transition-all duration-200
-            ${disabled 
-              ? "opacity-50 cursor-not-allowed" 
-              : "cursor-pointer hover:bg-secondary hover:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+            height: "2.5rem",
+            padding: "0 0.75rem",
+            backgroundColor: "var(--background-secondary)",
+            border: "1px solid var(--border)",
+            borderRadius: "0.375rem",
+            color: "var(--foreground)",
+            fontSize: "0.875rem",
+            transition: "all 200ms",
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.5 : 1,
+            outline: isOpen ? "2px solid var(--foreground)" : "none",
+            outlineOffset: isOpen ? "2px" : "0"
+          }}
+          onMouseOver={(e) => {
+            if (!disabled) {
+              e.currentTarget.style.backgroundColor = "var(--accent-soft)";
+              e.currentTarget.style.borderColor = "var(--border-hover)";
             }
-            ${isOpen ? "ring-2 ring-primary/20 border-primary/30" : ""}
-          `}
+          }}
+          onMouseOut={(e) => {
+            if (!disabled) {
+              e.currentTarget.style.backgroundColor = "var(--background-secondary)";
+              e.currentTarget.style.borderColor = "var(--border)";
+            }
+          }}
+          onFocus={(e) => {
+            if (!disabled) {
+              e.currentTarget.style.outline = "2px solid var(--foreground)";
+              e.currentTarget.style.outlineOffset = "2px";
+            }
+          }}
+          onBlur={(e) => {
+            if (!isOpen) {
+              e.currentTarget.style.outline = "none";
+            }
+          }}
         >
-          <div className="flex items-center gap-2">
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {selectedOption?.icon && (
-              <span className="text-foreground/70">
+              <span style={{ color: "var(--foreground-secondary)" }}>
                 {selectedOption.icon}
               </span>
             )}
-            <span className={selectedOption ? "text-foreground" : "text-foreground/50"}>
+            <span style={{ 
+              color: selectedOption ? "var(--foreground)" : "var(--foreground-secondary)" 
+            }}>
               {selectedOption?.label || placeholder}
             </span>
           </div>
           
           <ChevronDown 
-            className={`w-4 h-4 text-foreground/50 transition-transform duration-200 ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            style={{
+              width: "1rem",
+              height: "1rem",
+              color: "var(--foreground-secondary)",
+              transition: "transform 200ms",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)"
+            }}
           />
         </div>
       </div>

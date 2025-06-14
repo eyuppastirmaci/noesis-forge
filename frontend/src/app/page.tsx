@@ -1,7 +1,7 @@
 export default function Home() {
   return (
     <div>
-      <h1>Noesis Forge</h1>
+      <h1 className="text-error">Noesis Forge asd</h1>
     </div>
   );
 }

@@ -19,12 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
-        <div className="bg-primary">
-          <Providers attribute="class" defaultTheme="system" enableSystem>
-            <Header />
-            {children}
-          </Providers>
-        </div>
+        <Providers attribute="class" defaultTheme="system" enableSystem>
+          <Header />
+          {children}
+        </Providers>
       </body>
     </html>
   );
