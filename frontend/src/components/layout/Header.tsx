@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Settings, LogOut } from "lucide-react";
+import { ChevronDown, Settings, LogOut, User } from "lucide-react";
 
 export default function Header() {
   const [mounted, setMounted] = useState(false);
@@ -164,6 +164,9 @@ export default function Header() {
             className="flex items-center gap-2 cursor-pointer p-2 rounded-lg transition-colors hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
             onClick={toggleDropdown}
           >
+            <div className="w-8 h-8 bg-[var(--background)] border border-[var(--border)] rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-[var(--foreground-secondary)]" />
+            </div>
             <span className="text-sm font-medium select-none">username</span>
             <ChevronDown
               className={`w-4 h-4 text-[var(--foreground-secondary)] transition-transform ${
