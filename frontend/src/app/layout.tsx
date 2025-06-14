@@ -4,10 +4,14 @@ import { Providers } from "@/components/Providers";
 import { inter } from "@/lib/fonts";
 import MainLayout from "@/components/layout/MainLayout";
 
+// Disable the cache for now.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Noesis Forge",
+  title: {
+    template: '%s | Noesis Forge',
+    default: 'Noesis Forge'
+  },
   description: "",
 };
 
