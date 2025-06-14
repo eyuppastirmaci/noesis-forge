@@ -1,0 +1,4 @@
+# BACKEND
+backend/go.sum
+backend/.env
+backend/tmp

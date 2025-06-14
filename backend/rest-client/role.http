@@ -1,0 +1,144 @@
+###
+# NoesisForge Role Management - Simple Tests
+# First login as admin in auth.http and copy the access token below
+###
+
+@baseUrl = http://localhost:8000/api/v1
+
+# IMPORTANT: Replace this with actual admin token from auth.http login
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwiZXhwIjoxNzQ5OTgxODM3LCJpYXQiOjE3NDk4OTU0MzcsInJvbGUiOiJhZG1pbiIsInJvbGVJRCI6ImNkMWFiOTViLTQ5NTAtNDFmZi1hYjJkLThmOThiYzVmZGY0NiIsInN1YiI6ImY4MDAyNmI1LWJhMGEtNGVjZC04ZmMwLWM5ZTM3ZjZmN2M2NCIsInVzZXJuYW1lIjoiYWRtaW4ifQ.6MafBZlurYoiHTtg9Cvrn7_QWBKJOyGBITOLqKeAz7U
+
+###
+# 1. Get Admin Token First
+# Run this in auth.http, then copy the accessToken above
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+###
+# 2. Get All Roles
+GET {{baseUrl}}/roles
+Authorization: Bearer {{adminToken}}
+
+###
+# 3. Get All Permissions
+GET {{baseUrl}}/roles/permissions
+Authorization: Bearer {{adminToken}}
+
+###
+# 4. Get Document Permissions
+GET {{baseUrl}}/roles/permissions/categories/document
+Authorization: Bearer {{adminToken}}
+
+###
+# 5. Get Search Permissions
+GET {{baseUrl}}/roles/permissions/categories/search
+Authorization: Bearer {{adminToken}}
+
+###
+# 6. Get Chat Permissions
+GET {{baseUrl}}/roles/permissions/categories/chat
+Authorization: Bearer {{adminToken}}
+
+###
+# 7. Get Admin Permissions
+GET {{baseUrl}}/roles/permissions/categories/admin
+Authorization: Bearer {{adminToken}}
+
+###
+# 8. Create New Role
+POST {{baseUrl}}/roles
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "editor",
+  "displayName": "Content Editor",
+  "description": "Can create and edit documents",
+  "permissionIDs": []
+}
+
+###
+# 9. Get Single Role (Replace with actual role ID from step 2)
+GET {{baseUrl}}/roles/replace-with-role-id
+Authorization: Bearer {{adminToken}}
+
+###
+# 10. Update Role (Replace with actual role ID)
+PUT {{baseUrl}}/roles/replace-with-role-id
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "displayName": "Senior Editor",
+  "description": "Senior content editor with advanced permissions"
+}
+
+###
+# 11. Create Test User for Role Assignment
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "username": "testuser",
+  "name": "Test User",
+  "password": "password123",
+  "passwordConfirm": "password123"
+}
+
+###
+# 12. Assign Role to User (Replace with actual user ID and role ID)
+POST {{baseUrl}}/roles/assign
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "userID": "replace-with-user-id",
+  "roleID": "replace-with-role-id"
+}
+
+###
+# 13. Delete Role (Replace with actual role ID)
+DELETE {{baseUrl}}/roles/replace-with-role-id
+Authorization: Bearer {{adminToken}}
+
+###
+# ERROR TESTS
+###
+
+###
+# 14. Try accessing without token (should fail)
+GET {{baseUrl}}/roles
+
+###
+# 15. Try with invalid token (should fail)
+GET {{baseUrl}}/roles
+Authorization: Bearer invalid_token
+
+###
+# 16. Try creating role with invalid data (should fail)
+POST {{baseUrl}}/roles
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "",
+  "displayName": ""
+}
+
+###
+# 17. Try creating duplicate role (should fail)
+POST {{baseUrl}}/roles
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "admin",
+  "displayName": "Duplicate Admin",
+  "description": "This should fail"
+}

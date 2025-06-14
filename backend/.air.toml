@@ -1,0 +1,59 @@
+# Specifies the root directory of the project. "." means the current directory where .air.toml is located.
+root = "."
+# A temporary directory where build artifacts (like the compiled binary) will be stored.
+tmp_dir = "tmp"
+
+[build]
+  # This is the most CRITICAL setting for your project.
+  # It tells `air` how to build your application. Since your main package is in `./cmd/api`, we specify that path here.
+  # The output binary will be named `main.exe` inside the `tmp` directory.
+  cmd = "go build -o ./tmp/main.exe ./cmd/api"
+
+  # The path to the binary file that `air` will execute after a successful build.
+  # It must match the output path defined in the `cmd` setting.
+  bin = "tmp\\main.exe"
+
+  # A list of file extensions that `air` will watch for changes.
+  # A change in any file with these extensions will trigger a rebuild.
+  # Added "env" to restart the server when environment variables change.
+  include_ext = ["go", "tpl", "tmpl", "html", "env"]
+
+  # A list of directories to ignore.
+  # This prevents rebuilds when files in these directories (like temporary files or assets) change.
+  exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+
+  # A list of regular expressions for filenames to ignore. "_test.go" files are for testing, not running the app.
+  exclude_regex = ["_test.go"]
+  
+  # If true, `air` will stop the application if the build fails. This is good for immediate feedback.
+  stop_on_error = true
+
+  # Delay in milliseconds to wait after a file change before starting a rebuild.
+  # This helps prevent multiple rebuilds if you save files very quickly.
+  delay = 1000 
+  
+  # The file where logs related to the build process itself will be written.
+  log = "build-errors.log"
+
+[log]
+  # If true, adds a timestamp to `air`'s own log output (e.g., "building...", "running...").
+  time = true
+
+[color]
+  # Customizes the color of `air`'s output in the terminal for better readability.
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[misc]
+  # A very useful setting. If true, `air` will automatically delete the `tmp_dir` when it exits.
+  # This keeps your project directory clean.
+  clean_on_exit = true
+
+[screen]
+  # If true, clears the terminal screen on each rebuild.
+  clear_on_rebuild = false
+  # A quality-of-life feature that tries to keep the scroll position after a rebuild.
+  keep_scroll = true

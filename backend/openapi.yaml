@@ -1,0 +1,1187 @@
+openapi: 3.1.0
+info:
+  title: NoesisForge API
+  description: |
+    NoesisForge backend API documentation. This API provides authentication, user management, and role-based access control functionality.
+    
+    ## Authentication
+    This API uses JWT (JSON Web Token) for authentication. Include the access token in the Authorization header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    
+    ## Rate Limiting
+    API requests are rate-limited to 100 requests per minute per IP address.
+    
+  version: 1.0.0
+  contact:
+    name: NoesisForge API Support
+    email: support@noesisforge.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://api.noesisforge.com/api/v1
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Profile
+    description: User profile management
+  - name: Roles
+    description: Role and permission management (Admin only)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User email address
+        username:
+          type: string
+          description: Unique username
+          minLength: 3
+          maxLength: 50
+        name:
+          type: string
+          description: Full name
+          minLength: 2
+          maxLength: 100
+        avatar:
+          type: string
+          description: Avatar URL
+          nullable: true
+        bio:
+          type: string
+          description: User biography
+          nullable: true
+        status:
+          type: string
+          enum: [active, pending, suspended]
+          description: User account status
+        emailVerified:
+          type: boolean
+          description: Email verification status
+        emailVerifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Email verification timestamp
+        lastLogin:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last login timestamp
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        roleID:
+          type: string
+          format: uuid
+          description: Assigned role ID
+        role:
+          $ref: '#/components/schemas/Role'
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique role identifier
+        name:
+          type: string
+          description: Role name (system identifier)
+        displayName:
+          type: string
+          description: Human-readable role name
+        description:
+          type: string
+          description: Role description
+        isDefault:
+          type: boolean
+          description: Is this the default role for new users
+        isSystem:
+          type: boolean
+          description: Is this a system role (cannot be deleted)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique permission identifier
+        name:
+          type: string
+          description: Permission name (system identifier)
+        displayName:
+          type: string
+          description: Human-readable permission name
+        description:
+          type: string
+          description: Permission description
+        category:
+          type: string
+          description: Permission category
+        isSystem:
+          type: boolean
+          description: Is this a system permission
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TokenPair:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+          description: Refresh token for obtaining new access tokens
+        tokenType:
+          type: string
+          example: Bearer
+          description: Token type
+        expiresIn:
+          type: integer
+          description: Access token expiration time in seconds
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [up, down]
+                response_time:
+                  type: integer
+                  description: Response time in milliseconds
+                connections:
+                  type: object
+                  properties:
+                    open:
+                      type: integer
+                    in_use:
+                      type: integer
+                    idle:
+                      type: integer
+                    max_open:
+                      type: integer
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        error:
+          type: string
+          description: Detailed error information (optional)
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - username
+        - name
+        - password
+        - passwordConfirm
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Unique username
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Full name
+        password:
+          type: string
+          minLength: 8
+          description: Password
+        passwordConfirm:
+          type: string
+          description: Password confirmation
+
+    LoginRequest:
+      type: object
+      required:
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email (either email or username required)
+        username:
+          type: string
+          description: Username (either email or username required)
+        password:
+          type: string
+          description: Password
+        remember:
+          type: boolean
+          description: Remember login
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Full name
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Username
+        bio:
+          type: string
+          description: User biography
+        avatar:
+          type: string
+          description: Avatar URL
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          description: Current password
+        newPassword:
+          type: string
+          minLength: 8
+          description: New password
+
+    CreateRoleRequest:
+      type: object
+      required:
+        - name
+        - displayName
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Role name (system identifier)
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Human-readable role name
+        description:
+          type: string
+          description: Role description
+        permissionIDs:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of permission IDs to assign
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Human-readable role name
+        description:
+          type: string
+          description: Role description
+        permissionIDs:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of permission IDs to assign
+
+    AssignRoleRequest:
+      type: object
+      required:
+        - userID
+        - roleID
+      properties:
+        userID:
+          type: string
+          format: uuid
+          description: User ID
+        roleID:
+          type: string
+          format: uuid
+          description: Role ID
+
+paths:
+  /:
+    get:
+      summary: Root endpoint
+      description: Returns basic API information
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: NoesisForge API
+                  version:
+                    type: string
+                    example: v1.0.0
+                  status:
+                    type: string
+                    example: running
+                  time:
+                    type: string
+                    format: date-time
+
+  /health:
+    get:
+      summary: Comprehensive health check
+      description: Performs a comprehensive health check including database connectivity
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /health/ready:
+    get:
+      summary: Readiness check
+      description: Checks if the service is ready to serve requests
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: not ready
+                  timestamp:
+                    type: string
+                    format: date-time
+                  reason:
+                    type: string
+
+  /health/live:
+    get:
+      summary: Liveness check
+      description: Checks if the service is alive
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: alive
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /auth/register:
+    post:
+      summary: Register new user
+      description: Creates a new user account
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              username: johndoe
+              name: John Doe
+              password: securepassword123
+              passwordConfirm: securepassword123
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Registration successful
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error or registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: User login
+      description: Authenticates user and returns JWT tokens
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: securepassword123
+              remember: false
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  user:
+                    $ref: '#/components/schemas/User'
+                  tokens:
+                    $ref: '#/components/schemas/TokenPair'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Account is locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Uses refresh token to obtain a new access token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token refreshed successfully
+                  tokens:
+                    $ref: '#/components/schemas/TokenPair'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      summary: User logout
+      description: Invalidates the refresh token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logout successful
+        '400':
+          description: Validation error or logout failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/profile:
+    get:
+      summary: Get user profile
+      description: Returns the authenticated user's profile information
+      tags:
+        - Profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update user profile
+      description: Updates the authenticated user's profile information
+      tags:
+        - Profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            example:
+              name: John Doe Updated
+              bio: Software Developer
+              avatar: https://example.com/avatar.jpg
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile updated successfully
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error or update failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/change-password:
+    put:
+      summary: Change password
+      description: Changes the authenticated user's password
+      tags:
+        - Profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+            example:
+              oldPassword: currentpassword123
+              newPassword: newsecurepassword456
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password changed successfully
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized or invalid old password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /roles:
+    get:
+      summary: Get all roles
+      description: Returns all roles with their permissions (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create new role
+      description: Creates a new role with specified permissions (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+            example:
+              name: moderator
+              displayName: Moderator
+              description: Can moderate content and manage users
+              permissionIDs:
+                - 550e8400-e29b-41d4-a716-446655440001
+                - 550e8400-e29b-41d4-a716-446655440002
+      responses:
+        '201':
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Role created successfully
+                  role:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Validation error or creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Role name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /roles/{id}:
+    get:
+      summary: Get role by ID
+      description: Returns a specific role with its permissions (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Role retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Invalid role ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update role
+      description: Updates a role's information and permissions (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+            example:
+              displayName: Updated Moderator
+              description: Updated description
+              permissionIDs:
+                - 550e8400-e29b-41d4-a716-446655440001
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Role updated successfully
+                  role:
+                    $ref: '#/components/schemas/Role'
+        '400':
+          description: Validation error or update failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required or cannot modify system role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete role
+      description: Deletes a role (Admin only, cannot delete system roles or roles with assigned users)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Role ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Role deleted successfully
+        '400':
+          description: Invalid role ID format or deletion failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required or cannot delete system role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /roles/permissions:
+    get:
+      summary: Get all permissions
+      description: Returns all available permissions (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Permissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permissions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /roles/permissions/categories/{category}:
+    get:
+      summary: Get permissions by category
+      description: Returns permissions filtered by category (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category
+          in: path
+          required: true
+          description: Permission category
+          schema:
+            type: string
+            enum: [document, search, chat, admin]
+      responses:
+        '200':
+          description: Permissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permissions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+        '400':
+          description: Category is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /roles/assign:
+    post:
+      summary: Assign role to user
+      description: Assigns a role to a specific user (Admin only)
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleRequest'
+            example:
+              userID: 550e8400-e29b-41d4-a716-446655440000
+              roleID: 550e8400-e29b-41d4-a716-446655440001
+      responses:
+        '200':
+          description: Role assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Role assigned successfully
+        '400':
+          description: Validation error or assignment failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User or role not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+security:
+  - BearerAuth: [] 

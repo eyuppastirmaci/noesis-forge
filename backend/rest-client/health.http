@@ -1,0 +1,30 @@
+###
+# NoesisForge Health Check Endpoints
+# Test all health endpoints to ensure the API is running correctly
+###
+
+@baseUrl = http://localhost:8000/api/v1
+
+###
+# Basic Health Check
+# Returns overall system health including database status
+GET {{baseUrl}}/health
+Content-Type: application/json
+
+###
+# Readiness Check  
+# Checks if the service is ready to serve requests
+GET {{baseUrl}}/health/ready
+Content-Type: application/json
+
+###
+# Liveness Check
+# Simple endpoint to verify service is alive
+GET {{baseUrl}}/health/live
+Content-Type: application/json
+
+###
+# Root API Info
+# Basic API information and status
+GET http://localhost:8000/
+Content-Type: application/json
