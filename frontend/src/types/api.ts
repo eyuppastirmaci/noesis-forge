@@ -29,22 +29,33 @@ export enum ApiErrorCode {
 
   // Auth operation errors
   REGISTRATION_FAILED = "REGISTRATION_FAILED",
+  USER_ALREADY_EXISTS = "USER_ALREADY_EXISTS",
   LOGIN_FAILED = "LOGIN_FAILED",
+  ACCOUNT_LOCKED = "ACCOUNT_LOCKED",
   REFRESH_FAILED = "REFRESH_FAILED",
   LOGOUT_FAILED = "LOGOUT_FAILED",
 
   // User operation errors
   USER_NOT_FOUND = "USER_NOT_FOUND",
   UPDATE_FAILED = "UPDATE_FAILED",
+  USERNAME_ALREADY_EXISTS = "USERNAME_ALREADY_EXISTS",
   PASSWORD_CHANGE_FAILED = "PASSWORD_CHANGE_FAILED",
+  INVALID_OLD_PASSWORD = "INVALID_OLD_PASSWORD",
 
   // Role operation errors
-  FETCH_FAILED = "FETCH_FAILED",
+  ROLE_NOT_FOUND = "ROLE_NOT_FOUND",
+  ROLE_NAME_EXISTS = "ROLE_NAME_EXISTS",
+  SYSTEM_ROLE_IMMUTABLE = "SYSTEM_ROLE_IMMUTABLE",
   CREATION_FAILED = "CREATION_FAILED",
+  UPDATE_FAILED_ROLE = "UPDATE_FAILED",
   DELETION_FAILED = "DELETION_FAILED",
   ASSIGNMENT_FAILED = "ASSIGNMENT_FAILED",
+  RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND",
   INVALID_ID = "INVALID_ID",
   INVALID_CATEGORY = "INVALID_CATEGORY",
+
+  // Service errors
+  SERVICE_NOT_READY = "SERVICE_NOT_READY",
 
   // Rate limiting
   RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
@@ -120,21 +131,20 @@ export interface ApiRequestConfig {
 }
 
 export interface HealthCheckResponse {
-  status: "healthy" | "unhealthy" | "ready" | "alive" | "not ready";
-  timestamp: string;
+  status: "healthy" | "unhealthy" | "ready" | "alive";
   checks?: {
     database?: {
       status: "up" | "down";
       response_time: number;
-      connections: {
+      connections?: {
         open: number;
         in_use: number;
         idle: number;
         max_open: number;
       };
+      error?: string;
     };
   };
-  reason?: string;
 }
 
 export type ApiClientResponse<T> = Promise<SuccessResponse<T>>;
@@ -168,20 +178,25 @@ export function isErrorResponse(
   return response.success === false;
 }
 
-export type BackendResponse<T> = {
-  message?: string;
-} & T;
+// Updated to match new backend response format
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+}
 
-export type MessageResponse = BackendResponse<{ message: string }>;
-export type EmptyResponse = BackendResponse<{}>;
+// Standard response types that match backend format
+export interface MessageResponse {
+  message: string;
+}
+
+export interface EmptyResponse {
+  // Empty response with just success/message
+}
 
 export interface TransformedApiResponse<T> {
   data: T;
   status: HttpStatus;
   headers: Record<string, string>;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
 }
