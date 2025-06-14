@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
+import Header from "@/components/layout/Header";
 
 export const metadata: Metadata = {
   title: "Noesis Forge",
@@ -12,11 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`antialiased`}
-      >
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className={`antialiased`}>
+        <Providers attribute="class" defaultTheme="system" enableSystem>
+          <Header />
+          {children}
+        </Providers>
       </body>
     </html>
   );
