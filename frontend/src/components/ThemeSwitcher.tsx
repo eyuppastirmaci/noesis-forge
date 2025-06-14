@@ -2,13 +2,12 @@
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-
-const SunIcon = () => <span>☀️</span>;
-const MoonIcon = () => <span>🌙</span>;
+import { Sun, Moon, Monitor } from "lucide-react";
+import { Select, SelectOption } from "./ui/Select";
 
 export function ThemeSwitcher() {
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -17,27 +16,44 @@ export function ThemeSwitcher() {
   if (!mounted) {
     return (
       <div 
-        className="p-2 rounded-md bg-gray-200 dark:bg-gray-800" 
-        style={{ width: "40px", height: "40px" }}
+        className="w-40 h-10 rounded-md bg-secondary animate-pulse" 
         aria-label="Loading theme switcher"
       />
     );
   }
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+  const currentTheme = theme || "system";
+
+  const themeOptions: SelectOption[] = [
+    {
+      value: "system",
+      label: "System",
+      icon: <Monitor className="w-4 h-4" />
+    },
+    {
+      value: "light",
+      label: "Light",
+      icon: <Sun className="w-4 h-4" />
+    },
+    {
+      value: "dark",
+      label: "Dark",
+      icon: <Moon className="w-4 h-4" />
+    }
+  ];
+
+  const handleThemeChange = (selectedTheme: string) => {
+    setTheme(selectedTheme);
   };
 
-  const currentTheme = resolvedTheme || theme;
-
   return (
-    <button
-      onClick={toggleTheme}
-      className="p-2 rounded-md bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
-      aria-label="Toggle theme"
-      suppressHydrationWarning
-    >
-      {currentTheme === "light" ? <MoonIcon /> : <SunIcon />}
-    </button>
+    <Select
+      options={themeOptions}
+      value={currentTheme}
+      onChange={handleThemeChange}
+      placeholder="Select theme"
+      className="w-40"
+      aria-label="Select theme"
+    />
   );
 }
