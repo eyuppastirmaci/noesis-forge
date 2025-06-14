@@ -1,66 +1,65 @@
-/* globals.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
 
 @layer base {
   :root {
-    /* Minimalist Light Tema Renkleri */
-    --background: 0 0% 98%; /* #FAFAFA */
-    --foreground: 0 0% 3.9%; /* #0A0A0A */
+    --background: 0 0% 98%; 
+    --foreground: 0 0% 3.9%; 
     
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 0 0% 3.9%; /* #0A0A0A */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
 
-    --border: 0 0% 89.8%; /* #E5E5E5 */
-    --input: 0 0% 89.8%; /* #E5E5E5 */
+    --border: 0 0% 89.8%; 
+    --input: 0 0% 89.8%;
 
-    /* Anlamsal Renkler (Light) */
-    --primary: 222.2 47.4% 11.2%; /* #112D4E - */
-    --primary-foreground: 210 40% 98%; /* #FAFAFA -  */
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%; 
     --primary-hover: 222.2 47.4% 21.2%;
     --primary-active: 222.2 47.4% 31.2%;
     
-    --secondary: 0 0% 96.1%; /* #F5F5F5 */
-    --secondary-foreground: 0 0% 9%; /* #171717 */
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
     --secondary-hover: 0 0% 91.1%;
     --secondary-active: 0 0% 86.1%;
 
-    --accent: 262.1 83.3% 57.8%; /* #7F5AF0 - Mor */
-    --accent-foreground: 0 0% 98%; /* #FAFAFA */
+    --accent: 262.1 83.3% 57.8%; 
+    --accent-foreground: 0 0% 98%;
     --accent-hover: 262.1 83.3% 67.8%;
     --accent-active: 262.1 83.3% 47.8%;
 
-    /* Sabit Durum Renkleri (Light/Dark'da aynı kalacak) */
-    --success: 142.1 76.2% 36.3%; /* #22C55E */
+    --success: 142.1 76.2% 36.3%; 
     --success-foreground: 0 0% 100%;
-    --warning: 47.9 95.8% 53.1%; /* #FBBF24 */
+    --warning: 47.9 95.8% 53.1%; 
     --warning-foreground: 0 0% 0%;
-    --error: 0 84.2% 60.2%; /* #EF4444 */
+    --error: 0 84.2% 60.2%;
     --error-foreground: 0 0% 100%;
-    --info: 217.2 91.2% 59.8%; /* #3B82F6 */
+    --info: 217.2 91.2% 59.8%;
     --info-foreground: 0 0% 100%;
   }
 
   .dark {
-    /* Minimalist Dark Tema Renkleri */
-    --background: 0 0% 3.9%; /* #0A0A0A */
-    --foreground: 0 0% 98%; /* #FAFAFA */
+    --background: 0 0% 3.9%; 
+    --foreground: 0 0% 98%; 
 
-    --card: 0 0% 3.9%; /* #0A0A0A */
-    --card-foreground: 0 0% 98%; /* #FAFAFA */
+    --card: 0 0% 3.9%; 
+    --card-foreground: 0 0% 98%;
 
-    --border: 0 0% 14.9%; /* #262626 */
-    --input: 0 0% 14.9%; /* #262626 */
+    --border: 0 0% 14.9%; 
+    --input: 0 0% 14.9%; 
 
-    /* Anlamsal Renkler (Dark) */
     --primary: 210 40% 98%; 
     --primary-foreground: 222.2 47.4% 11.2%; 
     --primary-hover: 210 40% 88%;
     --primary-active: 210 40% 78%;
 
-    --secondary: 0 0% 14.9%; /* #262626 */
-    --secondary-foreground: 0 0% 98%; /* #FAFAFA */
+    --secondary: 0 0% 14.9%; 
+    --secondary-foreground: 0 0% 98%;
     --secondary-hover: 0 0% 19.9%;
     --secondary-active: 0 0% 24.9%;
     
