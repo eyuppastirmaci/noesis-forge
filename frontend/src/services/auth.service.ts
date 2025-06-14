@@ -8,7 +8,6 @@ import {
   SuccessResponse,
   AuthTokens,
   User,
-  MessageResponse,
 } from "@/types";
 
 // Updated response types to match new backend format

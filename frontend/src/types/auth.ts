@@ -1,4 +1,5 @@
 import { User } from './user';
+import { ApiResponse, SuccessResponse } from './api';
 
 export interface TokenPair {
   accessToken: string;
@@ -13,10 +14,11 @@ export interface TokenClaims {
   username: string;
   roleID: string;
   roleName: string;
-  exp: number; 
-  iat: number; 
+  exp: number;
+  iat: number;
 }
 
+// ===== REQUEST TYPES =====
 export interface LoginRequest {
   email?: string;
   username?: string;
@@ -40,39 +42,54 @@ export interface LogoutRequest {
   refreshToken: string;
 }
 
-export interface LoginResponse {
-  message: string;
+export interface UpdateProfileRequest {
+  name?: string;
+  username?: string;
+  bio?: string;
+  avatar?: string;
+}
+
+export interface ChangePasswordRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+// ===== RESPONSE DATA TYPES =====
+// These match the backend's "data" field content
+
+export interface LoginResponseData {
   user: User;
   tokens: TokenPair;
 }
 
-export interface RegisterResponse {
-  message: string;
+export interface RegisterResponseData {
   user: User;
 }
 
-export interface RefreshTokenResponse {
-  message: string;
+export interface RefreshTokenResponseData {
   tokens: TokenPair;
 }
 
-export interface LogoutResponse {
-  message: string;
-}
-
-export interface ProfileResponse {
+export interface ProfileResponseData {
   user: User;
 }
 
-export interface ProfileUpdateResponse {
-  message: string;
+export interface ProfileUpdateResponseData {
   user: User;
 }
 
-export interface PasswordChangeResponse {
-  message: string;
-}
+// ===== RESPONSE TYPES (with ApiResponse wrapper) =====
+// These match the actual backend response structure
 
+export type LoginResponse = SuccessResponse<LoginResponseData>;
+export type RegisterResponse = SuccessResponse<RegisterResponseData>;
+export type RefreshTokenResponse = SuccessResponse<RefreshTokenResponseData>;
+export type LogoutResponse = SuccessResponse<null>;
+export type ProfileResponse = SuccessResponse<ProfileResponseData>;
+export type ProfileUpdateResponse = SuccessResponse<ProfileUpdateResponseData>;
+export type PasswordChangeResponse = SuccessResponse<null>;
+
+// ===== AUTH STATE =====
 export interface AuthState {
   user: User | null;
   tokens: TokenPair | null;
@@ -81,7 +98,7 @@ export interface AuthState {
   error: string | null;
 }
 
-export type AuthAction = 
+export type AuthAction =
   | { type: 'LOGIN_START' }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; tokens: TokenPair } }
   | { type: 'LOGIN_FAILURE'; payload: string }
@@ -91,13 +108,14 @@ export type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'CLEAR_ERROR' };
 
+// ===== NEXTAUTH INTEGRATION =====
 export interface NextAuthUser extends User {
   accessToken?: string;
   refreshToken?: string;
 }
 
 export interface DecodedJWT {
-  sub: string; 
+  sub: string;
   email: string;
   username: string;
   roleID: string;
@@ -106,6 +124,7 @@ export interface DecodedJWT {
   iat: number;
 }
 
+// ===== ERROR CODES =====
 export enum AuthErrorCode {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
