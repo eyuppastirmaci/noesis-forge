@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import Header from "@/components/layout/Header";
 import { inter } from "@/lib/fonts";
+import MainLayout from "@/components/layout/MainLayout";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +20,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
         <Providers attribute="class" defaultTheme="system" enableSystem>
-          <Header />
-          {children}
+          <MainLayout>{children}</MainLayout>
         </Providers>
       </body>
     </html>
