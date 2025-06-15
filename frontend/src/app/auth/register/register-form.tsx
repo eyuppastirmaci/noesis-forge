@@ -18,6 +18,7 @@ export function RegisterForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [state, formAction] = useActionState(registerAction, initialState);
+  const [clearedFields, setClearedFields] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   useEffect(() => {
@@ -31,9 +32,28 @@ export function RegisterForm() {
     }
   }, [state.success, state.redirectTo, router]);
 
+  // Handle field error clearing
+  const handleFieldChange = (fieldName: string) => {
+    setClearedFields(prev => new Set(prev).add(fieldName));
+  };
+
+  // Get field error, but return undefined if field was cleared
+  const getFieldError = (fieldName: string) => {
+    if (clearedFields.has(fieldName)) {
+      return undefined;
+    }
+    return state.fieldErrors?.[fieldName as keyof typeof state.fieldErrors];
+  };
+
+  // Reset cleared fields when form is submitted (new state)
+  useEffect(() => {
+    setClearedFields(new Set());
+  }, [state]);
+
   return (
     <Form action={formAction} className="space-y-6">
-      {state.errors.length > 0 && (
+      {/* Show general errors only if there are no field-specific errors */}
+      {state.errors.length > 0 && !state.fieldErrors && (
         <div className="space-y-2">
           {state.errors.map((error, index) => (
             <div
@@ -61,12 +81,13 @@ export function RegisterForm() {
         name="username"
         type="text"
         defaultValue={state.formData?.username || ""}
+        error={getFieldError("username")}
         autoComplete="new-password"
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck="false"
         fullWidth
-        required
+        onChange={() => handleFieldChange("username")}
       />
 
       <Input
@@ -74,31 +95,33 @@ export function RegisterForm() {
         name="name"
         type="text"
         defaultValue={state.formData?.name || ""}
+        error={getFieldError("name")}
         autoComplete="new-password"
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck="false"
         fullWidth
-        required
+        onChange={() => handleFieldChange("name")}
       />
 
       <Input
         label="Email"
         name="email"
-        type="email"
         defaultValue={state.formData?.email || ""}
+        error={getFieldError("email")}
         autoComplete="new-password"
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck="false"
         fullWidth
-        required
+        onChange={() => handleFieldChange("email")}
       />
 
       <Input
         label="Password"
         name="password"
         type={isMounted && showPassword ? "text" : "password"}
+        error={getFieldError("password")}
         autoComplete="new-password"
         autoCorrect="off"
         autoCapitalize="off"
@@ -107,7 +130,7 @@ export function RegisterForm() {
         data-form-type="other"
         data-1p-ignore="true"
         fullWidth
-        required
+        onChange={() => handleFieldChange("password")}
         rightIcon={
           <button
             type="button"
@@ -123,6 +146,7 @@ export function RegisterForm() {
         label="Confirm Password"
         name="confirmPassword"
         type={isMounted && showConfirmPassword ? "text" : "password"}
+        error={getFieldError("confirmPassword")}
         autoComplete="new-password"
         autoCorrect="off"
         autoCapitalize="off"
@@ -131,7 +155,7 @@ export function RegisterForm() {
         data-form-type="other"
         data-1p-ignore="true"
         fullWidth
-        required
+        onChange={() => handleFieldChange("confirmPassword")}
         rightIcon={
           <button
             type="button"

@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { authService } from '@/services/auth.service'
 import { RegisterRequest } from '@/types'
+import { ApiClientError } from '@/types/api'
 
 const registerSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters').max(50),
@@ -17,6 +18,13 @@ const registerSchema = z.object({
 
 export interface RegisterState {
   errors: string[]
+  fieldErrors?: {
+    username?: string
+    email?: string
+    name?: string
+    password?: string
+    confirmPassword?: string
+  }
   formData?: {
     username: string
     email: string
@@ -40,15 +48,18 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
   if (!validatedFields.success) {
     const errors = validatedFields.error.flatten().fieldErrors
     const errorMessages: string[] = []
+    const fieldErrors: { [key: string]: string } = {}
     
     Object.entries(errors).forEach(([field, messages]) => {
       if (messages && Array.isArray(messages) && messages.length > 0) {
+        fieldErrors[field] = messages[0]
         errorMessages.push(`${field}: ${messages[0]}`)
       }
     })
     
     return {
       errors: errorMessages,
+      fieldErrors,
       formData: {
         username: formValues.username,
         email: formValues.email,
@@ -70,43 +81,46 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
 
     const response = await authService.register(registerData)
 
-    if (response.success) {
-      // Registration successful, redirect to success page without exposing password
-      return {
-        errors: [],
-        success: true,
-        redirectTo: `/auth/register-success?email=${encodeURIComponent(email)}`
-      }
-    } else {
-      const errorMessage = response.message || 'Registration failed'
-      return {
-        errors: [errorMessage],
-        formData: {
-          username,
-          email,
-          name,
-        }
-      }
+    // If we reach here, registration was successful
+    return {
+      errors: [],
+      success: true,
+      redirectTo: `/auth/register-success?email=${encodeURIComponent(email)}`
     }
   } catch (error: any) {
     console.error('Registration error:', error)
     
     // Handle API error responses
-    if (error?.response?.data) {
-      const errorData = error.response.data
-      const errorMessage = errorData?.error?.message || errorData?.message || 'Registration failed'
-      return {
-        errors: [errorMessage],
-        formData: {
-          username,
-          email,
-          name,
-        }
+    let errorMessage = 'Registration failed'
+    let fieldErrors: { [key: string]: string } = {}
+    
+    // Check if it's an ApiClientError
+    if (error instanceof ApiClientError) {
+      errorMessage = error.message
+      
+      // Check if it's a field-specific error based on the message
+      if (errorMessage.toLowerCase().includes('username already exists')) {
+        fieldErrors.username = 'This username is already taken'
+      } else if (errorMessage.toLowerCase().includes('email already exists')) {
+        fieldErrors.email = 'This email is already registered'
+      }
+      
+      console.error('API Error Code:', error.code)
+      console.error('API Error Details:', error.details)
+    } else if (error?.message) {
+      // Fallback for other error types
+      errorMessage = error.message
+      
+      if (errorMessage.toLowerCase().includes('username already exists')) {
+        fieldErrors.username = 'This username is already taken'
+      } else if (errorMessage.toLowerCase().includes('email already exists')) {
+        fieldErrors.email = 'This email is already registered'
       }
     }
     
     return {
-      errors: ['Network error occurred'],
+      errors: [errorMessage],
+      fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
       formData: {
         username,
         email,
