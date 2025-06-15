@@ -43,157 +43,157 @@ NoesisForge transforms how organizations handle document management by leveragin
 
 ### Phase 1: Core Infrastructure & Basic Features
 **Create Account, Login, Authentication**
-- ✅ User registration system
-- ✅ Login functionality
-- ✅ JWT authentication
-- ✅ Password hashing and security
-- ☐ Role-based access control (RBAC)
-- ☐ Protected routes middleware
-- ☐ Data encryption (End-to-end data protection)
+- [x] User registration system
+- [x] Login functionality
+- [x] JWT authentication
+- [x] Password hashing and security
+- [ ] Role-based access control (RBAC)
+- [ ] Protected routes middleware
+- [ ] Data encryption (End-to-end data protection)
 
 **Sidebar & Layout System**
-- ☐ `AuthenticatedLayout` component
-- ☐ `PublicLayout` component
-- ☐ `Sidebar` component (collapsible, responsive)
-- ☐ Route protection (`PrivateRoute` wrapper)
-- ☐ Navigation state management
+- [ ] `AuthenticatedLayout` component
+- [ ] `PublicLayout` component
+- [ ] `Sidebar` component (collapsible, responsive)
+- [ ] Route protection (`PrivateRoute` wrapper)
+- [ ] Navigation state management
 
 **Dashboard**
-- ☐ Basic dashboard layout
-- ☐ Stats cards (mock data initially)
-- ☐ Recent documents widget
-- ☐ Quick actions section
+- [ ] Basic dashboard layout
+- [ ] Stats cards (mock data initially)
+- [ ] Recent documents widget
+- [ ] Quick actions section
 
 **Profile & Settings**
-- ☐ Profile update form
-- ☐ Avatar upload
-- ☐ Password change
-- ☐ Basic preferences (theme, language)
+- [ ] Profile update form
+- [ ] Avatar upload
+- [ ] Password change
+- [ ] Basic preferences (theme, language)
 
 ### Phase 2: Document Management Core
 **Document Upload**
-- ☐ File upload component (drag & drop)
-- ☐ MinIO integration
-- ☐ Upload progress tracking
-- ☐ Basic metadata form
-- ☐ Backend: Document service, MinIO setup
-- ☐ Batch processing (Handle multiple documents simultaneously)
-- ☐ Version control (Track document changes and revisions)
+- [ ] File upload component (drag & drop)
+- [ ] MinIO integration
+- [ ] Upload progress tracking
+- [ ] Basic metadata form
+- [ ] Backend: Document service, MinIO setup
+- [ ] Batch processing (Handle multiple documents simultaneously)
+- [ ] Version control (Track document changes and revisions)
 
 **Documents List**
-- ☐ Document grid/list view
-- ☐ Basic filtering & sorting
-- ☐ Pagination
-- ☐ Document actions (download, delete)
-- ☐ Backend: Document CRUD APIs
+- [ ] Document grid/list view
+- [ ] Basic filtering & sorting
+- [ ] Pagination
+- [ ] Document actions (download, delete)
+- [ ] Backend: Document CRUD APIs
 
 **Document Viewer**
-- ☐ PDF viewer integration
-- ☐ Document metadata display
-- ☐ Download functionality
-- ☐ Basic sharing (generate link)
+- [ ] PDF viewer integration
+- [ ] Document metadata display
+- [ ] Download functionality
+- [ ] Basic sharing (generate link)
 
 ### Phase 3: Search Foundation
 **Basic Search**
-- ☐ Search input component
-- ☐ Search results page
-- ☐ PostgreSQL full-text search
-- ☐ Backend: Search service basics
+- [ ] Search input component
+- [ ] Search results page
+- [ ] PostgreSQL full-text search
+- [ ] Backend: Search service basics
 
 **Document Processing Pipeline**
-- ☐ RabbitMQ setup
-- ☐ Embedding worker (BGE-M3)
-- ☐ Multimodal embeddings (SigLIP2 for images)
-- ☐ Text extraction service
-- ☐ Qdrant vector storage setup
-- ☐ Content summarization (Automatic document summaries)
+- [ ] RabbitMQ setup
+- [ ] Embedding worker (BGE-M3)
+- [ ] Multimodal embeddings (SigLIP2 for images)
+- [ ] Text extraction service
+- [ ] Qdrant vector storage setup
+- [ ] Content summarization (Automatic document summaries)
 
 ### Phase 4: AI Features
 **Advanced Search**
-- ☐ Vector similarity search
-- ☐ Hybrid search (keyword + semantic)
-- ☐ Search filters enhancement
-- ☐ Search history
-- ☐ Context-aware results (Intelligent ranking and relevance scoring)
+- [ ] Vector similarity search
+- [ ] Hybrid search (keyword + semantic)
+- [ ] Search filters enhancement
+- [ ] Search history
+- [ ] Context-aware results (Intelligent ranking and relevance scoring)
 
 **Chat Interface**
-- ☐ Basic chat UI
-- ☐ Ollama integration
-- ☐ Context selection from documents
-- ☐ RAG implementation
-- ☐ Backend: Chat service
+- [ ] Basic chat UI
+- [ ] Ollama integration
+- [ ] Context selection from documents
+- [ ] RAG implementation
+- [ ] Backend: Chat service
 
 ### Phase 5: Collaboration Features
 **Collections**
-- ☐ Collection CRUD
-- ☐ Add/remove documents
-- ☐ Collection sharing basics
+- [ ] Collection CRUD
+- [ ] Add/remove documents
+- [ ] Collection sharing basics
 
 **Document Sharing**
-- ☐ Share modal
-- ☐ Permission levels
-- ☐ Shared with me page
+- [ ] Share modal
+- [ ] Permission levels
+- [ ] Shared with me page
 
 ### Phase 6: Analytics & Monitoring
 **Basic Analytics**
-- ☐ Usage statistics
-- ☐ Document analytics
-- ☐ Search analytics
-- ☐ Chart components (Recharts)
+- [ ] Usage statistics
+- [ ] Document analytics
+- [ ] Search analytics
+- [ ] Chart components (Recharts)
 
 **Notifications System**
-- ☐ Notification center (navbar)
-- ☐ Real-time updates (WebSocket/SSE)
-- ☐ Email notifications
+- [ ] Notification center (navbar)
+- [ ] Real-time updates (WebSocket/SSE)
+- [ ] Email notifications
 
 **Audit & Security Logging**
-- ☐ Audit logs (Track all system activities)
-- ☐ Security event monitoring
+- [ ] Audit logs (Track all system activities)
+- [ ] Security event monitoring
 
 ### Phase 7: Admin Features
 **User Management**
-- ☐ User list with pagination
-- ☐ User details page
-- ☐ User actions (suspend, delete)
+- [ ] User list with pagination
+- [ ] User details page
+- [ ] User actions (suspend, delete)
 
 **Role & Permission Management**
-- ☐ Role CRUD
-- ☐ Permission assignment UI
-- ☐ Role assignment to users
+- [ ] Role CRUD
+- [ ] Permission assignment UI
+- [ ] Role assignment to users
 
 ### Phase 8: Public Pages
 **Landing & Marketing Pages**
-- ☐ Landing page
-- ☐ Features page
-- ☐ Pricing page
-- ☐ About/Contact pages
+- [ ] Landing page
+- [ ] Features page
+- [ ] Pricing page
+- [ ] About/Contact pages
 
 **Documentation**
-- ☐ Documentation structure
-- ☐ Markdown rendering
-- ☐ Search in docs
+- [ ] Documentation structure
+- [ ] Markdown rendering
+- [ ] Search in docs
 
 ### Phase 9: Advanced Features
 **Team Features**
-- ☐ Team creation
-- ☐ Member management
-- ☐ Team permissions
+- [ ] Team creation
+- [ ] Member management
+- [ ] Team permissions
 
 **Advanced Features**
-- ☐ API Keys management
-- ☐ Integrations (Slack, etc.)
-- ☐ System settings
-- ☐ Mobile responsive design
-- ☐ Text-to-Speech (TTS) support
-- ☐ OAuth Authentication
-  - ☐ Google Sign-in
-  - ☐ Facebook Login
-  - ☐ LinkedIn Authentication
-- ☐ Mobile Application (React Native/Flutter)
-- ☐ Progressive Web App (PWA) support
-- ☐ Offline document access
-- ☐ Voice search capabilities
-- ☐ Multi-language UI support
+- [ ] API Keys management
+- [ ] Integrations (Slack, etc.)
+- [ ] System settings
+- [ ] Mobile responsive design
+- [ ] Text-to-Speech (TTS) support
+- [ ] OAuth Authentication
+  - [ ] Google Sign-in
+  - [ ] Facebook Login
+  - [ ] LinkedIn Authentication
+- [ ] Mobile Application (React Native/Flutter)
+- [ ] Progressive Web App (PWA) support
+- [ ] Offline document access
+- [ ] Voice search capabilities
+- [ ] Multi-language UI support
 
 
 ## 🛠️ Tech Stack
