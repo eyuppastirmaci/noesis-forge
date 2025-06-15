@@ -21,26 +21,6 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	}
 }
 
-func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
-	auth := r.Group("/auth")
-	{
-		// Public routes with validation middleware
-		auth.POST("/register", validations.ValidateCreateUser(), h.Register)
-		auth.POST("/login", validations.ValidateLogin(), h.Login)
-		auth.POST("/refresh", h.RefreshToken)
-		auth.POST("/logout", h.Logout)
-
-		// Protected routes
-		protected := auth.Group("")
-		protected.Use(middleware.AuthMiddleware(h.authService))
-		{
-			protected.GET("/profile", h.GetProfile)
-			protected.PUT("/profile", validations.ValidateUpdateProfile(), h.UpdateProfile)
-			protected.PUT("/change-password", validations.ValidateChangePassword(), h.ChangePassword)
-		}
-	}
-}
-
 func (h *AuthHandler) Register(c *gin.Context) {
 	fmt.Println("Register request received")
 

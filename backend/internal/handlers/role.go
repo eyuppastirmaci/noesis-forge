@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -19,26 +18,6 @@ func NewRoleHandler(roleService *services.RoleService, authService *services.Aut
 	return &RoleHandler{
 		roleService: roleService,
 		authService: authService,
-	}
-}
-
-func (h *RoleHandler) RegisterRoutes(r *gin.RouterGroup) {
-	roles := r.Group("/roles")
-	roles.Use(middleware.AuthMiddleware(h.authService))
-	{
-		// Role management (admin only)
-		roles.GET("", middleware.RequireAdmin(), h.GetRoles)
-		roles.GET("/:id", middleware.RequireAdmin(), h.GetRoleByID)
-		roles.POST("", middleware.RequireAdmin(), h.CreateRole)
-		roles.PUT("/:id", middleware.RequireAdmin(), h.UpdateRole)
-		roles.DELETE("/:id", middleware.RequireAdmin(), h.DeleteRole)
-
-		// Permission management
-		roles.GET("/permissions", middleware.RequireAdmin(), h.GetPermissions)
-		roles.GET("/permissions/categories/:category", middleware.RequireAdmin(), h.GetPermissionsByCategory)
-
-		// User role assignment
-		roles.POST("/assign", middleware.RequireAdmin(), h.AssignRole)
 	}
 }
 

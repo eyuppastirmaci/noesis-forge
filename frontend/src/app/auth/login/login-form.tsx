@@ -36,7 +36,7 @@ export function LoginForm() {
       }).then((result) => {
         if (result?.ok) {
           const userName = state.user?.name || state.user?.username || "User";
-          toast.success(`Welcome ${userName}!`);
+          toast.info(`Welcome ${userName}`);
           router.push(state.redirectTo || "/");
         } else {
           console.error("NextAuth signIn failed:", result?.error);

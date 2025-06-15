@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
-	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/gin-gonic/gin"
@@ -58,15 +57,10 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	// API routes
 	api := r.engine.Group("/api/v1")
 
-	// Initialize handlers
-	healthHandler := handlers.NewHealthHandler(db)
-	authHandler := handlers.NewAuthHandler(r.authService)
-	roleHandler := handlers.NewRoleHandler(r.roleService, r.authService)
-
 	// Register routes
-	healthHandler.RegisterRoutes(api)
-	authHandler.RegisterRoutes(api)
-	roleHandler.RegisterRoutes(api)
+	RegisterHealthRoutes(api, db)
+	RegisterAuthRoutes(api, r.authService)
+	RegisterRoleRoutes(api, r.roleService, r.authService)
 }
 
 func (r *Router) GetEngine() *gin.Engine {

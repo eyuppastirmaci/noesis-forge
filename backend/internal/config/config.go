@@ -21,7 +21,6 @@ type Config struct {
 	// Qdrant   QdrantConfig
 	// Ollama   OllamaConfig
 	// Email    EmailConfig
-	// CORS     CORSConfig
 	// Metrics  MetricsConfig
 	// Logging  LoggingConfig
 	// Auth     AuthPolicyConfig
@@ -48,7 +47,7 @@ type JWTConfig struct {
 	Audience         string        `envconfig:"JWT_AUDIENCE" default:"noesis-forge-api"`
 }
 
-// Future configuration structs (for when we implement these features)
+// Future configuration structs
 
 type RedisConfig struct {
 	URL         string        `envconfig:"REDIS_URL" default:"redis://localhost:6379"`

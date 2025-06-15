@@ -17,15 +17,6 @@ func NewHealthHandler(db *gorm.DB) *HealthHandler {
 	return &HealthHandler{db: db}
 }
 
-func (h *HealthHandler) RegisterRoutes(r *gin.RouterGroup) {
-	health := r.Group("/health")
-	{
-		health.GET("", h.HealthCheck)
-		health.GET("/ready", h.ReadinessCheck)
-		health.GET("/live", h.LivenessCheck)
-	}
-}
-
 // HealthCheck performs a comprehensive health check
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	status := "healthy"
