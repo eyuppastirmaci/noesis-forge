@@ -98,14 +98,14 @@ export default function Header() {
     return (
       <div className="w-full grid grid-cols-3 items-center px-4 h-[80px]">
         <div className="flex items-center gap-2">
-          <div className="w-[280px] h-[280px] bg-secondary animate-pulse rounded" />
+          <div className="w-[280px] h-[280px] bg-background-secondary animate-pulse rounded" />
         </div>
         <div className="flex justify-center">
-          <div className="w-48 h-10 bg-secondary animate-pulse rounded" />
+          <div className="w-48 h-10 bg-background-secondary animate-pulse rounded" />
         </div>
         <div className="flex items-center gap-2 justify-end">
-          <div className="w-8 h-8 bg-secondary animate-pulse rounded-full" />
-          <div className="w-16 h-4 bg-secondary animate-pulse rounded" />
+          <div className="w-8 h-8 bg-background-secondary animate-pulse rounded-full" />
+          <div className="w-16 h-4 bg-background-secondary animate-pulse rounded" />
         </div>
       </div>
     );
@@ -138,14 +138,14 @@ export default function Header() {
         width: dropdownPosition.width,
         zIndex: 9999,
       }}
-      className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95 d"
+      className="bg-background-secondary border border-border rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95"
     >
       <Link
         href="/settings"
         onClick={() => setIsDropdownOpen(false)}
-        className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--foreground)] no-underline rounded-t-md hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
+        className="flex items-center gap-2 px-4 py-3 text-sm text-foreground no-underline rounded-t-md hover:bg-background dark:hover:bg-accent-soft"
       >
-        <Settings className="w-4 h-4 text-[var(--foreground-secondary)]" />
+        <Settings className="w-4 h-4 text-foreground-secondary" />
         <span>Settings</span>
       </Link>
 
@@ -154,9 +154,9 @@ export default function Header() {
           handleLogout();
           setIsDropdownOpen(false);
         }}
-        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-[var(--error)] bg-transparent border-none text-left rounded-b-md hover:bg-red-50 dark:hover:bg-red-950/20"
+        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-error bg-transparent border-none text-left rounded-b-md hover:bg-red-50 dark:hover:bg-red-950/20"
       >
-        <LogOut className="w-4 h-4 text-[var(--error)]" />
+        <LogOut className="w-4 h-4 text-error" />
         <span>Logout</span>
       </button>
     </div>
@@ -232,19 +232,19 @@ export default function Header() {
           />
           <CustomTooltip anchorSelect=".btn-ai-status" place="left">AI Status</CustomTooltip>
 
-          <div className="text-[var(--foreground-secondary)] mx-1.5">|</div>
+          <div className="text-foreground-secondary mx-1.5">|</div>
 
           <div
             ref={avatarRef}
-            className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
+            className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-background dark:hover:bg-accent-soft"
             onClick={toggleDropdown}
           >
-            <div className="group w-9 h-9 bg-[var(--background)] border border-[var(--icon-button-border)] hover:border-[var(--icon-button-border-hover)] active:border-[var(--icon-button-border-active)] rounded-full flex items-center justify-center cursor-pointer">
-              <User className="w-4.5 h-4.5 text-[var(--icon-button-icon)] group-hover:text-[var(--icon-button-icon-hover)] group-active:text-[var(--icon-button-icon-active)]" />
+            <div className="group w-9 h-9 bg-background border border-icon-button-border hover:border-icon-button-border-hover active:border-icon-button-border-active rounded-full flex items-center justify-center cursor-pointer">
+              <User className="w-4.5 h-4.5 text-icon-button-icon group-hover:text-icon-button-icon-hover group-active:text-icon-button-icon-active" />
             </div>
             <span className="text-sm font-medium select-none">username</span>
             <ChevronDown
-              className={`w-4 h-4 text-[var(--foreground-secondary)] ${
+              className={`w-4 h-4 text-foreground-secondary ${
                 isDropdownOpen ? "rotate-180" : ""
               }`}
             />

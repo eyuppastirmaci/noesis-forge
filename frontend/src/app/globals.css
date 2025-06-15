@@ -56,6 +56,22 @@
   --color-accent: var(--color-gray-50);
   --color-primary-soft: var(--color-gray-800);
   --color-accent-soft: var(--color-gray-100);
+
+  /* Theme Colors - Bu kısım Tailwind utility'leri için önemli */
+  --color-background: var(--color-gray-50);
+  --color-background-secondary: var(--color-gray-100);
+  --color-foreground: var(--color-gray-900);
+  --color-foreground-secondary: var(--color-gray-700);
+  --color-border: var(--color-gray-200);
+  --color-border-hover: var(--color-gray-300);
+
+  /* Icon Button Colors */
+  --color-icon-button-border: var(--color-gray-400);
+  --color-icon-button-border-hover: var(--color-gray-600);
+  --color-icon-button-border-active: var(--color-gray-800);
+  --color-icon-button-icon: var(--color-gray-600);
+  --color-icon-button-icon-hover: var(--color-gray-800);
+  --color-icon-button-icon-active: var(--color-gray-900);
 }
 
 html,
@@ -70,7 +86,6 @@ body {
 
 @layer base {
   :root {
-    /* Legacy CSS variables - now referencing Tailwind theme */
     --gray-50: var(--color-gray-50);
     --gray-100: var(--color-gray-100);
     --gray-200: var(--color-gray-200);
@@ -79,7 +94,7 @@ body {
     --gray-500: var(--color-gray-500);
     --gray-600: var(--color-gray-600);
     --gray-700: var(--color-gray-700);
-    --gray-800: var(--color-gray-800);
+    --color-gray-800: var(--color-gray-800);
     --gray-900: var(--color-gray-900);
     --gray-950: var(--color-gray-950);
 
@@ -140,23 +155,39 @@ body {
     --accent-soft: var(--color-accent-soft);
 
     /* Additional Theme Colors */
-    --background: var(--color-gray-50);
-    --background-secondary: var(--color-gray-100);
-    --foreground: var(--color-gray-900);
-    --foreground-secondary: var(--color-gray-700);
-    --border: var(--color-gray-200);
-    --border-hover: var(--color-gray-300);
+    --background: var(--color-background);
+    --background-secondary: var(--color-background-secondary);
+    --foreground: var(--color-foreground);
+    --foreground-secondary: var(--color-foreground-secondary);
+    --border: var(--color-border);
+    --border-hover: var(--color-border-hover);
 
     /* IconButton Specific Variables - Light Mode */
-    --icon-button-border: var(--color-gray-400);
-    --icon-button-border-hover: var(--color-gray-600);
-    --icon-button-border-active: var(--color-gray-800);
-    --icon-button-icon: var(--color-gray-600);
-    --icon-button-icon-hover: var(--color-gray-800);
-    --icon-button-icon-active: var(--color-gray-900);
+    --icon-button-border: var(--color-icon-button-border);
+    --icon-button-border-hover: var(--color-icon-button-border-hover);
+    --icon-button-border-active: var(--color-icon-button-border-active);
+    --icon-button-icon: var(--color-icon-button-icon);
+    --icon-button-icon-hover: var(--color-icon-button-icon-hover);
+    --icon-button-icon-active: var(--color-icon-button-icon-active);
   }
 
   .dark {
+    /* Dark mode için theme color overrides */
+    --color-background: var(--color-gray-950);
+    --color-background-secondary: var(--color-gray-900);
+    --color-foreground: var(--color-gray-100);
+    --color-foreground-secondary: var(--color-gray-400);
+    --color-border: var(--color-gray-800);
+    --color-border-hover: var(--color-gray-700);
+
+    /* IconButton Specific Variables - Dark Mode */
+    --color-icon-button-border: var(--color-gray-500);
+    --color-icon-button-border-hover: var(--color-gray-400);
+    --color-icon-button-border-active: var(--color-gray-200);
+    --color-icon-button-icon: var(--color-gray-300);
+    --color-icon-button-icon-hover: var(--color-gray-200);
+    --color-icon-button-icon-active: var(--color-gray-50);
+
     /* Theme Variables - Dark Mode */
     --primary: var(--color-gray-100);
     --accent: var(--color-gray-950);
@@ -164,20 +195,20 @@ body {
     --accent-soft: var(--color-gray-900);
 
     /* Additional Theme Colors */
-    --background: var(--color-gray-950);
-    --background-secondary: var(--color-gray-900);
-    --foreground: var(--color-gray-100);
-    --foreground-secondary: var(--color-gray-400);
-    --border: var(--color-gray-800);
-    --border-hover: var(--color-gray-700);
+    --background: var(--color-background);
+    --background-secondary: var(--color-background-secondary);
+    --foreground: var(--color-foreground);
+    --foreground-secondary: var(--color-foreground-secondary);
+    --border: var(--color-border);
+    --border-hover: var(--color-border-hover);
 
-    /* IconButton Specific Variables - Dark Mode */
-    --icon-button-border: var(--color-gray-500);
-    --icon-button-border-hover: var(--color-gray-400);
-    --icon-button-border-active: var(--color-gray-200);
-    --icon-button-icon: var(--color-gray-300);
-    --icon-button-icon-hover: var(--color-gray-200);
-    --icon-button-icon-active: var(--color-gray-50);
+    /* IconButton Specific Variables */
+    --icon-button-border: var(--color-icon-button-border);
+    --icon-button-border-hover: var(--color-icon-button-border-hover);
+    --icon-button-border-active: var(--color-icon-button-border-active);
+    --icon-button-icon: var(--color-icon-button-icon);
+    --icon-button-icon-hover: var(--color-icon-button-icon-hover);
+    --icon-button-icon-active: var(--color-icon-button-icon-active);
   }
 
   body {

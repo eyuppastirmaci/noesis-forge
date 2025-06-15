@@ -54,8 +54,8 @@ export default function IconDropdownButton({
       {isOpen && (
         <div className={cn(
           "absolute top-full mt-1 right-0 min-w-48 z-50",
-          "bg-[var(--background)] border border-[var(--icon-button-border)]",
-          "rounded-lg shadow-lg overflow-hidden"
+          "bg-background border border-icon-button-border",
+          "rounded-lg shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95"
         )}>
           {dropdownItems.map((item, index) => (
             <button
@@ -63,16 +63,16 @@ export default function IconDropdownButton({
               onClick={() => handleItemClick(item)}
               className={cn(
                 "w-full px-3 py-2 text-left flex items-center gap-2",
-                "text-[var(--foreground)]",
-                "hover:bg-[var(--background)]",
-                "hover:text-[var(--foreground)]",
+                "text-foreground text-sm",
+                "hover:bg-background-secondary",
+                "hover:text-foreground",
                 "transition-colors duration-150"
               )}
             >
               {item.icon && (
-                <item.icon className="w-4 h-4" />
+                <item.icon className="w-4 h-4 text-foreground-secondary" />
               )}
-              <span className="text-sm">{item.label}</span>
+              <span>{item.label}</span>
             </button>
           ))}
         </div>

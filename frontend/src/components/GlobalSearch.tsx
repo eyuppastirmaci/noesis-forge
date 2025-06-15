@@ -118,15 +118,15 @@ export default function GlobalSearch() {
       <div
         className={`
           relative flex items-center gap-3 px-5 h-12 
-          bg-[var(--background)] 
+          bg-background 
           border rounded-full
           transition-all duration-200
           ${
             isFocused
-              ? "border-[var(--icon-button-border-active)] shadow-lg shadow-black/5 dark:shadow-white/5"
+              ? "border-icon-button-border-active shadow-lg shadow-black/5 dark:shadow-white/5"
               : isHovered
-              ? "border-[var(--icon-button-border-hover)]"
-              : "border-[var(--border)]"
+              ? "border-icon-button-border-hover"
+              : "border-border"
           }
         `}
       >
@@ -137,10 +137,10 @@ export default function GlobalSearch() {
             transition-colors duration-200
             ${
               isFocused
-                ? "text-[var(--icon-button-icon-active)]"
+                ? "text-icon-button-icon-active"
                 : isHovered
-                ? "text-[var(--icon-button-icon-hover)]"
-                : "text-[var(--icon-button-icon)]"
+                ? "text-icon-button-icon-hover"
+                : "text-icon-button-icon"
             }
           `}
         />
@@ -157,8 +157,8 @@ export default function GlobalSearch() {
           className={`
             flex-1 bg-transparent border-none outline-none
             text-base font-normal
-            text-[var(--foreground)]
-            placeholder:text-[var(--foreground-secondary)]
+            text-foreground
+            placeholder:text-foreground-secondary
             ${isFocused ? "placeholder:opacity-70" : "placeholder:opacity-50"}
           `}
         />
@@ -177,10 +177,10 @@ export default function GlobalSearch() {
                 inline-flex items-center justify-center
                 h-6 min-w-[24px] px-1.5
                 text-[11px] font-medium
-                bg-[var(--background-secondary)]
-                border border-[var(--border)]
+                bg-background-secondary
+                border border-border
                 rounded
-                text-[var(--foreground-secondary)]
+                text-foreground-secondary
               `}
             >
               <Command className="w-3 h-3" />
@@ -190,10 +190,10 @@ export default function GlobalSearch() {
                 inline-flex items-center justify-center
                 h-6 min-w-[24px] px-1.5
                 text-[11px] font-medium
-                bg-[var(--background-secondary)]
-                border border-[var(--border)]
+                bg-background-secondary
+                border border-border
                 rounded
-                text-[var(--foreground-secondary)]
+                text-foreground-secondary
               `}
             >
               K
@@ -208,13 +208,13 @@ export default function GlobalSearch() {
             className={`
               flex items-center justify-center
               w-6 h-6 rounded-full
-              bg-[var(--background-secondary)]
-              hover:bg-[var(--border)]
+              bg-background-secondary
+              hover:bg-border
               transition-all duration-200
               animate-in fade-in-0 zoom-in-95
             `}
           >
-            <span className="text-sm text-[var(--foreground-secondary)]">
+            <span className="text-sm text-foreground-secondary">
               ×
             </span>
           </button>
