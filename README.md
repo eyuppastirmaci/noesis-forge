@@ -41,124 +41,159 @@ NoesisForge transforms how organizations handle document management by leveragin
 
 ## 🗺️ Development Roadmap
 
-### Phase 1: Foundation
-- ✅ **Core Infrastructure**
-  - ✅ Project structure and Clean Architecture setup
-  - ✅ Database connection and GORM integration
-  - ✅ Environment configuration management
-  - ✅ Middleware pipeline (CORS, Rate Limiting, Logging)
+### Phase 1: Core Infrastructure & Basic Features
+**Create Account, Login, Authentication**
+- ✅ User registration system
+- ✅ Login functionality
+- ✅ JWT authentication
+- ✅ Password hashing and security
+- ☐ Role-based access control (RBAC)
+- ☐ Protected routes middleware
+- ☐ Data encryption (End-to-end data protection)
 
-- ✅ **Authentication & Authorization System**
-  - ✅ JWT token generation and validation
-  - ✅ User registration and login endpoints
-  - ✅ Role-based access control (RBAC)
-  - ✅ Password hashing and security
-  - ✅ Protected routes middleware
+**Sidebar & Layout System**
+- ☐ `AuthenticatedLayout` component
+- ☐ `PublicLayout` component
+- ☐ `Sidebar` component (collapsible, responsive)
+- ☐ Route protection (`PrivateRoute` wrapper)
+- ☐ Navigation state management
 
-- ✅ **API Gateway Foundation**
-  - ✅ Gin router setup and configuration
-  - ✅ Rate limiting implementation
-  - ✅ CORS policy configuration
-  - ✅ Request/Response middleware
-  - ✅ Error handling and logging
+**Dashboard**
+- ☐ Basic dashboard layout
+- ☐ Stats cards (mock data initially)
+- ☐ Recent documents widget
+- ☐ Quick actions section
 
-- ✅ **Health & Monitoring**
-  - ✅ Health check endpoints
-  - ✅ Database connectivity monitoring
-  - ✅ Basic system status reporting
+**Profile & Settings**
+- ☐ Profile update form
+- ☐ Avatar upload
+- ☐ Password change
+- ☐ Basic preferences (theme, language)
 
-### Phase 2: Core Services
-- ☐ **Document Management Service**
-  - ☐ File upload endpoints (PDF, DOCX, TXT)
-  - ☐ Document metadata extraction
-  - ☐ File validation and sanitization
-  - ☐ Document versioning system
-  - ☐ Integration with MinIO object storage
+### Phase 2: Document Management Core
+**Document Upload**
+- ☐ File upload component (drag & drop)
+- ☐ MinIO integration
+- ☐ Upload progress tracking
+- ☐ Basic metadata form
+- ☐ Backend: Document service, MinIO setup
+- ☐ Batch processing (Handle multiple documents simultaneously)
+- ☐ Version control (Track document changes and revisions)
 
-- ☐ **Data Layer Expansion**
-  - ☐ PostgreSQL optimizations and indexing
-  - ☐ Redis cache layer integration
-  - ☐ Qdrant vector database setup
-  - ☐ MinIO object storage configuration
+**Documents List**
+- ☐ Document grid/list view
+- ☐ Basic filtering & sorting
+- ☐ Pagination
+- ☐ Document actions (download, delete)
+- ☐ Backend: Document CRUD APIs
 
-### Phase 3: AI/ML Pipeline
-- ☐ **Embedding Service**
-  - ☐ Text chunking algorithms
-  - ☐ Integration with embedding models (BGE-M3, SigLIP)
-  - ☐ Batch processing for large documents
-  - ☐ Vector storage in Qdrant
+**Document Viewer**
+- ☐ PDF viewer integration
+- ☐ Document metadata display
+- ☐ Download functionality
+- ☐ Basic sharing (generate link)
 
-- ☐ **AI/ML Pipeline**
-  - ☐ Async processing with RabbitMQ
-  - ☐ Embedding worker implementation
-  - ☐ Content preprocessing pipeline
-  - ☐ Multi-format document parsing
+### Phase 3: Search Foundation
+**Basic Search**
+- ☐ Search input component
+- ☐ Search results page
+- ☐ PostgreSQL full-text search
+- ☐ Backend: Search service basics
 
-### Phase 4: Search & Retrieval
-- ☐ **Search Service**
-  - ☐ Full-text search implementation
-  - ☐ Vector similarity search
-  - ☐ Hybrid search (keyword + semantic)
-  - ☐ Search result ranking and filtering
-  - ☐ Advanced query processing
+**Document Processing Pipeline**
+- ☐ RabbitMQ setup
+- ☐ Embedding worker (BGE-M3)
+- ☐ Multimodal embeddings (SigLIP2 for images)
+- ☐ Text extraction service
+- ☐ Qdrant vector storage setup
+- ☐ Content summarization (Automatic document summaries)
 
-- ☐ **Search Optimization**
-  - ☐ Query performance optimization
-  - ☐ Result caching strategies
-  - ☐ Search analytics and metrics
+### Phase 4: AI Features
+**Advanced Search**
+- ☐ Vector similarity search
+- ☐ Hybrid search (keyword + semantic)
+- ☐ Search filters enhancement
+- ☐ Search history
+- ☐ Context-aware results (Intelligent ranking and relevance scoring)
 
-### Phase 5: Conversational AI
-- ☐ **Chat Service**
-  - ☐ Conversational AI interface
-  - ☐ Context-aware response generation
-  - ☐ Chat history management
-  - ☐ Integration with LLM providers
-  - ☐ Conversation threading
+**Chat Interface**
+- ☐ Basic chat UI
+- ☐ Ollama integration
+- ☐ Context selection from documents
+- ☐ RAG implementation
+- ☐ Backend: Chat service
 
-- ☐ **RAG Implementation**
-  - ☐ Retrieval-Augmented Generation
-  - ☐ Context injection for LLM queries
-  - ☐ Response quality optimization
-  - ☐ Citation and source tracking
+### Phase 5: Collaboration Features
+**Collections**
+- ☐ Collection CRUD
+- ☐ Add/remove documents
+- ☐ Collection sharing basics
 
-### Phase 6: Advanced Features
-- ☐ **Message Queue Integration**
-  - ☐ RabbitMQ setup and configuration
-  - ☐ Async job processing
-  - ☐ Event-driven architecture
-  - ☐ Job status tracking and monitoring
+**Document Sharing**
+- ☐ Share modal
+- ☐ Permission levels
+- ☐ Shared with me page
 
-- ☐ **Advanced Monitoring**
-  - ☐ Prometheus metrics integration
-  - ☐ Grafana dashboards
-  - ☐ Loki log aggregation
-  - ☐ Performance monitoring
-  - ☐ Alert management
+### Phase 6: Analytics & Monitoring
+**Basic Analytics**
+- ☐ Usage statistics
+- ☐ Document analytics
+- ☐ Search analytics
+- ☐ Chart components (Recharts)
 
-- ☐ **Cache Layer Optimization**
-  - ☐ Redis session management
-  - ☐ Search result caching
-  - ☐ API response caching
-  - ☐ Cache invalidation strategies
+**Notifications System**
+- ☐ Notification center (navbar)
+- ☐ Real-time updates (WebSocket/SSE)
+- ☐ Email notifications
 
-### Phase 7: Production Readiness
-- ☐ **Security Enhancements**
-  - ☐ API security hardening
-  - ☐ Input validation and sanitization
-  - ☐ Rate limiting improvements
-  - ☐ Security audit and testing
+**Audit & Security Logging**
+- ☐ Audit logs (Track all system activities)
+- ☐ Security event monitoring
 
-- ☐ **Performance & Scalability**
-  - ☐ Database query optimization
-  - ☐ Connection pooling
-  - ☐ Horizontal scaling preparation
-  - ☐ Load testing and optimization
+### Phase 7: Admin Features
+**User Management**
+- ☐ User list with pagination
+- ☐ User details page
+- ☐ User actions (suspend, delete)
 
-- ☐ **DevOps & Deployment**
-  - ☐ Docker containerization
-  - ☐ CI/CD pipeline setup
-  - ☐ Environment-specific configurations
-  - ☐ Backup and recovery strategies
+**Role & Permission Management**
+- ☐ Role CRUD
+- ☐ Permission assignment UI
+- ☐ Role assignment to users
+
+### Phase 8: Public Pages
+**Landing & Marketing Pages**
+- ☐ Landing page
+- ☐ Features page
+- ☐ Pricing page
+- ☐ About/Contact pages
+
+**Documentation**
+- ☐ Documentation structure
+- ☐ Markdown rendering
+- ☐ Search in docs
+
+### Phase 9: Advanced Features
+**Team Features**
+- ☐ Team creation
+- ☐ Member management
+- ☐ Team permissions
+
+**Advanced Features**
+- ☐ API Keys management
+- ☐ Integrations (Slack, etc.)
+- ☐ System settings
+- ☐ Mobile responsive design
+- ☐ Text-to-Speech (TTS) support
+- ☐ OAuth Authentication
+  - ☐ Google Sign-in
+  - ☐ Facebook Login
+  - ☐ LinkedIn Authentication
+- ☐ Mobile Application (React Native/Flutter)
+- ☐ Progressive Web App (PWA) support
+- ☐ Offline document access
+- ☐ Voice search capabilities
+- ☐ Multi-language UI support
 
 
 ## 🛠️ Tech Stack
@@ -174,12 +209,12 @@ NoesisForge transforms how organizations handle document management by leveragin
 - **Authentication**: JWT tokens
 - **Monitoring**: Prometheus + Grafana
 
-### Frontend (Planned)
-- **Framework**: Next.js 14 with React 18
+### Frontend
+- **Framework**: Next.js 15 with React 19
 - **Styling**: Tailwind CSS
-- **State Management**: Zustand
+- **State Management**: Redux Toolkit
 - **HTTP Client**: Axios
-- **UI Components**: Headless UI + Custom components
+- **UI Components**: Custom components
 - **Type Safety**: TypeScript
 
 ### AI/ML Pipeline

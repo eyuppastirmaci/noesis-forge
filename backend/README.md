@@ -44,21 +44,6 @@ The project follows a **Clean Architecture** pattern with a **Modular Monolith**
 └─────────────────┘
 ```
 
-## ✨ Features
-
-### Currently Implemented
-- ✅ **Authentication & Authorization**
-  - JWT-based authentication
-  - Role-based access control (RBAC)
-  - User registration and login
-- ✅ **API Gateway**
-  - Rate limiting
-  - CORS handling
-  - Request/Response middleware
-- ✅ **Health Monitoring**
-  - Health check endpoints
-  - Database connectivity checks
-
 ## 🛠️ Tech Stack
 
 - **Language:** Go 1.24.2
