@@ -1,7 +1,8 @@
 'use server'
 
 import { z } from 'zod'
-import { ENV } from '@/config/env'
+import { authService } from '@/services/auth.service'
+import { RegisterRequest } from '@/types'
 
 const registerSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters').max(50),
@@ -59,36 +60,17 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
   const { username, email, name, password } = validatedFields.data
 
   try {
-    const response = await fetch(`${ENV.API_URL}/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username,
-        email,
-        name,
-        password,
-        passwordConfirm: password,
-      }),
-    });
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      // Handle error response
-      const errorMessage = data?.error?.message || data?.message || 'Registration failed'
-      return {
-        errors: [errorMessage],
-        formData: {
-          username,
-          email,
-          name,
-        }
-      }
+    const registerData: RegisterRequest = {
+      username,
+      email,
+      name,
+      password,
+      passwordConfirm: password,
     }
 
-    if (data.success) {
+    const response = await authService.register(registerData)
+
+    if (response.success) {
       // Registration successful, redirect to success page without exposing password
       return {
         errors: [],
@@ -96,7 +78,7 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
         redirectTo: `/auth/register-success?email=${encodeURIComponent(email)}`
       }
     } else {
-      const errorMessage = data?.error?.message || 'Registration failed'
+      const errorMessage = response.message || 'Registration failed'
       return {
         errors: [errorMessage],
         formData: {
@@ -106,8 +88,23 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
         }
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error)
+    
+    // Handle API error responses
+    if (error?.response?.data) {
+      const errorData = error.response.data
+      const errorMessage = errorData?.error?.message || errorData?.message || 'Registration failed'
+      return {
+        errors: [errorMessage],
+        formData: {
+          username,
+          email,
+          name,
+        }
+      }
+    }
+    
     return {
       errors: ['Network error occurred'],
       formData: {
