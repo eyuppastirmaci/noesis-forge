@@ -38,7 +38,7 @@ export function LoginForm() {
         if (result?.ok) {
           // Show welcome message with user name from action
           const userName = state.user?.name || state.user?.username || "User";
-          toast.success(`Welcome ${userName}! You've successfully signed in.`);
+          toast.success(`Welcome ${userName}!`);
           // Then redirect to the desired page
           router.push(state.redirectTo || "/");
         } else {
