@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
@@ -40,6 +41,8 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
+
+	fmt.Println("Register request received")
 	var req services.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())

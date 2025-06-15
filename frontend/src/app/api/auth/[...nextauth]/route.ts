@@ -1,4 +1,3 @@
-// frontend/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import type { NextAuthOptions } from "next-auth"
@@ -17,30 +16,34 @@ const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Backend'e login isteği gönder
+          // Determine if identifier is email or username
+          const isEmail = credentials.identifier.includes('@')
+          const loginData = {
+            ...(isEmail ? { email: credentials.identifier } : { username: credentials.identifier }),
+            password: credentials.password,
+          }
+
+          // Send login request to backend
           const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              identifier: credentials.identifier,
-              password: credentials.password,
-            }),
+            body: JSON.stringify(loginData),
           })
 
           const data = await response.json()
 
           if (response.ok && data.success) {
-            // Backend'den gelen user bilgilerini döndür
+            // Return user information from backend
             return {
               id: data.data.user.id,
               email: data.data.user.email,
               name: data.data.user.name,
               username: data.data.user.username,
               roleID: data.data.user.roleID,
-              accessToken: data.data.accessToken,
-              refreshToken: data.data.refreshToken,
+              accessToken: data.data.tokens.accessToken,
+              refreshToken: data.data.tokens.refreshToken,
             }
           }
 
