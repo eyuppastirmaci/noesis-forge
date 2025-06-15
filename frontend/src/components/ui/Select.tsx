@@ -163,7 +163,7 @@ export function Select({
         width: dropdownPosition.width,
         zIndex: 9999,
       }}
-      className="bg-background-secondary border border-border rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95"
+      className="bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95"
     >
       {options.map((option, index) => (
         <div
@@ -178,11 +178,11 @@ export function Select({
           className={`
             flex items-center gap-2 px-3 py-2 cursor-pointer text-foreground text-sm
             transition-colors duration-150
-            ${option.value === value ? "bg-accent-soft font-medium" : "font-normal"}
-            ${focusedIndex === index ? "bg-accent-soft" : ""}
+            ${option.value === value ? "bg-background-secondary font-medium" : "font-normal"}
+            ${focusedIndex === index ? "bg-background-secondary" : ""}
             ${index === 0 ? "rounded-t-md" : ""}
             ${index === options.length - 1 ? "rounded-b-md" : ""}
-            hover:bg-accent-soft
+            hover:bg-background-secondary
           `}
         >
           {option.icon && (
@@ -221,7 +221,7 @@ export function Select({
             bg-background-secondary border border-border rounded-md
             text-foreground text-sm cursor-pointer
             transition-all duration-150
-            ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent-soft hover:border-border-hover"}
+            ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-background hover:border-border-hover"}
             ${isOpen ? "outline outline-2 outline-foreground outline-offset-2" : ""}
           `}
         >

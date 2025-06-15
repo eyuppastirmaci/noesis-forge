@@ -105,6 +105,10 @@ export default function HeaderRight() {
   if (status === "unauthenticated") {
     return (
       <div className="flex items-center gap-3 justify-end">
+        {/* Settings */}
+        <IconLinkButton Icon={Settings} href="/settings" className="btn-settings" />
+        <CustomTooltip anchorSelect=".btn-settings">Settings</CustomTooltip>
+        
         <Link
           href="/auth/login"
           className="px-4 py-2 text-sm font-medium text-foreground hover:text-foreground-secondary transition-colors"
