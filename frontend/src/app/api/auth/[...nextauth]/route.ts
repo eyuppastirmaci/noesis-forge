@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import type { NextAuthOptions } from "next-auth"
+import { ENV } from "@/config/env"
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -24,7 +25,7 @@ const authOptions: NextAuthOptions = {
           }
 
           // Send login request to backend
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+          const response = await fetch(`${ENV.API_URL}/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

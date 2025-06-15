@@ -1,13 +1,14 @@
 import { useSession } from "next-auth/react";
 import axios, { AxiosInstance } from "axios";
 import { useMemo } from "react";
+import { ENV } from "@/config/env";
 
 export function useAuthAPI(): AxiosInstance {
   const { data: session } = useSession();
 
   const axiosInstance = useMemo(() => {
     const instance = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL,
+      baseURL: ENV.API_URL,
       headers: {
         "Content-Type": "application/json",
       },

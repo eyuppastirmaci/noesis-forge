@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { ENV } from '@/config/env'
 
 const registerSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters').max(50),
@@ -58,7 +59,7 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
   const { username, email, name, password } = validatedFields.data
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+    const response = await fetch(`${ENV.API_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,11 +89,11 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
     }
 
     if (data.success) {
-      // Registration successful, return success state to redirect on client-side
+      // Registration successful, redirect to success page without exposing password
       return {
         errors: [],
         success: true,
-        redirectTo: `/auth/register-success?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+        redirectTo: `/auth/register-success?email=${encodeURIComponent(email)}`
       }
     } else {
       const errorMessage = data?.error?.message || 'Registration failed'
