@@ -14,7 +14,7 @@ export default function NotFound() {
         
         <div className="space-y-4">
           <h2 className="text-2xl font-medium text-gray-100">
-            Document Not Found
+            We Couldn't Find What You're Looking For
           </h2>
           <p className="text-gray-400 leading-relaxed">
             The intelligence you're seeking has wandered off into the digital void. 

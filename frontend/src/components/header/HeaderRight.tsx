@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useSession, signOut } from "next-auth/react";
 import {
   ChevronDown,
   Settings,
@@ -17,8 +18,10 @@ import Link from "next/link";
 import IconLinkButton from "../ui/IconLinkButton";
 import IconDropdownButton from "../ui/IconDropdownButton";
 import CustomTooltip from "../ui/CustomTooltip";
+import Button from "../ui/Button";
 
 export default function HeaderRight() {
+  const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({
@@ -88,18 +91,38 @@ export default function HeaderRight() {
     }
   }, [isDropdownOpen]);
 
-  if (!mounted) {
+  // Loading state
+  if (!mounted || status === "loading") {
     return (
       <div className="flex items-center gap-2 justify-end">
-        <div className="w-8 h-8 bg-background-secondary animate-pulse rounded-full" />
-        <div className="w-16 h-4 bg-background-secondary animate-pulse rounded" />
+        <div className="w-20 h-8 bg-background-secondary animate-pulse rounded" />
+        <div className="w-20 h-8 bg-background-secondary animate-pulse rounded" />
       </div>
     );
   }
 
-  const handleLogout = () => {
-    // TODO: Implement logout functionality
-    console.log("Logout clicked");
+  // Not authenticated - show Sign In / Sign Up buttons
+  if (status === "unauthenticated") {
+    return (
+      <div className="flex items-center gap-3 justify-end">
+        <Link
+          href="/auth/login"
+          className="px-4 py-2 text-sm font-medium text-foreground hover:text-foreground-secondary transition-colors"
+        >
+          Sign In
+        </Link>
+        <Link href="/auth/register">
+          <Button variant="primary" size="md">
+            Sign Up
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  // Authenticated - show full header
+  const handleLogout = async () => {
+    await signOut({ redirect: true, callbackUrl: "/" });
   };
 
   const toggleDropdown = () => {
@@ -118,27 +141,51 @@ export default function HeaderRight() {
       }}
       className="bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95"
     >
+      <div className="px-4 py-3 border-b border-border">
+        <p className="text-sm font-medium">{session?.user?.name || "User"}</p>
+        <p className="text-xs text-foreground-secondary">
+          {session?.user?.email}
+        </p>
+      </div>
+
+      <Link
+        href="/profile"
+        onClick={() => setIsDropdownOpen(false)}
+        className="flex items-center gap-2 px-4 py-3 text-sm text-foreground no-underline hover:bg-gray-200 dark:hover:bg-gray-800"
+      >
+        <User className="w-4 h-4 text-foreground-secondary" />
+        <span>Profile</span>
+      </Link>
+
       <Link
         href="/settings"
         onClick={() => setIsDropdownOpen(false)}
-        className="flex items-center gap-2 px-4 py-3 text-sm text-foreground no-underline rounded-t-md hover:bg-gray-200 dark:hover:bg-gray-800"
+        className="flex items-center gap-2 px-4 py-3 text-sm text-foreground no-underline hover:bg-gray-200 dark:hover:bg-gray-800"
       >
         <Settings className="w-4 h-4 text-foreground-secondary" />
         <span>Settings</span>
       </Link>
 
-      <button
-        onClick={() => {
-          handleLogout();
-          setIsDropdownOpen(false);
-        }}
-        className="flex items-center gap-2 w-full px-4 py-3 text-sm text-error bg-transparent border-none text-left rounded-b-md hover:bg-red-50 dark:hover:bg-red-950/20"
-      >
-        <LogOut className="w-4 h-4 text-error" />
-        <span>Logout</span>
-      </button>
+      <div className="border-t border-border">
+        <button
+          onClick={() => {
+            handleLogout();
+            setIsDropdownOpen(false);
+          }}
+          className="flex items-center gap-2 w-full px-4 py-3 text-sm text-error bg-transparent border-none text-left rounded-b-md hover:bg-red-50 dark:hover:bg-red-950/20"
+        >
+          <LogOut className="w-4 h-4 text-error" />
+          <span>Logout</span>
+        </button>
+      </div>
     </div>
   );
+
+  // Get first letter of username for avatar
+  const avatarLetter =
+    session?.user?.name?.[0]?.toUpperCase() ||
+    session?.user?.username?.[0]?.toUpperCase() ||
+    "U";
 
   return (
     <>
@@ -174,7 +221,9 @@ export default function HeaderRight() {
         {/* Processing Queue */}
         <IconDropdownButton
           Icon={ListOrdered}
-          dropdownItems={[{ label: "Articles are being researched...", onClick: () => {} }]}
+          dropdownItems={[
+            { label: "Articles are being researched...", onClick: () => {} },
+          ]}
           className="btn-processing-queue"
         />
         <CustomTooltip anchorSelect=".btn-processing-queue" place="left">
@@ -187,7 +236,9 @@ export default function HeaderRight() {
           dropdownItems={[{ label: "Ollama is running...", onClick: () => {} }]}
           className="btn-ai-status"
         />
-        <CustomTooltip anchorSelect=".btn-ai-status" place="left">AI Status</CustomTooltip>
+        <CustomTooltip anchorSelect=".btn-ai-status" place="left">
+          AI Status
+        </CustomTooltip>
 
         <div className="text-foreground-secondary mx-1.5">|</div>
 
@@ -196,10 +247,14 @@ export default function HeaderRight() {
           className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800"
           onClick={toggleDropdown}
         >
-          <div className="group w-9 h-9 bg-background border border-icon-button-border hover:border-icon-button-border-hover active:border-icon-button-border-active rounded-full flex items-center justify-center cursor-pointer">
-            <User className="w-4.5 h-4.5 text-icon-button-icon group-hover:text-icon-button-icon-hover group-active:text-icon-button-icon-active" />
+          <div className="group w-9 h-9 bg-primary border border-icon-button-border hover:border-icon-button-border-hover active:border-icon-button-border-active rounded-full flex items-center justify-center cursor-pointer">
+            <span className="text-sm font-medium text-primary-foreground select-none">
+              {avatarLetter}
+            </span>
           </div>
-          <span className="text-sm font-medium select-none">username</span>
+          <span className="text-sm font-medium select-none">
+            {session?.user?.name || session?.user?.username || "User"}
+          </span>
           <ChevronDown
             className={`w-4 h-4 text-foreground-secondary ${
               isDropdownOpen ? "rotate-180" : ""
