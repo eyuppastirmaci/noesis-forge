@@ -147,3 +147,32 @@ func LegacyErrorResponse(c *gin.Context, statusCode int, data gin.H) {
 
 	ErrorResponse(c, statusCode, code, message, details)
 }
+
+func FieldValidationErrorResponse(c *gin.Context, message string, fieldErrors map[string]string) {
+	// Convert fieldErrors to ValidationError slice for consistency
+	var validationErrors []ValidationError
+	for field, msg := range fieldErrors {
+		validationErrors = append(validationErrors, ValidationError{
+			Field:   field,
+			Message: msg,
+		})
+	}
+
+	response := ApiResponse{
+		Success:    false,
+		StatusCode: http.StatusBadRequest,
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		Error: &ApiError{
+			Code:             "VALIDATION_ERROR",
+			Message:          message,
+			ValidationErrors: validationErrors,
+		},
+	}
+
+	// Also include fieldErrors in data for easier frontend parsing
+	response.Data = gin.H{
+		"fieldErrors": fieldErrors,
+	}
+
+	c.JSON(http.StatusBadRequest, response)
+}

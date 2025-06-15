@@ -155,14 +155,16 @@ export class ApiClientError extends Error {
   public readonly code: ApiErrorCode;
   public readonly details?: string;
   public readonly validationErrors?: ValidationError[];
+  public readonly response?: any; // Add response property
 
-  constructor(error: ApiError, statusCode: HttpStatus) {
+  constructor(error: ApiError, statusCode: HttpStatus, response?: any) {
     super(error.message);
     this.name = "ApiClientError";
     this.statusCode = statusCode;
     this.code = error.code;
     this.details = error.details;
     this.validationErrors = error.validationErrors;
+    this.response = response; // Store the full response
   }
 }
 

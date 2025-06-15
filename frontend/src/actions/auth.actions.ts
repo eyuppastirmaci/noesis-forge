@@ -1,20 +1,8 @@
 'use server'
 
-import { z } from 'zod'
 import { authService } from '@/services/auth.service'
 import { RegisterRequest } from '@/types'
 import { ApiClientError } from '@/types/api'
-
-const registerSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters').max(50),
-  email: z.string().email('Invalid email address'),
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string().min(8, 'Confirm password is required'),
-}).refine((data: { password: string; confirmPassword: string }) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-})
 
 export interface RegisterState {
   errors: string[]
@@ -40,52 +28,17 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
     email: formData.get('email') as string,
     name: formData.get('name') as string,
     password: formData.get('password') as string,
-    confirmPassword: formData.get('confirmPassword') as string,
+    passwordConfirm: formData.get('confirmPassword') as string, // Note: backend expects passwordConfirm
   }
-
-  const validatedFields = registerSchema.safeParse(formValues)
-
-  if (!validatedFields.success) {
-    const errors = validatedFields.error.flatten().fieldErrors
-    const errorMessages: string[] = []
-    const fieldErrors: { [key: string]: string } = {}
-    
-    Object.entries(errors).forEach(([field, messages]) => {
-      if (messages && Array.isArray(messages) && messages.length > 0) {
-        fieldErrors[field] = messages[0]
-        errorMessages.push(`${field}: ${messages[0]}`)
-      }
-    })
-    
-    return {
-      errors: errorMessages,
-      fieldErrors,
-      formData: {
-        username: formValues.username,
-        email: formValues.email,
-        name: formValues.name,
-      }
-    }
-  }
-
-  const { username, email, name, password } = validatedFields.data
 
   try {
-    const registerData: RegisterRequest = {
-      username,
-      email,
-      name,
-      password,
-      passwordConfirm: password,
-    }
-
-    const response = await authService.register(registerData)
+    const response = await authService.register(formValues as RegisterRequest)
 
     // If we reach here, registration was successful
     return {
       errors: [],
       success: true,
-      redirectTo: `/auth/register-success?email=${encodeURIComponent(email)}`
+      redirectTo: `/auth/register-success?email=${encodeURIComponent(formValues.email)}`
     }
   } catch (error: any) {
     console.error('Registration error:', error)
@@ -98,34 +51,53 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
     if (error instanceof ApiClientError) {
       errorMessage = error.message
       
-      // Check if it's a field-specific error based on the message
-      if (errorMessage.toLowerCase().includes('username already exists')) {
-        fieldErrors.username = 'This username is already taken'
-      } else if (errorMessage.toLowerCase().includes('email already exists')) {
-        fieldErrors.email = 'This email is already registered'
+      // Check for validation errors in the error response
+      if (error.validationErrors && error.validationErrors.length > 0) {
+        // Convert validation errors array to fieldErrors object
+        error.validationErrors.forEach((validationError) => {
+          fieldErrors[validationError.field] = validationError.message
+        })
+      }
+      
+      // Also check if fieldErrors are in the response data
+      const responseData = (error as any).response?.data?.data?.fieldErrors
+      if (responseData && typeof responseData === 'object') {
+        fieldErrors = { ...fieldErrors, ...responseData }
       }
       
       console.error('API Error Code:', error.code)
       console.error('API Error Details:', error.details)
-    } else if (error?.message) {
-      // Fallback for other error types
-      errorMessage = error.message
+      console.error('Field Errors:', fieldErrors)
+    } else if (error?.response?.data) {
+      // Handle axios error response structure
+      const errorData = error.response.data
       
-      if (errorMessage.toLowerCase().includes('username already exists')) {
-        fieldErrors.username = 'This username is already taken'
-      } else if (errorMessage.toLowerCase().includes('email already exists')) {
-        fieldErrors.email = 'This email is already registered'
+      if (errorData.error?.validationErrors) {
+        // Convert validation errors array to fieldErrors object
+        errorData.error.validationErrors.forEach((validationError: any) => {
+          fieldErrors[validationError.field] = validationError.message
+        })
       }
+      
+      if (errorData.data?.fieldErrors) {
+        fieldErrors = { ...fieldErrors, ...errorData.data.fieldErrors }
+      }
+      
+      if (errorData.error?.message) {
+        errorMessage = errorData.error.message
+      }
+    } else if (error?.message) {
+      errorMessage = error.message
     }
     
     return {
-      errors: [errorMessage],
+      errors: Object.keys(fieldErrors).length > 0 ? [] : [errorMessage], // Only show general error if no field errors
       fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
       formData: {
-        username,
-        email,
-        name,
+        username: formValues.username,
+        email: formValues.email,
+        name: formValues.name,
       }
     }
   }
-} 
+}

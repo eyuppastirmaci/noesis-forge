@@ -41,22 +41,63 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
-
 	fmt.Println("Register request received")
+
 	var req services.RegisterRequest
+
+	// Try to bind JSON
 	if err := c.ShouldBindJSON(&req); err != nil {
+		// Parse validation errors into field-specific errors
+		fieldErrors := utils.ParseValidationErrors(err)
+
+		// If we have field errors, send them as field-specific
+		if len(fieldErrors) > 0 {
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			return
+		}
+
+		// Otherwise, send generic validation error
 		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
 		return
 	}
 
+	// Additional custom validations can be added here
+	fieldErrors := make(map[string]string)
+
+	// Validate password confirmation matches
+	if req.Password != req.PasswordConfirm {
+		fieldErrors["confirmPassword"] = "Passwords don't match"
+	}
+
+	// If there are custom validation errors, return them
+	if len(fieldErrors) > 0 {
+		utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+		return
+	}
+
+	// Call service to register user
 	user, err := h.authService.Register(c.Request.Context(), &req)
 	if err != nil {
 		status := http.StatusBadRequest
 		code := "REGISTRATION_FAILED"
-		if err.Error() == "email already exists" || err.Error() == "username already exists" {
-			status = http.StatusConflict
-			code = "USER_ALREADY_EXISTS"
+
+		// Handle specific database errors as field errors
+		if err.Error() == "email already exists" {
+			fieldErrors := map[string]string{
+				"email": "This email is already registered",
+			}
+			utils.FieldValidationErrorResponse(c, "Registration failed", fieldErrors)
+			return
 		}
+
+		if err.Error() == "username already exists" {
+			fieldErrors := map[string]string{
+				"username": "This username is already taken",
+			}
+			utils.FieldValidationErrorResponse(c, "Registration failed", fieldErrors)
+			return
+		}
+
 		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}

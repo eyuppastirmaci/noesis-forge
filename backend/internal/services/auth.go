@@ -30,11 +30,11 @@ func NewAuthService(db *gorm.DB, cfg *config.Config) *AuthService {
 
 // Request/Response types
 type RegisterRequest struct {
-	Email           string `json:"email" binding:"required,email"`
-	Username        string `json:"username" binding:"required,min=3,max=50"`
-	Name            string `json:"name" binding:"required,min=2,max=100"`
-	Password        string `json:"password" binding:"required,min=8"`
-	PasswordConfirm string `json:"passwordConfirm" binding:"required"`
+	Email           string `json:"email" binding:"required,email" example:"user@example.com"`
+	Username        string `json:"username" binding:"required,min=3,max=50,username" example:"johndoe"`
+	Name            string `json:"name" binding:"required,min=2,max=100" example:"John Doe"`
+	Password        string `json:"password" binding:"required,min=8,password_strength" example:"SecurePass123!"`
+	PasswordConfirm string `json:"passwordConfirm" binding:"required,eqfield=Password" example:"SecurePass123!"`
 }
 
 type LoginRequest struct {
