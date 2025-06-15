@@ -37,10 +37,8 @@ export function RegisterForm() {
         redirect: false,
       }).then((result) => {
         if (result?.ok) {
-          // Show welcome message with user name from action
           const userName = state.user?.name || state.user?.username || "User";
-          toast.success(`Welcome ${userName}!`);
-          // Then redirect to the desired page
+          toast.success(`Account created successfully! Welcome ${userName}!`);
           router.push(state.redirectTo || "/");
         } else {
           console.error("NextAuth signIn failed after registration:", result?.error);
