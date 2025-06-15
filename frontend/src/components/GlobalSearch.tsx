@@ -7,7 +7,68 @@ export default function GlobalSearch() {
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [placeholder, setPlaceholder] = useState("Search");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Typewriter effect for placeholder
+  useEffect(() => {
+    const phrases = ["Legal Documents", "Papers", "Technical Docs"];
+    let currentPhraseIndex = 0;
+    let currentText = "";
+    let isDeleting = false;
+    let isWaiting = false;
+    let charIndex = 0;
+
+    const typeWriter = () => {
+      const currentPhrase = phrases[currentPhraseIndex];
+
+      if (isWaiting) {
+        // Wait period after typing complete phrase
+        setTimeout(() => {
+          isWaiting = false;
+          isDeleting = true;
+          typeWriter();
+        }, 1500); // Wait 1.5 seconds before deleting
+        return;
+      }
+
+      if (!isDeleting) {
+        // Typing
+        if (charIndex < currentPhrase.length) {
+          currentText = currentPhrase.substring(0, charIndex + 1);
+          setPlaceholder(`Search ${currentText}`);
+          charIndex++;
+          setTimeout(typeWriter, 100); // Typing speed
+        } else {
+          // Finished typing current phrase
+          isWaiting = true;
+          typeWriter();
+        }
+      } else {
+        // Deleting
+        if (charIndex > 0) {
+          currentText = currentPhrase.substring(0, charIndex - 1);
+          setPlaceholder(`Search ${currentText}`);
+          charIndex--;
+          setTimeout(typeWriter, 50); // Deleting speed (faster than typing)
+        } else {
+          // Finished deleting, move to next phrase
+          isDeleting = false;
+          currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
+          setTimeout(typeWriter, 500); // Pause before typing next phrase
+        }
+      }
+    };
+
+    // Start the typewriter effect after initial delay
+    const initialTimeout = setTimeout(() => {
+      typeWriter();
+    }, 1000); // Wait 1 second before starting
+
+    return () => {
+      clearTimeout(initialTimeout);
+    };
+  }, []);
 
   // Keyboard shortcut handler
   useEffect(() => {
@@ -92,7 +153,7 @@ export default function GlobalSearch() {
           onChange={(e) => setSearchValue(e.target.value)}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholder="Search Documents, Papers, Docs..."
+          placeholder={placeholder}
           className={`
             flex-1 bg-transparent border-none outline-none
             text-base font-normal
