@@ -181,19 +181,19 @@ export default function Header() {
 
         <div className="relative flex items-center gap-3">
           {/* Upload */}
-          <IconButton Icon={FileUp} onClick={() => {}} />
+          <IconButton Icon={FileUp} onClick={() => {}} className="btn-upload" />
 
           {/* Recent Documents */}
-          <IconButton Icon={FileClock} onClick={() => {}} />
+          <IconButton Icon={FileClock} onClick={() => {}} className="btn-recent-documents" />
 
           {/* Notifications */}
-          <IconButton Icon={Bell} onClick={() => {}} />
+          <IconButton Icon={Bell} onClick={() => {}} className="btn-notifications" />
 
           {/* Processing Queue */}
-          <IconButton Icon={ListOrdered} onClick={() => {}} />
+          <IconButton Icon={ListOrdered} onClick={() => {}} className="btn-processing-queue" />
 
           {/* AI Status */}
-          <IconButton Icon={Sparkle} onClick={() => {}} />
+          <IconButton Icon={Sparkle} onClick={() => {}} className="btn-ai-status" />
 
           <div className="text-[var(--foreground-secondary)] mx-1.5">|</div>
 
@@ -202,8 +202,8 @@ export default function Header() {
             className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-[var(--background)] dark:hover:bg-[var(--accent-soft)]"
             onClick={toggleDropdown}
           >
-            <div className="w-8 h-8 bg-[var(--background)] border border-[var(--border)] rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-[var(--foreground-secondary)]" />
+            <div className="group w-9 h-9 bg-[var(--background)] border border-[var(--icon-button-border)] hover:border-[var(--icon-button-border-hover)] active:border-[var(--icon-button-border-active)] rounded-full flex items-center justify-center cursor-pointer">
+              <User className="w-4.5 h-4.5 text-[var(--icon-button-icon)] group-hover:text-[var(--icon-button-icon-hover)] group-active:text-[var(--icon-button-icon-active)]" />
             </div>
             <span className="text-sm font-medium select-none">username</span>
             <ChevronDown
