@@ -68,7 +68,8 @@ NoesisForge transforms how organizations handle document management by leveragin
 - [ ] Profile update form
 - [ ] Avatar upload
 - [ ] Password change
-- [ ] Basic preferences (theme, language)
+- [x] Theme preferences (light/dark)
+- [ ] Language preferences
 
 ### Phase 2: Document Management Core
 **Document Upload**
