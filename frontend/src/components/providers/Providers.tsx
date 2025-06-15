@@ -2,13 +2,16 @@
 
 import { ThemeProvider, type ThemeProviderProps } from "next-themes";
 import AuthSessionProvider from "./SessionProvider";
+import ToastProvider from "@/providers/ToastProvider";
 
 export function Providers({ children, ...props }: ThemeProviderProps) {
   return (
-    <AuthSessionProvider>
-      <ThemeProvider {...props} storageKey="noesis-theme">
-        {children}
-      </ThemeProvider>
-    </AuthSessionProvider>
+    <ToastProvider>
+      <AuthSessionProvider>
+        <ThemeProvider {...props} storageKey="noesis-theme">
+          {children}
+        </ThemeProvider>
+      </AuthSessionProvider>
+    </ToastProvider>
   );
 }

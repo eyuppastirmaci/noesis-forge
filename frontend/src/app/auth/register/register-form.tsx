@@ -9,6 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { registerAction, RegisterState } from "@/actions";
+import { toast } from "@/utils/toast";
 
 const initialState: RegisterState = {
   errors: [],
@@ -36,10 +37,14 @@ export function RegisterForm() {
         redirect: false,
       }).then((result) => {
         if (result?.ok) {
+          // Show welcome message with user name from action
+          const userName = state.user?.name || state.user?.username || "User";
+          toast.success(`Welcome ${userName}!`);
           // Then redirect to the desired page
           router.push(state.redirectTo || "/");
         } else {
           console.error("NextAuth signIn failed after registration:", result?.error);
+          toast.info("Account created successfully! Please sign in.");
           // Still redirect even if NextAuth fails
           router.push(state.redirectTo || "/");
         }

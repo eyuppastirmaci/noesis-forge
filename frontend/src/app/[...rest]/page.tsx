@@ -14,11 +14,11 @@ export default function NotFound() {
         
         <div className="space-y-4">
           <h2 className="text-2xl font-medium text-gray-100">
-            We Couldn't Find What You're Looking For
+            We Couldn&apos;t Find What You&apos;re Looking For
           </h2>
           <p className="text-gray-400 leading-relaxed">
-            The intelligence you're seeking has wandered off into the digital void. 
-            Let's guide you back to familiar territory.
+            The intelligence you&apos;re seeking has wandered off into the digital void. 
+            Let&apos;s guide you back to familiar territory.
           </p>
         </div>
         

@@ -9,6 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { loginAction, LoginState } from "@/actions";
+import { toast } from "@/utils/toast";
 
 const initialState: LoginState = {
   errors: [],
@@ -35,10 +36,14 @@ export function LoginForm() {
         redirect: false,
       }).then((result) => {
         if (result?.ok) {
+          // Show welcome message with user name from action
+          const userName = state.user?.name || state.user?.username || "User";
+          toast.success(`Welcome ${userName}! You've successfully signed in.`);
           // Then redirect to the desired page
           router.push(state.redirectTo || "/");
         } else {
           console.error("NextAuth signIn failed:", result?.error);
+          toast.error("Sign in completed but session update failed.");
           // Still redirect even if NextAuth fails
           router.push(state.redirectTo || "/");
         }

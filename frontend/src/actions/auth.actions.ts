@@ -1,7 +1,7 @@
 'use server'
 
 import { authService } from '@/services/auth.service'
-import { RegisterRequest } from '@/types'
+import { RegisterRequest, LoginRequest } from '@/types'
 import { ApiClientError } from '@/types/api'
 
 export interface RegisterState {
@@ -24,6 +24,11 @@ export interface RegisterState {
     identifier: string
     password: string
   }
+  user?: {
+    name: string
+    username: string
+    email: string
+  }
 }
 
 export interface LoginState {
@@ -42,6 +47,11 @@ export interface LoginState {
     identifier: string
     password: string
   }
+  user?: {
+    name: string
+    username: string
+    email: string
+  }
 }
 
 export async function loginAction(prevState: LoginState, formData: FormData): Promise<LoginState> {
@@ -58,16 +68,21 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
       password: formValues.password,
     }
 
-    const response = await authService.login(loginRequest as any)
+    const response = await authService.login(loginRequest as LoginRequest)
 
     // Return success with credentials to trigger NextAuth signIn in the component
     return {
       errors: [],
       success: true,
       credentials: formValues,
+      user: {
+        name: response.data.user.name,
+        username: response.data.user.username,
+        email: response.data.user.email,
+      },
       redirectTo: '/'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login error:', error)
     
     // Handle API error responses
@@ -87,17 +102,20 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
       }
       
       // Also check if fieldErrors are in the response data
-      const responseData = (error as any).response?.data?.data?.fieldErrors
-      if (responseData && typeof responseData === 'object') {
-        fieldErrors = { ...fieldErrors, ...responseData }
+      if (error.response?.data?.data?.fieldErrors) {
+        const responseData = error.response.data.data.fieldErrors
+        if (responseData && typeof responseData === 'object') {
+          fieldErrors = { ...fieldErrors, ...responseData }
+        }
       }
       
       console.error('API Error Code:', error.code)
       console.error('API Error Details:', error.details)
       console.error('Field Errors:', fieldErrors)
-    } else if (error?.response?.data) {
+    } else if (typeof error === 'object' && error !== null && 'response' in error) {
       // Handle axios error response structure
-      const errorData = error.response.data
+      const axiosError = error as { response: { data: any } }
+      const errorData = axiosError.response.data
       
       if (errorData.error?.validationErrors) {
         // Convert validation errors array to fieldErrors object
@@ -113,7 +131,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
       if (errorData.error?.message) {
         errorMessage = errorData.error.message
       }
-    } else if (error?.message) {
+    } else if (error instanceof Error) {
       errorMessage = error.message
     }
     
@@ -147,10 +165,15 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
         identifier: formValues.email,
         password: formValues.password,
       },
+      user: {
+        name: response.data.user.name,
+        username: response.data.user.username,
+        email: response.data.user.email,
+      },
       redirectTo: '/' 
     }
-  } catch (error: any) {
-    console.error('Registration error:', error)
+      } catch (error: unknown) {
+      console.error('Registration error:', error)
     
     // Handle API error responses
     let errorMessage = 'Registration failed'
@@ -169,17 +192,20 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
       }
       
       // Also check if fieldErrors are in the response data
-      const responseData = (error as any).response?.data?.data?.fieldErrors
-      if (responseData && typeof responseData === 'object') {
-        fieldErrors = { ...fieldErrors, ...responseData }
+      if (error.response?.data?.data?.fieldErrors) {
+        const responseData = error.response.data.data.fieldErrors
+        if (responseData && typeof responseData === 'object') {
+          fieldErrors = { ...fieldErrors, ...responseData }
+        }
       }
       
       console.error('API Error Code:', error.code)
       console.error('API Error Details:', error.details)
       console.error('Field Errors:', fieldErrors)
-    } else if (error?.response?.data) {
+    } else if (typeof error === 'object' && error !== null && 'response' in error) {
       // Handle axios error response structure
-      const errorData = error.response.data
+      const axiosError = error as { response: { data: any } }
+      const errorData = axiosError.response.data
       
       if (errorData.error?.validationErrors) {
         // Convert validation errors array to fieldErrors object
@@ -195,7 +221,7 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
       if (errorData.error?.message) {
         errorMessage = errorData.error.message
       }
-    } else if (error?.message) {
+    } else if (error instanceof Error) {
       errorMessage = error.message
     }
     
