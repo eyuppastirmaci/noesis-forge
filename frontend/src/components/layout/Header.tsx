@@ -138,12 +138,12 @@ export default function Header() {
         width: dropdownPosition.width,
         zIndex: 9999,
       }}
-      className="bg-background-secondary border border-border rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95"
+      className="bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95"
     >
       <Link
         href="/settings"
         onClick={() => setIsDropdownOpen(false)}
-        className="flex items-center gap-2 px-4 py-3 text-sm text-foreground no-underline rounded-t-md hover:bg-background dark:hover:bg-accent-soft"
+        className="flex items-center gap-2 px-4 py-3 text-sm text-foreground no-underline rounded-t-md hover:bg-gray-200 dark:hover:bg-gray-800"
       >
         <Settings className="w-4 h-4 text-foreground-secondary" />
         <span>Settings</span>
@@ -236,7 +236,7 @@ export default function Header() {
 
           <div
             ref={avatarRef}
-            className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-background dark:hover:bg-accent-soft"
+            className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800"
             onClick={toggleDropdown}
           >
             <div className="group w-9 h-9 bg-background border border-icon-button-border hover:border-icon-button-border-hover active:border-icon-button-border-active rounded-full flex items-center justify-center cursor-pointer">
