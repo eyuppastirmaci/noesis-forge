@@ -103,10 +103,34 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if err != nil {
 		status := http.StatusUnauthorized
 		code := "LOGIN_FAILED"
+
+		// Handle specific login errors as field errors
+		if err.Error() == "invalid credentials" {
+			fieldErrors := map[string]string{
+				"password": "Invalid email/username or password",
+			}
+			utils.FieldValidationErrorResponse(c, "Login failed", fieldErrors)
+			return
+		}
+
 		if err.Error() == "account is locked" {
 			status = http.StatusForbidden
 			code = "ACCOUNT_LOCKED"
+			fieldErrors := map[string]string{
+				"password": "Account is temporarily locked due to multiple failed attempts",
+			}
+			utils.FieldValidationErrorResponse(c, "Account locked", fieldErrors)
+			return
 		}
+
+		if err.Error() == "email not verified" {
+			fieldErrors := map[string]string{
+				"email": "Please verify your email address before logging in",
+			}
+			utils.FieldValidationErrorResponse(c, "Email verification required", fieldErrors)
+			return
+		}
+
 		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
