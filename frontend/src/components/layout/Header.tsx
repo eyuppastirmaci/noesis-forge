@@ -24,6 +24,7 @@ import {
   ListOrdered,
 } from "lucide-react";
 import IconButton from "../ui/IconButton";
+import BreadCrumb from "../BreadCrumb";
 
 export default function Header() {
   const [mounted, setMounted] = useState(false);
@@ -174,7 +175,7 @@ export default function Header() {
               className={`object-contain opacity-90 hover:opacity-100 `}
             />
           </Link>
-          <div>BreadCrumb</div>
+          <BreadCrumb />
         </div>
 
         <div>Global Search</div>
