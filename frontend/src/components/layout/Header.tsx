@@ -13,18 +13,12 @@ import {
   FileUp,
   FileClock,
   Bell,
-  Loader,
-  Bot,
-  Activity,
-  List,
-  ListTree,
-  Server,
-  LoaderCircle,
   Sparkle,
   ListOrdered,
 } from "lucide-react";
 import IconButton from "../ui/IconButton";
 import BreadCrumb from "../BreadCrumb";
+import GlobalSearch from "../GlobalSearch";
 
 export default function Header() {
   const [mounted, setMounted] = useState(false);
@@ -99,11 +93,14 @@ export default function Header() {
 
   if (!mounted) {
     return (
-      <div className="w-full flex justify-between items-center px-4 h-[80px]">
+      <div className="w-full grid grid-cols-3 items-center px-4 h-[80px]">
         <div className="flex items-center gap-2">
           <div className="w-[280px] h-[280px] bg-secondary animate-pulse rounded" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex justify-center">
+          <div className="w-48 h-10 bg-secondary animate-pulse rounded" />
+        </div>
+        <div className="flex items-center gap-2 justify-end">
           <div className="w-8 h-8 bg-secondary animate-pulse rounded-full" />
           <div className="w-16 h-4 bg-secondary animate-pulse rounded" />
         </div>
@@ -164,7 +161,8 @@ export default function Header() {
 
   return (
     <>
-      <div className="w-full flex justify-between items-center px-4 h-[80px]">
+      <div className="w-full grid grid-cols-3 items-center px-4 h-[80px]">
+        {/* Left Section */}
         <div className="flex items-center gap-2">
           <Link href="/">
             <Image
@@ -178,23 +176,43 @@ export default function Header() {
           <BreadCrumb />
         </div>
 
-        <div>Global Search</div>
+        {/* Center Section */}
+        <div className="flex justify-center">
+          <GlobalSearch />
+        </div>
 
-        <div className="relative flex items-center gap-3">
+        {/* Right Section */}
+        <div className="flex items-center gap-3 justify-end">
           {/* Upload */}
           <IconButton Icon={FileUp} onClick={() => {}} className="btn-upload" />
 
           {/* Recent Documents */}
-          <IconButton Icon={FileClock} onClick={() => {}} className="btn-recent-documents" />
+          <IconButton
+            Icon={FileClock}
+            onClick={() => {}}
+            className="btn-recent-documents"
+          />
 
           {/* Notifications */}
-          <IconButton Icon={Bell} onClick={() => {}} className="btn-notifications" />
+          <IconButton
+            Icon={Bell}
+            onClick={() => {}}
+            className="btn-notifications"
+          />
 
           {/* Processing Queue */}
-          <IconButton Icon={ListOrdered} onClick={() => {}} className="btn-processing-queue" />
+          <IconButton
+            Icon={ListOrdered}
+            onClick={() => {}}
+            className="btn-processing-queue"
+          />
 
           {/* AI Status */}
-          <IconButton Icon={Sparkle} onClick={() => {}} className="btn-ai-status" />
+          <IconButton
+            Icon={Sparkle}
+            onClick={() => {}}
+            className="btn-ai-status"
+          />
 
           <div className="text-[var(--foreground-secondary)] mx-1.5">|</div>
 
