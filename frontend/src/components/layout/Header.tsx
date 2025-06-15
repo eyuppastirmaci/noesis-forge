@@ -16,7 +16,7 @@ export default function Header() {
     return (
       <div className="w-full grid grid-cols-3 items-center px-4 h-[80px]">
         <div className="flex items-center gap-2">
-          <div className="w-[280px] h-[280px] bg-background-secondary animate-pulse rounded" />
+          <div className="w-[220px] h-[60px] bg-background-secondary animate-pulse rounded" />
         </div>
         <div className="flex justify-center">
           <div className="w-48 h-10 bg-background-secondary animate-pulse rounded" />

@@ -17,7 +17,7 @@ export default function HeaderLeft() {
   if (!mounted) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-[280px] h-[280px] bg-background-secondary animate-pulse rounded" />
+        <div className="w-[220px] h-[60px] bg-background-secondary animate-pulse rounded" />
       </div>
     );
   }
@@ -37,8 +37,8 @@ export default function HeaderLeft() {
           src={getLogoSrc()}
           alt="Noesis Forge"
           width={220}
-          height={220}
-          className={`object-contain opacity-90 hover:opacity-100 `}
+          height={0}
+          className={`object-contain opacity-90 hover:opacity-100 w-[220px]`}
         />
       </Link>
       <BreadCrumb />
