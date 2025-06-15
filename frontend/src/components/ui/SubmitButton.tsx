@@ -6,7 +6,7 @@ import Button from './Button'
 interface SubmitButtonProps {
   children: React.ReactNode
   loadingText?: string
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "error"
+  variant?: "primary" | "secondary" | "ghost" | "error"
   size?: "sm" | "md" | "lg"
   fullWidth?: boolean
   disabled?: boolean

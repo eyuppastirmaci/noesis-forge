@@ -36,11 +36,6 @@ class ApiClient {
           config.headers.Authorization = `Bearer ${token}`;
         }
 
-        console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, {
-          params: config.params,
-          data: config.data,
-        });
-
         return config;
       },
       (error) => {
@@ -52,8 +47,6 @@ class ApiClient {
     // Response interceptor - handles response transformation and error processing
     this.client.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
-        console.log(`[API] Response ${response.status}:`, response.data);
-
         const apiResponse = this.transformResponse(response);
         
         if (isSuccessResponse(apiResponse)) {
