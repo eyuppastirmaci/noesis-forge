@@ -5,13 +5,19 @@ import { Tooltip } from "react-tooltip";
 export default function CustomTooltip({
   children,
   anchorSelect = "",
+  place = "bottom",
+  offset = 10,
 }: {
   children: React.ReactNode;
   anchorSelect?: string;
+  place?: "top" | "bottom" | "left" | "right" | "top-start" | "top-end" | "bottom-start" | "bottom-end" | "left-start" | "left-end" | "right-start" | "right-end";
+  offset?: number;
 }) {
   return (
     <Tooltip
       anchorSelect={anchorSelect}
+      place={place}
+      offset={offset}
       style={{
         color: "white",
         zIndex: 9999,

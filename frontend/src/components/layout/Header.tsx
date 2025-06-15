@@ -19,6 +19,9 @@ import {
 import IconButton from "../ui/IconButton";
 import BreadCrumb from "../BreadCrumb";
 import GlobalSearch from "../GlobalSearch";
+import IconLinkButton from "../ui/IconLinkButton";
+import IconDropdownButton from "../ui/IconDropdownButton";
+import CustomTooltip from "../ui/CustomTooltip";
 
 export default function Header() {
   const [mounted, setMounted] = useState(false);
@@ -184,35 +187,50 @@ export default function Header() {
         {/* Right Section */}
         <div className="flex items-center gap-3 justify-end">
           {/* Upload */}
-          <IconButton Icon={FileUp} onClick={() => {}} className="btn-upload" />
+          <IconLinkButton Icon={FileUp} href="/upload" className="btn-upload" />
+          <CustomTooltip anchorSelect=".btn-upload">Upload</CustomTooltip>
 
           {/* Recent Documents */}
-          <IconButton
+          <IconDropdownButton
             Icon={FileClock}
-            onClick={() => {}}
+            dropdownItems={[
+              { label: "Illusion of Thinking Paper", onClick: () => {} },
+            ]}
             className="btn-recent-documents"
           />
+          <CustomTooltip anchorSelect=".btn-recent-documents" place="left">
+            Recent Documents
+          </CustomTooltip>
 
           {/* Notifications */}
-          <IconButton
+          <IconDropdownButton
             Icon={Bell}
-            onClick={() => {}}
+            dropdownItems={[
+              { label: "Your Search Processing Completed!", onClick: () => {} },
+            ]}
             className="btn-notifications"
           />
+          <CustomTooltip anchorSelect=".btn-notifications" place="left">
+            Notifications
+          </CustomTooltip>
 
           {/* Processing Queue */}
-          <IconButton
+          <IconDropdownButton
             Icon={ListOrdered}
-            onClick={() => {}}
+            dropdownItems={[{ label: "Articles are being researched...", onClick: () => {} }]}
             className="btn-processing-queue"
           />
+          <CustomTooltip anchorSelect=".btn-processing-queue" place="left">
+            Processing Queue
+          </CustomTooltip>
 
           {/* AI Status */}
-          <IconButton
+          <IconDropdownButton
             Icon={Sparkle}
-            onClick={() => {}}
+            dropdownItems={[{ label: "Ollama is running...", onClick: () => {} }]}
             className="btn-ai-status"
           />
+          <CustomTooltip anchorSelect=".btn-ai-status" place="left">AI Status</CustomTooltip>
 
           <div className="text-[var(--foreground-secondary)] mx-1.5">|</div>
 

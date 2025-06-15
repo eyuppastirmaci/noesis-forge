@@ -185,3 +185,40 @@ body {
     background-color: var(--accent);
   }
 }
+
+/* Icon Button Styles */
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem; /* 36px */
+  height: 2.25rem; /* 36px */
+  border-radius: 50%;
+  cursor: pointer;
+  background-color: var(--background);
+  border: 1px solid var(--icon-button-border);
+  transition: border-color 0.15s ease-in-out;
+}
+
+.icon-button:hover {
+  border-color: var(--icon-button-border-hover);
+}
+
+.icon-button:active {
+  border-color: var(--icon-button-border-active);
+}
+
+.icon-button-icon {
+  width: 1.125rem; /* 18px - equivalent to w-4.5 */
+  height: 1.125rem; /* 18px - equivalent to h-4.5 */
+  color: var(--icon-button-icon);
+  transition: color 0.15s ease-in-out;
+}
+
+.icon-button:hover .icon-button-icon {
+  color: var(--icon-button-icon-hover);
+}
+
+.icon-button:active .icon-button-icon {
+  color: var(--icon-button-icon-active);
+}

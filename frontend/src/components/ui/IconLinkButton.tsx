@@ -2,19 +2,20 @@
 
 import { cn } from "@/lib/cn";
 import { LucideIcon } from "lucide-react";
+import Link from "next/link";
 
-export default function IconButton({
+export default function IconLinkButton({
   Icon,
-  onClick,
+  href,
   className,
 }: {
   Icon: LucideIcon;
-  onClick: () => void;
+  href: string;
   className?: string;
 }) {
   return (
-    <button onClick={onClick} className={cn("icon-button", className)}>
+    <Link href={href} className={cn("icon-button", className)}>
       <Icon className="icon-button-icon" />
-    </button>
+    </Link>
   );
 }
