@@ -122,7 +122,41 @@ export default function HeaderRight() {
 
   // Authenticated - show full header
   const handleLogout = async () => {
-    await signOut({ redirect: true, callbackUrl: "/" });
+    try {
+      // Get refresh token from localStorage (if available)
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      // Call backend logout if refresh token exists
+      if (refreshToken) {
+        try {
+          const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refreshToken }),
+          });
+          
+          if (!response.ok) {
+            console.warn('Backend logout failed, continuing with NextAuth logout');
+          }
+        } catch (error) {
+          console.warn('Backend logout error:', error);
+        }
+      }
+      
+      // Clear localStorage tokens
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      
+      // Sign out from NextAuth
+      await signOut({ redirect: true, callbackUrl: "/" });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force logout even if there's an error
+      await signOut({ redirect: true, callbackUrl: "/" });
+    }
   };
 
   const toggleDropdown = () => {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Form from "next/form";
 import { Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
@@ -26,10 +27,24 @@ export function LoginForm() {
 
   // Handle successful login redirect
   useEffect(() => {
-    if (state.success && state.redirectTo) {
-      router.push(state.redirectTo);
+    if (state.success && state.credentials) {
+      // First sign in with NextAuth to update session
+      signIn("credentials", {
+        identifier: state.credentials.identifier,
+        password: state.credentials.password,
+        redirect: false,
+      }).then((result) => {
+        if (result?.ok) {
+          // Then redirect to the desired page
+          router.push(state.redirectTo || "/");
+        } else {
+          console.error("NextAuth signIn failed:", result?.error);
+          // Still redirect even if NextAuth fails
+          router.push(state.redirectTo || "/");
+        }
+      });
     }
-  }, [state.success, state.redirectTo, router]);
+  }, [state.success, state.credentials, state.redirectTo, router]);
 
   // Handle field error clearing
   const handleFieldChange = (fieldName: string) => {

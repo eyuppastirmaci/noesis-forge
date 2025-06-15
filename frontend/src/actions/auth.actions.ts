@@ -20,6 +20,10 @@ export interface RegisterState {
   }
   success?: boolean
   redirectTo?: string
+  loginCredentials?: {
+    identifier: string
+    password: string
+  }
 }
 
 export interface LoginState {
@@ -34,6 +38,10 @@ export interface LoginState {
   }
   success?: boolean
   redirectTo?: string
+  credentials?: {
+    identifier: string
+    password: string
+  }
 }
 
 export async function loginAction(prevState: LoginState, formData: FormData): Promise<LoginState> {
@@ -52,10 +60,11 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
 
     const response = await authService.login(loginRequest as any)
 
-    // If we reach here, login was successful
+    // Return success with credentials to trigger NextAuth signIn in the component
     return {
       errors: [],
       success: true,
+      credentials: formValues,
       redirectTo: '/'
     }
   } catch (error: any) {
@@ -109,7 +118,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
     }
     
     return {
-      errors: Object.keys(fieldErrors).length > 0 ? [] : [errorMessage], // Only show general error if no field errors
+      errors: Object.keys(fieldErrors).length > 0 ? [] : [errorMessage],
       fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
       formData: {
         identifier: formValues.identifier,
@@ -130,11 +139,15 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
   try {
     const response = await authService.register(formValues as RegisterRequest)
 
-    // If we reach here, registration was successful
+    // Auto-login after successful registration
     return {
       errors: [],
       success: true,
-      redirectTo: `/auth/register-success?email=${encodeURIComponent(formValues.email)}`
+      loginCredentials: {
+        identifier: formValues.email,
+        password: formValues.password,
+      },
+      redirectTo: '/' 
     }
   } catch (error: any) {
     console.error('Registration error:', error)
@@ -187,7 +200,7 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
     }
     
     return {
-      errors: Object.keys(fieldErrors).length > 0 ? [] : [errorMessage], // Only show general error if no field errors
+      errors: Object.keys(fieldErrors).length > 0 ? [] : [errorMessage],
       fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
       formData: {
         username: formValues.username,
