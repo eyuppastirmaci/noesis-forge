@@ -10,7 +10,6 @@ import {
   User,
 } from "@/types";
 
-// Updated response types to match new backend format
 export interface LoginResponseData {
   user: User;
   tokens: AuthTokens;
@@ -32,7 +31,6 @@ export interface ProfileUpdateResponseData {
   user: User;
 }
 
-// Type aliases for better readability
 export type LoginResponse = SuccessResponse<LoginResponseData>;
 export type RegisterResponse = SuccessResponse<RegisterResponseData>;
 export type RefreshTokenResponse = SuccessResponse<RefreshTokenResponseData>;
@@ -42,21 +40,17 @@ export type ProfileUpdateResponse = SuccessResponse<ProfileUpdateResponseData>;
 export type PasswordChangeResponse = SuccessResponse<null>;
 
 export class AuthService {
-  /**
-   * User login
-   */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponseData>(
       API_ENDPOINTS.AUTH.LOGIN,
       credentials
     );
 
-    // Token'ları client'a kaydet
     if (response.data.tokens) {
       apiClient.setAuthTokens({
         accessToken: response.data.tokens.accessToken,
         refreshToken: response.data.tokens.refreshToken,
-        tokenType: response.data.tokens.tokenType || 'Bearer',
+        tokenType: response.data.tokens.tokenType || "Bearer",
         expiresIn: response.data.tokens.expiresIn || 3600,
       });
     }
@@ -64,9 +58,6 @@ export class AuthService {
     return response;
   }
 
-  /**
-   * User registration
-   */
   async register(userData: RegisterRequest): Promise<RegisterResponse> {
     const response = await apiClient.post<RegisterResponseData>(
       API_ENDPOINTS.AUTH.REGISTER,
@@ -76,21 +67,17 @@ export class AuthService {
     return response;
   }
 
-  /**
-   * Refresh access token
-   */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
     const response = await apiClient.post<RefreshTokenResponseData>(
       API_ENDPOINTS.AUTH.REFRESH,
       { refreshToken }
     );
 
-    // Yeni token'ları kaydet
     if (response.data.tokens) {
       apiClient.setAuthTokens({
         accessToken: response.data.tokens.accessToken,
         refreshToken: response.data.tokens.refreshToken,
-        tokenType: response.data.tokens.tokenType || 'Bearer',
+        tokenType: response.data.tokens.tokenType || "Bearer",
         expiresIn: response.data.tokens.expiresIn || 3600,
       });
     }
@@ -98,15 +85,11 @@ export class AuthService {
     return response;
   }
 
-  /**
-   * User logout
-   */
   async logout(refreshToken: string): Promise<LogoutResponse> {
     try {
-      const response = await apiClient.post<null>(
-        API_ENDPOINTS.AUTH.LOGOUT,
-        { refreshToken }
-      );
+      const response = await apiClient.post<null>(API_ENDPOINTS.AUTH.LOGOUT, {
+        refreshToken,
+      });
 
       return response;
     } finally {
@@ -114,9 +97,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Get user profile
-   */
   async getProfile(): Promise<ProfileResponse> {
     const response = await apiClient.get<ProfileResponseData>(
       API_ENDPOINTS.AUTH.PROFILE
@@ -125,9 +105,6 @@ export class AuthService {
     return response;
   }
 
-  /**
-   * Update user profile
-   */
   async updateProfile(
     updates: UpdateUserRequest
   ): Promise<ProfileUpdateResponse> {
@@ -139,9 +116,6 @@ export class AuthService {
     return response;
   }
 
-  /**
-   * Change password
-   */
   async changePassword(
     passwords: ChangePasswordRequest
   ): Promise<PasswordChangeResponse> {
@@ -154,16 +128,14 @@ export class AuthService {
   }
 }
 
-// Singleton instance
 export const authService = new AuthService();
 
-// React Query hooks için service wrapper'ları
 export const authQueries = {
   profile: () => ({
     queryKey: ["auth", "profile"],
     queryFn: async () => {
       const response = await authService.getProfile();
-      return response.data; // Sadece data kısmını döndür
+      return response.data;
     },
   }),
 };
@@ -172,35 +144,35 @@ export const authMutations = {
   login: () => ({
     mutationFn: async (credentials: LoginRequest) => {
       const response = await authService.login(credentials);
-      return response.data; // Sadece data kısmını döndür
+      return response.data;
     },
   }),
 
   register: () => ({
     mutationFn: async (userData: RegisterRequest) => {
       const response = await authService.register(userData);
-      return response.data; // Sadece data kısmını döndür
+      return response.data;
     },
   }),
 
   logout: () => ({
     mutationFn: async (refreshToken: string) => {
       const response = await authService.logout(refreshToken);
-      return response; // Logout'ta data null olabilir
+      return response;
     },
   }),
 
   updateProfile: () => ({
     mutationFn: async (updates: UpdateUserRequest) => {
       const response = await authService.updateProfile(updates);
-      return response.data; // Sadece data kısmını döndür
+      return response.data;
     },
   }),
 
   changePassword: () => ({
     mutationFn: async (passwords: ChangePasswordRequest) => {
       const response = await authService.changePassword(passwords);
-      return response; // Password change'de data null olabilir
+      return response;
     },
   }),
 };
