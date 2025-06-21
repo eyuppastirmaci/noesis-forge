@@ -5,6 +5,8 @@ import {
   DocumentListRequest,
   DocumentListResponse,
   UploadDocumentRequest,
+  BulkUploadDocumentRequest,
+  BulkUploadResponse,
   DOCUMENT_ENDPOINTS,
   SuccessResponse,
   DocumentType,
@@ -447,6 +449,68 @@ export class DocumentService {
     
     console.log("=== 🔍 DOCUMENT SERVICE AUTH DEBUG END ===");
   }
+
+  /**
+   * Upload multiple documents in a single request (bulk upload)
+   */
+  async bulkUploadDocuments(
+    request: BulkUploadDocumentRequest,
+    onProgress?: (progress: number) => void
+  ): Promise<SuccessResponse<BulkUploadResponse>> {
+    console.log("[DOCUMENT_SERVICE] 🚀 Starting bulk upload:", {
+      fileCount: request.files.length,
+      totalSize: this.formatFileSize(
+        request.files.reduce((sum: number, file: File) => sum + file.size, 0)
+      ),
+    });
+
+    const formData = new FormData();
+    
+    // Append all files with the same field name "files"
+    request.files.forEach((file: File) => {
+      formData.append("files", file);
+    });
+
+    if (request.tags) {
+      formData.append("tags", request.tags);
+    }
+    if (request.isPublic !== undefined) {
+      formData.append("isPublic", request.isPublic.toString());
+    }
+
+    try {
+      const response = await apiClient.post<BulkUploadResponse>(
+        DOCUMENT_ENDPOINTS.BULK_UPLOAD,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const progress = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              console.log(`[DOCUMENT_SERVICE] 📊 Bulk upload progress: ${progress}%`);
+              onProgress(progress);
+            }
+          },
+          timeout: 600000, // 10 minutes for bulk uploads
+        }
+      );
+
+      console.log("[DOCUMENT_SERVICE] ✅ Bulk upload successful:", {
+        successful: response.data.successful_uploads,
+        failed: response.data.failed_uploads,
+        total: response.data.total_files,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] ❌ Bulk upload failed:", error);
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance
@@ -532,6 +596,27 @@ export const documentMutations = {
         onProgress
       );
       console.log("[DOCUMENT_MUTATIONS] ✅ Upload mutation completed");
+      return response.data;
+    },
+  }),
+
+  /**
+   * Bulk upload documents mutation
+   */
+  bulkUpload: () => ({
+    mutationFn: async ({
+      request,
+      onProgress,
+    }: {
+      request: BulkUploadDocumentRequest;
+      onProgress?: (progress: number) => void;
+    }) => {
+      console.log("[DOCUMENT_MUTATIONS] 🚀 Bulk upload mutation started");
+      const response = await documentService.bulkUploadDocuments(
+        request,
+        onProgress
+      );
+      console.log("[DOCUMENT_MUTATIONS] ✅ Bulk upload mutation completed");
       return response.data;
     },
   }),

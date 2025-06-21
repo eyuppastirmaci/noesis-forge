@@ -40,6 +40,8 @@ export type {
   Collection,
   DocumentCollection,
   UploadDocumentRequest,
+  BulkUploadDocumentRequest,
+  BulkUploadResponse,
   DocumentListRequest,
   DocumentListResponse,
   DocumentResponse,

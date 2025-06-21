@@ -113,6 +113,7 @@ export enum DocumentStatus {
   export const DOCUMENT_ENDPOINTS = {
     // Document CRUD
     UPLOAD: "/documents/upload",
+    BULK_UPLOAD: "/documents/bulk-upload",
     LIST: "/documents",
     GET: (id: string) => `/documents/${id}`,
     DELETE: (id: string) => `/documents/${id}`,
@@ -226,3 +227,21 @@ export enum DocumentStatus {
   export type DocumentSortDirection = "asc" | "desc";
   export type DocumentFilterStatus = DocumentStatus | "all";
   export type DocumentFilterType = DocumentType | "all";
+
+  // Bulk upload types
+  export interface BulkUploadDocumentRequest {
+    files: File[];
+    tags?: string;
+    isPublic?: boolean;
+  }
+
+  export interface BulkUploadResponse {
+    successful_uploads: number;
+    failed_uploads: number;
+    total_files: number;
+    documents: Document[];
+    failures?: Array<{
+      filename: string;
+      error: string;
+    }>;
+  }
