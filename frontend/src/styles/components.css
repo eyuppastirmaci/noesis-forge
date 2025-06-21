@@ -1,0 +1,176 @@
+/* Icon Button Styles */
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  cursor: pointer;
+  background-color: var(--background);
+  border: 1px solid var(--icon-button-border);
+  transition: border-color 0.15s ease-in-out;
+}
+
+.icon-button:hover {
+  border-color: var(--icon-button-border-hover);
+}
+
+.icon-button:active {
+  border-color: var(--icon-button-border-active);
+}
+
+.icon-button-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--icon-button-icon);
+  transition: color 0.15s ease-in-out;
+}
+
+.icon-button:hover .icon-button-icon {
+  color: var(--icon-button-icon-hover);
+}
+
+.icon-button:active .icon-button-icon {
+  color: var(--icon-button-icon-active);
+}
+
+/* Form input styles */
+.form-input {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.form-input:hover {
+  border-color: var(--border-hover);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--blue-light);
+}
+
+.form-input.error {
+  border-color: var(--error);
+}
+
+.form-input.error:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 2px var(--error-light);
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: var(--blue);
+  color: white;
+  border: 1px solid var(--blue);
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--blue-dark);
+  border-color: var(--blue-dark);
+}
+
+.btn-secondary {
+  background-color: var(--background);
+  color: var(--foreground-secondary);
+  border: 1px solid var(--border);
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--background-secondary);
+  border-color: var(--border-hover);
+}
+
+/* Card styles */
+.card {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.dark .card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  border-color: var(--border);
+}
+
+/* Alert styles */
+.alert {
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid;
+}
+
+.alert-error {
+  background-color: var(--error-light);
+  border-color: var(--error);
+  color: var(--error-dark);
+}
+
+.alert-success {
+  background-color: var(--success-light);
+  border-color: var(--success);
+  color: var(--success-dark);
+}
+
+.alert-warning {
+  background-color: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning-dark);
+}
+
+.alert-info {
+  background-color: var(--info-light);
+  border-color: var(--info);
+  color: var(--info-dark);
+}
+
+/* Progress bar styles */
+.progress-bar {
+  background-color: var(--border);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  background-color: var(--blue);
+  height: 100%;
+  transition: width 0.3s ease-in-out;
+  border-radius: 9999px;
+}
+
+/* File upload zone styles */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background-color: var(--background);
+  transition: all 0.2s ease-in-out;
+}
+
+.upload-zone:hover {
+  border-color: var(--border-hover);
+  background-color: var(--background-secondary);
+}
+
+.upload-zone.drag-active {
+  border-color: var(--blue);
+  background-color: var(--blue-light);
+}
+
+.upload-zone.drag-reject {
+  border-color: var(--error);
+  background-color: var(--error-light);
+}
+
+.upload-zone.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--border);
+  background-color: var(--background-secondary);
+}

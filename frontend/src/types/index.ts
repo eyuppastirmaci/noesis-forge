@@ -34,6 +34,35 @@ export type {
 
 export { AuthErrorCode } from "./auth";
 
+// Document types
+export type {
+  Document,
+  Collection,
+  DocumentCollection,
+  UploadDocumentRequest,
+  DocumentListRequest,
+  DocumentListResponse,
+  DocumentResponse,
+  DocumentPreviewResponse,
+  DocumentUploadProgress,
+  FileValidationResult,
+  DocumentSortField,
+  DocumentSortDirection,
+  DocumentFilterStatus,
+  DocumentFilterType,
+} from "./document";
+
+export {
+  DocumentStatus,
+  DocumentType,
+  DocumentErrorCode,
+  DOCUMENT_ENDPOINTS,
+  DOCUMENT_QUERY_KEYS,
+  DOCUMENT_MUTATION_KEYS,
+  SUPPORTED_FILE_TYPES,
+  FILE_SIZE_LIMITS,
+} from "./document";
+
 // API types
 export type {
   ApiResponse,
@@ -59,6 +88,9 @@ export {
   ApiClientError,
   isSuccessResponse,
   isErrorResponse,
+  isApiClientError,
+  extractFieldErrors,
+  getErrorMessage,
 } from "./api";
 
 // Common utility types
@@ -87,6 +119,16 @@ export const API_ENDPOINTS = {
     PERMISSIONS_BY_CATEGORY: (category: string) =>
       `/roles/permissions/categories/${category}`,
     ASSIGN: "/roles/assign",
+  },
+
+  // Document endpoints (imported from document types)
+  DOCUMENTS: {
+    UPLOAD: "/documents/upload",
+    LIST: "/documents",
+    GET: (id: string) => `/documents/${id}`,
+    DELETE: (id: string) => `/documents/${id}`,
+    DOWNLOAD: (id: string) => `/documents/${id}/download`,
+    PREVIEW: (id: string) => `/documents/${id}/preview`,
   },
 
   // Health endpoints
@@ -126,6 +168,15 @@ export const QUERY_KEYS = {
       ["roles", "permissions", category] as const,
   },
 
+  // Document queries (imported from document types)
+  DOCUMENTS: {
+    ALL: ["documents"] as const,
+    LIST: (params: any) => ["documents", "list", params] as const,
+    BY_ID: (id: string) => ["documents", "detail", id] as const,
+    PREVIEW: (id: string) => ["documents", "preview", id] as const,
+    SEARCH: (query: string) => ["documents", "search", query] as const,
+  },
+
   // Health queries
   HEALTH: {
     STATUS: ["health"] as const,
@@ -150,5 +201,13 @@ export const MUTATION_KEYS = {
     UPDATE: "roles.update",
     DELETE: "roles.delete",
     ASSIGN: "roles.assign",
+  },
+
+  // Document mutations (imported from document types)
+  DOCUMENTS: {
+    UPLOAD: "documents.upload",
+    DELETE: "documents.delete",
+    UPDATE: "documents.update",
+    DOWNLOAD: "documents.download",
   },
 } as const;

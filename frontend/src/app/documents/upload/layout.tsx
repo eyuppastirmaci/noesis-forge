@@ -2,9 +2,9 @@ import { ReactNode } from "react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Upload Documents",
 };
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default function UploadDocumentsLayout({ children }: { children: ReactNode }) {
   return <div>{children}</div>;
 }

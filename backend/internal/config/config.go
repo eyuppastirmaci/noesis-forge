@@ -13,11 +13,11 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	MinIO    MinIOConfig
 
 	// Future configurations (commented out for now)
 	// Redis    RedisConfig
 	// RabbitMQ RabbitMQConfig
-	// MinIO    MinIOConfig
 	// Qdrant   QdrantConfig
 	// Ollama   OllamaConfig
 	// Email    EmailConfig
@@ -68,15 +68,6 @@ type RabbitMQConfig struct {
 	AutoDelete     bool          `envconfig:"RABBITMQ_AUTO_DELETE" default:"false"`
 	ReconnectDelay time.Duration `envconfig:"RABBITMQ_RECONNECT_DELAY" default:"5s"`
 	PrefetchCount  int           `envconfig:"RABBITMQ_PREFETCH_COUNT" default:"10"`
-}
-
-type MinIOConfig struct {
-	Endpoint        string `envconfig:"MINIO_ENDPOINT" default:"localhost:9000"`
-	AccessKeyID     string `envconfig:"MINIO_ACCESS_KEY_ID" default:"minioadmin"`
-	SecretAccessKey string `envconfig:"MINIO_SECRET_ACCESS_KEY" default:"minioadmin"`
-	UseSSL          bool   `envconfig:"MINIO_USE_SSL" default:"false"`
-	BucketName      string `envconfig:"MINIO_BUCKET_NAME" default:"noesis-forge"`
-	Region          string `envconfig:"MINIO_REGION" default:"us-east-1"`
 }
 
 type QdrantConfig struct {

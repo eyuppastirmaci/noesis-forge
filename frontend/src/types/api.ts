@@ -54,6 +54,18 @@ export enum ApiErrorCode {
   INVALID_ID = "INVALID_ID",
   INVALID_CATEGORY = "INVALID_CATEGORY",
 
+  // Document operation errors (NEW)
+  UPLOAD_FAILED = "UPLOAD_FAILED",
+  DOCUMENT_NOT_FOUND = "DOCUMENT_NOT_FOUND",
+  FILE_REQUIRED = "FILE_REQUIRED",
+  INVALID_FORM = "INVALID_FORM",
+  FETCH_FAILED = "FETCH_FAILED",
+  DELETE_FAILED = "DELETE_FAILED",
+  DOWNLOAD_FAILED = "DOWNLOAD_FAILED",
+  PREVIEW_FAILED = "PREVIEW_FAILED",
+  STORAGE_ERROR = "STORAGE_ERROR",
+  DATABASE_ERROR = "DATABASE_ERROR",
+
   // Service errors
   SERVICE_NOT_READY = "SERVICE_NOT_READY",
 
@@ -149,13 +161,14 @@ export interface HealthCheckResponse {
 
 export type ApiClientResponse<T> = Promise<SuccessResponse<T>>;
 
-// API client error type
+// Updated API client error type with field errors support
 export class ApiClientError extends Error {
   public readonly statusCode: HttpStatus;
   public readonly code: ApiErrorCode;
   public readonly details?: string;
   public readonly validationErrors?: ValidationError[];
-  public readonly response?: any; // Add response property
+  public readonly fieldErrors?: Record<string, string>; 
+  public readonly response?: any;
 
   constructor(error: ApiError, statusCode: HttpStatus, response?: any) {
     super(error.message);
@@ -164,7 +177,49 @@ export class ApiClientError extends Error {
     this.code = error.code;
     this.details = error.details;
     this.validationErrors = error.validationErrors;
-    this.response = response; // Store the full response
+    this.response = response;
+
+    // Extract field errors from different response formats
+    this.fieldErrors = this.extractFieldErrors(response);
+  }
+
+  private extractFieldErrors(response?: any): Record<string, string> | undefined {
+    const fieldErrors: Record<string, string> = {};
+
+    // Check for field errors in response.data (backend validation format)
+    if (response?.data?.data && typeof response.data.data === 'object') {
+      Object.assign(fieldErrors, response.data.data);
+    }
+
+    // Check for validation errors in error.validationErrors
+    if (this.validationErrors && Array.isArray(this.validationErrors)) {
+      this.validationErrors.forEach(error => {
+        fieldErrors[error.field] = error.message;
+      });
+    }
+
+    // Check for single field error
+    if (this.details && response?.data?.error?.field) {
+      fieldErrors[response.data.error.field] = this.details;
+    }
+
+    return Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
+  }
+
+  public isValidationError(): boolean {
+    return !!this.fieldErrors && Object.keys(this.fieldErrors).length > 0;
+  }
+
+  public getFieldError(field: string): string | undefined {
+    return this.fieldErrors?.[field];
+  }
+
+  public getAllFieldErrors(): Record<string, string> {
+    return this.fieldErrors || {};
+  }
+
+  public hasFieldError(field: string): boolean {
+    return !!this.fieldErrors?.[field];
   }
 }
 
@@ -201,4 +256,37 @@ export interface TransformedApiResponse<T> {
   data: T;
   status: HttpStatus;
   headers: Record<string, string>;
+}
+
+export function isApiClientError(error: any): error is ApiClientError {
+  return error instanceof ApiClientError;
+}
+
+export function extractFieldErrors(error: any): Record<string, string> {
+  if (isApiClientError(error)) {
+    return error.getAllFieldErrors();
+  }
+  
+  // Check if it's a direct field validation error response
+  if (error?.response?.data?.data && typeof error.response.data.data === 'object') {
+    return error.response.data.data || {};
+  }
+  
+  return {};
+}
+
+export function getErrorMessage(error: any): string {
+  if (isApiClientError(error)) {
+    return error.message;
+  }
+  
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
+  }
+  
+  if (error?.message) {
+    return error.message;
+  }
+  
+  return "An unexpected error occurred";
 }

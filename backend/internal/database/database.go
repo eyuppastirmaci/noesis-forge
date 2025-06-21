@@ -60,6 +60,7 @@ func RunMigrations(db *gorm.DB) error {
 		&models.RefreshToken{},
 		&models.EmailVerificationToken{},
 		&models.PasswordResetToken{},
+		&models.Document{},
 	)
 
 	if err != nil {

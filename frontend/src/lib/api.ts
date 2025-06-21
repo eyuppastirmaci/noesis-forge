@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { getSession } from "next-auth/react";
 import {
   ApiResponse,
   SuccessResponse,
@@ -21,6 +22,7 @@ class ApiClient {
       baseURL,
       timeout: API_CONFIG.TIMEOUT,
       headers: API_CONFIG.HEADERS,
+      withCredentials: true,
     });
 
     this.setupInterceptors();
@@ -29,12 +31,13 @@ class ApiClient {
   private setupInterceptors(): void {
     // Request interceptor - automatically adds authentication token
     this.client.interceptors.request.use(
-      (config) => {
-        // Add authentication token if available
-        const token = this.getAccessToken();
+      async (config) => {
+        // NextAuth session'dan token al
+        const token = await this.getAccessToken();
+        
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
-        }
+        } 
 
         return config;
       },
@@ -44,7 +47,6 @@ class ApiClient {
       }
     );
 
-    // Response interceptor - handles response transformation and error processing
     // Response interceptor - handles response transformation and error processing
     this.client.interceptors.response.use(
       (response: AxiosResponse<ApiResponse>) => {
@@ -81,7 +83,7 @@ class ApiClient {
           try {
             await this.refreshToken();
             // Retry the original request with new token
-            const token = this.getAccessToken();
+            const token = await this.getAccessToken();
             if (token) {
               error.config.headers.Authorization = `Bearer ${token}`;
               return this.client.request(error.config);
@@ -96,11 +98,11 @@ class ApiClient {
         // Transform and handle backend error response
         const apiResponse = this.transformResponse(response);
         if (apiResponse && !isSuccessResponse(apiResponse)) {
-          const error = apiResponse.error || {
+          const errorObj = apiResponse.error || {
             code: ApiErrorCode.INTERNAL_ERROR,
             message: "An unexpected error occurred",
           };
-          throw new ApiClientError(error, response.status, response);
+          throw new ApiClientError(errorObj, response.status, response);
         }
 
         // Handle unexpected errors as fallback
@@ -143,20 +145,48 @@ class ApiClient {
           details: data.error,
           validationErrors: data.error?.validationErrors,
         },
-        data: data.data, // Include data field which may contain fieldErrors
+        data: data.data,
       };
     }
   }
 
-  // Token management
-  private getAccessToken(): string | null {
+  private async getAccessToken(): Promise<string | null> {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    
+    try {
+      const session = await getSession();
+     
+      
+      if (session?.accessToken) {
+        return session.accessToken as string;
+      }
+      
+      const localStorageToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      if (localStorageToken) {
+        return localStorageToken;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("[API] Error getting session:", error);
+      return null;
+    }
   }
 
-  private getRefreshToken(): string | null {
+  private async getRefreshToken(): Promise<string | null> {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    
+    try {
+      const session = await getSession();
+      if (session?.refreshToken) {
+        return session.refreshToken as string;
+      }
+      
+      return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    } catch (error) {
+      console.error("[API] Error getting refresh token:", error);
+      return null;
+    }
   }
 
   private setTokens(tokens: AuthTokens): void {
@@ -173,7 +203,7 @@ class ApiClient {
   }
 
   private async refreshToken(): Promise<void> {
-    const refreshToken = this.getRefreshToken();
+    const refreshToken = await this.getRefreshToken();
     if (!refreshToken) {
       throw new Error("No refresh token available");
     }
@@ -196,7 +226,7 @@ class ApiClient {
 
     // Redirect to login page in browser environment
     if (typeof window !== "undefined") {
-      window.location.href = "/login";
+      window.location.href = "/auth/login";
     }
   }
 
@@ -209,7 +239,16 @@ class ApiClient {
     this.clearTokens();
   }
 
-  // HTTP methods
+  public async debugAuth(): Promise<void> {
+    try {
+      const session = await getSession();
+      const localToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    } catch (error) {
+      console.error("Debug error:", error);
+    }
+  }
+
+  // HTTP methods (unchanged)
   async get<T>(
     url: string,
     config?: AxiosRequestConfig

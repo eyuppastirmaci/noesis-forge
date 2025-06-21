@@ -4,6 +4,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/database"
 	"github.com/eyuppastirmaci/noesis-forge/internal/router"
+	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -12,6 +13,10 @@ type App struct {
 	Config *config.Config
 	DB     *gorm.DB
 	Router *router.Router
+	// Services
+	AuthService     *services.AuthService
+	DocumentService *services.DocumentService
+	MinIOService    *services.MinIOService
 }
 
 func New() (*App, error) {
@@ -43,18 +48,40 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	// Initialize router
+	// Initialize services
+	authService := services.NewAuthService(db, cfg)
+
+	// Initialize MinIO service
+	minioService, err := services.NewMinIOService(&cfg.MinIO)
+	if err != nil {
+		logrus.Errorf("Failed to initialize MinIO service: %v", err)
+		return nil, err
+	}
+
+	// Initialize Document service
+	documentService := services.NewDocumentService(db, minioService)
+
+	// Initialize router (router will also initialize its own services)
 	r := router.New(cfg, db)
 	r.SetupRoutes(db)
 
+	logrus.Info("Application initialized successfully")
+	logrus.Infof("MinIO endpoint: %s", cfg.MinIO.Endpoint)
+	logrus.Infof("MinIO bucket: %s", cfg.MinIO.BucketName)
+
 	return &App{
-		Config: cfg,
-		DB:     db,
-		Router: r,
+		Config:          cfg,
+		DB:              db,
+		Router:          r,
+		AuthService:     authService,
+		DocumentService: documentService,
+		MinIOService:    minioService,
 	}, nil
 }
 
 func (a *App) Close() error {
+	logrus.Info("Shutting down application...")
+
 	if sqlDB, err := a.DB.DB(); err == nil {
 		return sqlDB.Close()
 	}

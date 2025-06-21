@@ -11,10 +11,12 @@ import (
 )
 
 type Router struct {
-	engine      *gin.Engine
-	config      *config.Config
-	authService *services.AuthService
-	roleService *services.RoleService
+	engine          *gin.Engine
+	config          *config.Config
+	authService     *services.AuthService
+	roleService     *services.RoleService
+	documentService *services.DocumentService
+	minioService    *services.MinIOService
 }
 
 func New(cfg *config.Config, db *gorm.DB) *Router {
@@ -29,11 +31,23 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 	authService := services.NewAuthService(db, cfg)
 	roleService := services.NewRoleService(db)
 
+	// Initialize MinIO service
+	minioService, err := services.NewMinIOService(&cfg.MinIO)
+	if err != nil {
+		// Handle MinIO initialization error
+		panic("Failed to initialize MinIO service: " + err.Error())
+	}
+
+	// Initialize Document service
+	documentService := services.NewDocumentService(db, minioService)
+
 	return &Router{
-		engine:      engine,
-		config:      cfg,
-		authService: authService,
-		roleService: roleService,
+		engine:          engine,
+		config:          cfg,
+		authService:     authService,
+		roleService:     roleService,
+		documentService: documentService,
+		minioService:    minioService,
 	}
 }
 
@@ -61,6 +75,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterHealthRoutes(api, db)
 	RegisterAuthRoutes(api, r.authService)
 	RegisterRoleRoutes(api, r.roleService, r.authService)
+	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService)
 }
 
 func (r *Router) GetEngine() *gin.Engine {

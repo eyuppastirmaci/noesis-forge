@@ -1,0 +1,340 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"mime/multipart"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/eyuppastirmaci/noesis-forge/internal/models"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+)
+
+type DocumentService struct {
+	db           *gorm.DB
+	minioService *MinIOService
+}
+
+type UploadDocumentRequest struct {
+	Title       string `json:"title" validate:"required,min=1,max=255"`
+	Description string `json:"description" validate:"max=1000"`
+	Tags        string `json:"tags" validate:"max=500"`
+	IsPublic    bool   `json:"isPublic"`
+}
+
+type DocumentResponse struct {
+	ID               uuid.UUID             `json:"id"`
+	Title            string                `json:"title"`
+	Description      string                `json:"description"`
+	FileName         string                `json:"fileName"`         // UUID-based filename
+	OriginalFileName string                `json:"originalFileName"` // Original filename from user
+	FileSize         int64                 `json:"fileSize"`
+	FileType         models.DocumentType   `json:"fileType"`
+	MimeType         string                `json:"mimeType"`
+	Status           models.DocumentStatus `json:"status"`
+	Version          int                   `json:"version"`
+	Tags             string                `json:"tags"`
+	IsPublic         bool                  `json:"isPublic"`
+	ViewCount        int64                 `json:"viewCount"`
+	DownloadCount    int64                 `json:"downloadCount"`
+	UserID           uuid.UUID             `json:"userID"`
+	ProcessedAt      *time.Time            `json:"processedAt,omitempty"`
+	CreatedAt        time.Time             `json:"createdAt"`
+	UpdatedAt        time.Time             `json:"updatedAt"`
+}
+
+type DocumentListRequest struct {
+	Page     int    `json:"page" validate:"min=1"`
+	Limit    int    `json:"limit" validate:"min=1,max=100"`
+	Search   string `json:"search"`
+	FileType string `json:"fileType"`
+	Status   string `json:"status"`
+	Tags     string `json:"tags"`
+	SortBy   string `json:"sortBy"`  // name, date, size, views
+	SortDir  string `json:"sortDir"` // asc, desc
+}
+
+type DocumentListResponse struct {
+	Documents  []DocumentResponse `json:"documents"`
+	Total      int64              `json:"total"`
+	Page       int                `json:"page"`
+	Limit      int                `json:"limit"`
+	TotalPages int                `json:"totalPages"`
+}
+
+func NewDocumentService(db *gorm.DB, minioService *MinIOService) *DocumentService {
+	return &DocumentService{
+		db:           db,
+		minioService: minioService,
+	}
+}
+
+func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, req *UploadDocumentRequest) (*DocumentResponse, error) {
+	// Validate file
+	if err := s.validateFile(file); err != nil {
+		return nil, err
+	}
+
+	// Upload to MinIO
+	uploadResult, err := s.minioService.UploadFile(ctx, userID, file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file to storage: %w", err)
+	}
+
+	// Determine file type
+	fileType := s.getDocumentType(file.Filename)
+
+	// Create document record
+	document := &models.Document{
+		Title:            req.Title,
+		Description:      req.Description,
+		FileName:         uploadResult.FileName, // UUID-based filename
+		OriginalFileName: file.Filename,         // Original filename from user
+		FileSize:         file.Size,
+		FileType:         fileType,
+		MimeType:         file.Header.Get("Content-Type"),
+		Status:           models.DocumentStatusProcessing,
+		StoragePath:      uploadResult.ObjectName,
+		StorageBucket:    s.minioService.config.BucketName,
+		Tags:             req.Tags,
+		IsPublic:         req.IsPublic,
+		UserID:           userID,
+		Version:          1,
+	}
+
+	if err := s.db.Create(document).Error; err != nil {
+		// If database save fails, clean up uploaded file
+		if cleanupErr := s.minioService.DeleteFile(ctx, uploadResult.ObjectName); cleanupErr != nil {
+			logrus.Errorf("Failed to cleanup uploaded file after database error: %v", cleanupErr)
+		}
+		return nil, fmt.Errorf("failed to save document record: %w", err)
+	}
+
+	// TODO: Queue document for processing (text extraction, embedding generation)
+	// For now, mark as ready immediately
+	document.Status = models.DocumentStatusReady
+	document.ProcessedAt = &time.Time{}
+	now := time.Now()
+	document.ProcessedAt = &now
+
+	if err := s.db.Save(document).Error; err != nil {
+		logrus.Errorf("Failed to update document status: %v", err)
+	}
+
+	logrus.Infof("Document uploaded successfully: %s (ID: %s)", document.FileName, document.ID)
+
+	return s.toDocumentResponse(document), nil
+}
+
+func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, req *DocumentListRequest) (*DocumentListResponse, error) {
+	query := s.db.Where("user_id = ?", userID)
+
+	// Apply filters
+	if req.Search != "" {
+		query = query.Where("title ILIKE ? OR description ILIKE ? OR original_file_name ILIKE ?",
+			"%"+req.Search+"%", "%"+req.Search+"%", "%"+req.Search+"%")
+	}
+
+	if req.FileType != "" {
+		query = query.Where("file_type = ?", req.FileType)
+	}
+
+	if req.Status != "" {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	if req.Tags != "" {
+		query = query.Where("tags ILIKE ?", "%"+req.Tags+"%")
+	}
+
+	// Count total
+	var total int64
+	if err := query.Model(&models.Document{}).Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count documents: %w", err)
+	}
+
+	// Apply sorting
+	orderBy := "created_at DESC" // default
+	switch req.SortBy {
+	case "name":
+		orderBy = "title"
+	case "date":
+		orderBy = "created_at"
+	case "size":
+		orderBy = "file_size"
+	case "views":
+		orderBy = "view_count"
+	}
+
+	if req.SortDir == "asc" {
+		orderBy += " ASC"
+	} else {
+		orderBy += " DESC"
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	var documents []models.Document
+
+	if err := query.Order(orderBy).Offset(offset).Limit(req.Limit).Find(&documents).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch documents: %w", err)
+	}
+
+	// Convert to response
+	documentResponses := make([]DocumentResponse, len(documents))
+	for i, doc := range documents {
+		documentResponses[i] = *s.toDocumentResponse(&doc)
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &DocumentListResponse{
+		Documents:  documentResponses,
+		Total:      total,
+		Page:       req.Page,
+		Limit:      req.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *DocumentService) GetDocumentModel(ctx context.Context, userID, documentID uuid.UUID, document *models.Document) error {
+	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(document).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("document not found")
+		}
+		return fmt.Errorf("failed to fetch document: %w", err)
+	}
+	return nil
+}
+
+func (s *DocumentService) GetDocument(ctx context.Context, userID, documentID uuid.UUID) (*DocumentResponse, error) {
+	var document models.Document
+	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("document not found")
+		}
+		return nil, fmt.Errorf("failed to fetch document: %w", err)
+	}
+
+	// Increment view count
+	if err := s.db.Model(&document).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
+		logrus.Warnf("Failed to increment view count for document %s: %v", documentID, err)
+	}
+
+	return s.toDocumentResponse(&document), nil
+}
+
+func (s *DocumentService) DeleteDocument(ctx context.Context, userID, documentID uuid.UUID) error {
+	var document models.Document
+	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("document not found")
+		}
+		return fmt.Errorf("failed to fetch document: %w", err)
+	}
+
+	// Delete from storage
+	if err := s.minioService.DeleteFile(ctx, document.StoragePath); err != nil {
+		logrus.Errorf("Failed to delete file from storage: %v", err)
+		// Continue with database deletion even if storage deletion fails
+	}
+
+	// Delete from database
+	if err := s.db.Delete(&document).Error; err != nil {
+		return fmt.Errorf("failed to delete document from database: %w", err)
+	}
+
+	logrus.Infof("Document deleted successfully: %s (ID: %s)", document.FileName, document.ID)
+	return nil
+}
+
+func (s *DocumentService) DownloadDocument(ctx context.Context, userID, documentID uuid.UUID) (*models.Document, error) {
+	var document models.Document
+	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("document not found")
+		}
+		return nil, fmt.Errorf("failed to fetch document: %w", err)
+	}
+
+	// Increment download count
+	if err := s.db.Model(&document).UpdateColumn("download_count", gorm.Expr("download_count + 1")).Error; err != nil {
+		logrus.Warnf("Failed to increment download count for document %s: %v", documentID, err)
+	}
+
+	return &document, nil
+}
+
+func (s *DocumentService) validateFile(file *multipart.FileHeader) error {
+	// Check file size (max 100MB)
+	maxSize := int64(100 * 1024 * 1024) // 100MB
+	if file.Size > maxSize {
+		return fmt.Errorf("file size too large: maximum allowed is 100MB")
+	}
+
+	// Check file extension
+	allowedExtensions := map[string]bool{
+		".pdf":  true,
+		".docx": true,
+		".doc":  true,
+		".txt":  true,
+		".xlsx": true,
+		".xls":  true,
+		".pptx": true,
+		".ppt":  true,
+		".md":   true,
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if !allowedExtensions[ext] {
+		return fmt.Errorf("file type not supported: %s", ext)
+	}
+
+	return nil
+}
+
+func (s *DocumentService) getDocumentType(filename string) models.DocumentType {
+	ext := strings.ToLower(filepath.Ext(filename))
+
+	switch ext {
+	case ".pdf":
+		return models.DocumentTypePDF
+	case ".docx", ".doc":
+		return models.DocumentTypeDOCX
+	case ".txt", ".md":
+		return models.DocumentTypeTXT
+	case ".xlsx", ".xls":
+		return models.DocumentTypeXLSX
+	case ".pptx", ".ppt":
+		return models.DocumentTypePPTX
+	default:
+		return models.DocumentTypeOther
+	}
+}
+
+func (s *DocumentService) toDocumentResponse(doc *models.Document) *DocumentResponse {
+	return &DocumentResponse{
+		ID:               doc.ID,
+		Title:            doc.Title,
+		Description:      doc.Description,
+		FileName:         doc.FileName,
+		OriginalFileName: doc.OriginalFileName,
+		FileSize:         doc.FileSize,
+		FileType:         doc.FileType,
+		MimeType:         doc.MimeType,
+		Status:           doc.Status,
+		Version:          doc.Version,
+		Tags:             doc.Tags,
+		IsPublic:         doc.IsPublic,
+		ViewCount:        doc.ViewCount,
+		DownloadCount:    doc.DownloadCount,
+		UserID:           doc.UserID,
+		ProcessedAt:      doc.ProcessedAt,
+		CreatedAt:        doc.CreatedAt,
+		UpdatedAt:        doc.UpdatedAt,
+	}
+}
