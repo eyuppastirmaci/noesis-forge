@@ -249,39 +249,10 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 		return
 	}
 
-	// Parse multipart form
-	err = c.Request.ParseMultipartForm(500 << 20) // 500MB max total
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_FORM", "Failed to parse multipart form")
-		return
-	}
-
-	form := c.Request.MultipartForm
-	files := form.File["files"] // Note: "files" instead of "file"
-
-	if len(files) == 0 {
-		utils.ErrorResponse(c, http.StatusBadRequest, "NO_FILES", "No files provided")
-		return
-	}
-
-	// Get common metadata
-	tags := strings.TrimSpace(c.PostForm("tags"))
-	isPublicStr := c.PostForm("isPublic")
-	isPublic := isPublicStr == "true" || isPublicStr == "1"
-
-	// Validate common metadata
-	fieldErrors := make(map[string]string)
-	if len(tags) > 500 {
-		fieldErrors["tags"] = "Tags must be at most 500 characters"
-	}
-	if tags != "" {
-		if valid, msg := validateTagsForBulk(tags); !valid {
-			fieldErrors["tags"] = msg
-		}
-	}
-
-	if len(fieldErrors) > 0 {
-		utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+	// Get validated request from context
+	req, ok := validations.GetValidatedBulkDocumentUpload(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
 		return
 	}
 
@@ -296,27 +267,27 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 		err      error
 	}
 
-	resultChan := make(chan uploadResult, len(files))
+	resultChan := make(chan uploadResult, len(req.Files))
 
 	// Use WaitGroup to wait for all goroutines
 	var wg sync.WaitGroup
 
 	// Process each file concurrently
-	for i, file := range files {
+	for i, file := range req.Files {
 		wg.Add(1)
 		go func(idx int, f *multipart.FileHeader) {
 			defer wg.Done()
 
 			// Create individual request for each file
-			req := &services.UploadDocumentRequest{
+			uploadReq := &services.UploadDocumentRequest{
 				Title:       getFilenameWithoutExtensionForBulk(f.Filename), // Use filename as title
 				Description: "",                                             // Empty description for bulk uploads
-				Tags:        tags,
-				IsPublic:    isPublic,
+				Tags:        req.Tags,
+				IsPublic:    req.IsPublic,
 			}
 
 			// Upload the document
-			document, uploadErr := h.documentService.UploadDocument(ctx, userID, f, req)
+			document, uploadErr := h.documentService.UploadDocument(ctx, userID, f, uploadReq)
 
 			resultChan <- uploadResult{
 				index:    idx,
@@ -333,7 +304,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	}()
 
 	// Collect all results
-	results := make([]uploadResult, len(files))
+	results := make([]uploadResult, len(req.Files))
 	successfulUploads := []*services.DocumentResponse{}
 	failedUploads := []map[string]interface{}{}
 
@@ -342,7 +313,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 
 		if result.err != nil {
 			failedUploads = append(failedUploads, map[string]interface{}{
-				"filename": files[result.index].Filename,
+				"filename": req.Files[result.index].Filename,
 				"error":    result.err.Error(),
 			})
 		} else {
@@ -354,7 +325,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	response := gin.H{
 		"successful_uploads": len(successfulUploads),
 		"failed_uploads":     len(failedUploads),
-		"total_files":        len(files),
+		"total_files":        len(req.Files),
 		"documents":          successfulUploads,
 	}
 
@@ -371,59 +342,16 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	} else if len(failedUploads) > 0 {
 		// Partial success
 		utils.SuccessResponse(c, http.StatusPartialContent, response,
-			fmt.Sprintf("Uploaded %d out of %d files successfully", len(successfulUploads), len(files)))
+			fmt.Sprintf("Uploaded %d out of %d files successfully", len(successfulUploads), len(req.Files)))
 		return
 	}
 
 	// All uploads successful
 	utils.SuccessResponse(c, http.StatusCreated, response,
-		fmt.Sprintf("All %d files uploaded successfully", len(files)))
+		fmt.Sprintf("All %d files uploaded successfully", len(req.Files)))
 }
 
-// Helper functions for bulk upload
-func validateTagsForBulk(tags string) (bool, string) {
-	// Split tags by comma and validate each
-	tagList := strings.Split(tags, ",")
-
-	if len(tagList) > 10 {
-		return false, "Maximum 10 tags allowed"
-	}
-
-	for _, tag := range tagList {
-		tag = strings.TrimSpace(tag)
-		if len(tag) == 0 {
-			continue
-		}
-
-		if len(tag) < 2 {
-			return false, "Each tag must be at least 2 characters"
-		}
-
-		if len(tag) > 50 {
-			return false, "Each tag must be at most 50 characters"
-		}
-
-		// Check for invalid characters in tags
-		if !isValidTagNameForBulk(tag) {
-			return false, "Tags can only contain letters, numbers, hyphens, and underscores"
-		}
-	}
-
-	return true, ""
-}
-
-func isValidTagNameForBulk(tag string) bool {
-	for _, char := range tag {
-		if !((char >= 'a' && char <= 'z') ||
-			(char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') ||
-			char == '-' || char == '_' || char == ' ') {
-			return false
-		}
-	}
-	return true
-}
-
+// Helper function for bulk upload (only this one is still needed)
 func getFilenameWithoutExtensionForBulk(filename string) string {
 	ext := filepath.Ext(filename)
 	return strings.TrimSuffix(filename, ext)

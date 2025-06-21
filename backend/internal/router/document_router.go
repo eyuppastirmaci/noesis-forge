@@ -18,7 +18,7 @@ func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.Docume
 	{
 		// Document CRUD operations with validation middleware
 		documents.POST("/upload", validations.ValidateDocumentUpload(), documentHandler.UploadDocument)
-		documents.POST("/bulk-upload", documentHandler.BulkUploadDocuments)
+		documents.POST("/bulk-upload", validations.ValidateBulkDocumentUpload(), documentHandler.BulkUploadDocuments)
 		documents.GET("", validations.ValidateDocumentList(), documentHandler.GetDocuments)
 		documents.GET("/:id", validations.ValidateDocumentID(), documentHandler.GetDocument)
 		documents.DELETE("/:id", validations.ValidateDocumentID(), documentHandler.DeleteDocument)

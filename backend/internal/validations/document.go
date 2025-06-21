@@ -1,6 +1,7 @@
 package validations
 
 import (
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -16,10 +17,18 @@ import (
 
 // Context keys for document validations
 const (
-	ValidatedDocumentUploadKey = "validatedDocumentUpload"
-	ValidatedDocumentListKey   = "validatedDocumentList"
-	ValidatedDocumentIDKey     = "validatedDocumentID"
+	ValidatedDocumentUploadKey     = "validatedDocumentUpload"
+	ValidatedBulkDocumentUploadKey = "validatedBulkDocumentUpload"
+	ValidatedDocumentListKey       = "validatedDocumentList"
+	ValidatedDocumentIDKey         = "validatedDocumentID"
 )
+
+// BulkUploadDocumentRequest represents the validated bulk upload request
+type BulkUploadDocumentRequest struct {
+	Files    []*multipart.FileHeader
+	Tags     string
+	IsPublic bool
+}
 
 // ValidateDocumentUpload validates document upload requests (multipart form)
 func ValidateDocumentUpload() gin.HandlerFunc {
@@ -234,6 +243,72 @@ func ValidateDocumentID() gin.HandlerFunc {
 	}
 }
 
+// ValidateBulkDocumentUpload validates bulk document upload requests
+func ValidateBulkDocumentUpload() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse multipart form
+		err := c.Request.ParseMultipartForm(500 << 20) // 500MB max total
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_FORM", "Failed to parse multipart form")
+			c.Abort()
+			return
+		}
+
+		form := c.Request.MultipartForm
+		files := form.File["files"] // Note: "files" instead of "file"
+
+		if len(files) == 0 {
+			utils.ErrorResponse(c, http.StatusBadRequest, "NO_FILES", "No files provided")
+			c.Abort()
+			return
+		}
+
+		fieldErrors := make(map[string]string)
+
+		// Validate each file
+		for i, file := range files {
+			if fileErrors := validateUploadedFile(file); len(fileErrors) > 0 {
+				for field, message := range fileErrors {
+					fieldErrors[fmt.Sprintf("files[%d].%s", i, field)] = message
+				}
+			}
+		}
+
+		// Get and validate common metadata
+		tags := strings.TrimSpace(c.PostForm("tags"))
+		isPublicStr := c.PostForm("isPublic")
+		isPublic := isPublicStr == "true" || isPublicStr == "1"
+
+		// Validate tags
+		if len(tags) > 500 {
+			fieldErrors["tags"] = "Tags must be at most 500 characters"
+		}
+		if tags != "" {
+			if valid, msg := validateTags(tags); !valid {
+				fieldErrors["tags"] = msg
+			}
+		}
+
+		// If there are validation errors, return them
+		if len(fieldErrors) > 0 {
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		// Create validated request
+		req := &BulkUploadDocumentRequest{
+			Files:    files,
+			Tags:     tags,
+			IsPublic: isPublic,
+		}
+
+		// Store validated request in context
+		c.Set(ValidatedBulkDocumentUploadKey, req)
+		c.Next()
+	}
+}
+
 // Helper functions
 
 func validateUploadedFile(file *multipart.FileHeader) map[string]string {
@@ -347,6 +422,17 @@ func GetValidatedDocumentUpload(c *gin.Context) (*services.UploadDocumentRequest
 	}
 
 	req, ok := value.(*services.UploadDocumentRequest)
+	return req, ok
+}
+
+// GetValidatedBulkDocumentUpload retrieves the validated bulk upload request from context
+func GetValidatedBulkDocumentUpload(c *gin.Context) (*BulkUploadDocumentRequest, bool) {
+	value, exists := c.Get(ValidatedBulkDocumentUploadKey)
+	if !exists {
+		return nil, false
+	}
+
+	req, ok := value.(*BulkUploadDocumentRequest)
 	return req, ok
 }
 
