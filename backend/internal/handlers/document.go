@@ -6,7 +6,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -275,15 +274,15 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	// Process each file concurrently
 	for i, file := range req.Files {
 		wg.Add(1)
-		go func(idx int, f *multipart.FileHeader) {
+		go func(idx int, f *multipart.FileHeader, meta validations.FileMetadata) {
 			defer wg.Done()
 
-			// Create individual request for each file
+			// Create individual request for each file using its metadata
 			uploadReq := &services.UploadDocumentRequest{
-				Title:       getFilenameWithoutExtensionForBulk(f.Filename), // Use filename as title
-				Description: "",                                             // Empty description for bulk uploads
-				Tags:        req.Tags,
-				IsPublic:    req.IsPublic,
+				Title:       meta.Title,
+				Description: meta.Description,
+				Tags:        meta.Tags,
+				IsPublic:    meta.IsPublic,
 			}
 
 			// Upload the document
@@ -294,7 +293,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 				document: document,
 				err:      uploadErr,
 			}
-		}(i, file)
+		}(i, file, req.Metadata[i])
 	}
 
 	// Close result channel when all goroutines complete
@@ -349,10 +348,4 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	// All uploads successful
 	utils.SuccessResponse(c, http.StatusCreated, response,
 		fmt.Sprintf("All %d files uploaded successfully", len(req.Files)))
-}
-
-// Helper function for bulk upload (only this one is still needed)
-func getFilenameWithoutExtensionForBulk(filename string) string {
-	ext := filepath.Ext(filename)
-	return strings.TrimSuffix(filename, ext)
 }

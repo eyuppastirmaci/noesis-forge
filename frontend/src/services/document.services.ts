@@ -471,12 +471,19 @@ export class DocumentService {
       formData.append("files", file);
     });
 
-    if (request.tags) {
-      formData.append("tags", request.tags);
-    }
-    if (request.isPublic !== undefined) {
-      formData.append("isPublic", request.isPublic.toString());
-    }
+    // Append individual metadata for each file
+    request.metadata.forEach((meta, index) => {
+      formData.append(`files[${index}].title`, meta.title);
+      if (meta.description) {
+        formData.append(`files[${index}].description`, meta.description);
+      }
+      if (meta.tags) {
+        formData.append(`files[${index}].tags`, meta.tags);
+      }
+      if (meta.isPublic !== undefined) {
+        formData.append(`files[${index}].isPublic`, meta.isPublic.toString());
+      }
+    });
 
     try {
       const response = await apiClient.post<BulkUploadResponse>(

@@ -228,11 +228,18 @@ export enum DocumentStatus {
   export type DocumentFilterStatus = DocumentStatus | "all";
   export type DocumentFilterType = DocumentType | "all";
 
+  // File metadata for individual files in bulk upload
+  export interface FileMetadata {
+    title: string;
+    description?: string;
+    tags?: string;
+    isPublic?: boolean;
+  }
+
   // Bulk upload types
   export interface BulkUploadDocumentRequest {
     files: File[];
-    tags?: string;
-    isPublic?: boolean;
+    metadata: FileMetadata[];
   }
 
   export interface BulkUploadResponse {

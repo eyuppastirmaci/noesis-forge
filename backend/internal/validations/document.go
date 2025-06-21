@@ -23,11 +23,18 @@ const (
 	ValidatedDocumentIDKey         = "validatedDocumentID"
 )
 
+// FileMetadata represents individual file metadata
+type FileMetadata struct {
+	Title       string
+	Description string
+	Tags        string
+	IsPublic    bool
+}
+
 // BulkUploadDocumentRequest represents the validated bulk upload request
 type BulkUploadDocumentRequest struct {
 	Files    []*multipart.FileHeader
-	Tags     string
-	IsPublic bool
+	Metadata []FileMetadata // Individual metadata for each file
 }
 
 // ValidateDocumentUpload validates document upload requests (multipart form)
@@ -274,18 +281,47 @@ func ValidateBulkDocumentUpload() gin.HandlerFunc {
 			}
 		}
 
-		// Get and validate common metadata
-		tags := strings.TrimSpace(c.PostForm("tags"))
-		isPublicStr := c.PostForm("isPublic")
-		isPublic := isPublicStr == "true" || isPublicStr == "1"
+		// Parse individual metadata for each file
+		metadata := make([]FileMetadata, len(files))
 
-		// Validate tags
-		if len(tags) > 500 {
-			fieldErrors["tags"] = "Tags must be at most 500 characters"
-		}
-		if tags != "" {
-			if valid, msg := validateTags(tags); !valid {
-				fieldErrors["tags"] = msg
+		for i := range files {
+			// Get individual file metadata
+			title := strings.TrimSpace(c.PostForm(fmt.Sprintf("files[%d].title", i)))
+			description := strings.TrimSpace(c.PostForm(fmt.Sprintf("files[%d].description", i)))
+			tags := strings.TrimSpace(c.PostForm(fmt.Sprintf("files[%d].tags", i)))
+			isPublicStr := c.PostForm(fmt.Sprintf("files[%d].isPublic", i))
+			isPublic := isPublicStr == "true" || isPublicStr == "1"
+
+			// Use filename as title if title is empty
+			if title == "" {
+				title = getFilenameWithoutExtension(files[i].Filename)
+			}
+
+			// Validate individual file metadata
+			if title == "" {
+				fieldErrors[fmt.Sprintf("files[%d].title", i)] = "Title is required"
+			} else if len(title) > 255 {
+				fieldErrors[fmt.Sprintf("files[%d].title", i)] = "Title must be at most 255 characters"
+			}
+
+			if len(description) > 1000 {
+				fieldErrors[fmt.Sprintf("files[%d].description", i)] = "Description must be at most 1000 characters"
+			}
+
+			if len(tags) > 500 {
+				fieldErrors[fmt.Sprintf("files[%d].tags", i)] = "Tags must be at most 500 characters"
+			}
+			if tags != "" {
+				if valid, msg := validateTags(tags); !valid {
+					fieldErrors[fmt.Sprintf("files[%d].tags", i)] = msg
+				}
+			}
+
+			metadata[i] = FileMetadata{
+				Title:       title,
+				Description: description,
+				Tags:        tags,
+				IsPublic:    isPublic,
 			}
 		}
 
@@ -299,8 +335,7 @@ func ValidateBulkDocumentUpload() gin.HandlerFunc {
 		// Create validated request
 		req := &BulkUploadDocumentRequest{
 			Files:    files,
-			Tags:     tags,
-			IsPublic: isPublic,
+			Metadata: metadata,
 		}
 
 		// Store validated request in context

@@ -206,11 +206,15 @@ const DocumentUploadPage: React.FC = () => {
         }))
       );
 
-      // For now, we'll use the first file's metadata as global, but later we'll implement individual uploads
+      // Create bulk request with individual metadata for each file
       const bulkRequest: BulkUploadDocumentRequest = {
         files: files.map((f) => f.file), // Extract File objects
-        tags: files[0]?.tags || "",
-        isPublic: globalIsPublic,
+        metadata: files.map((f) => ({
+          title: f.title,
+          description: f.description,
+          tags: f.tags,
+          isPublic: f.isPublic,
+        })),
       };
 
       const response = await bulkUploadMutation.mutateAsync({
