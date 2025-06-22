@@ -354,7 +354,7 @@ const DocumentsPage: React.FC = () => {
   const someSelected = selectedDocuments.size > 0 && !allSelected;
 
   return (
-    <div className="flex-1 max-h-[calc(100vh-92px)] overflow-y-scroll bg-background">
+    <div className="flex-1 max-h-[calc(100vh-102px)] overflow-y-scroll bg-background">
       <div className="max-w-7xl mx-auto p-4">
         {/* Header with Search/Filters and Actions */}
         <div className="mb-4 flex flex-col lg:flex-row lg:items-center gap-3">

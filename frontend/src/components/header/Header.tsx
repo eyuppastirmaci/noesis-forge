@@ -14,7 +14,7 @@ export default function Header() {
 
   if (!mounted) {
     return (
-      <div className="w-full flex flex-col sm:grid sm:grid-cols-3 items-center px-2 sm:px-4 h-auto sm:h-[80px] py-2 sm:py-0">
+      <div className="w-full flex flex-col sm:grid sm:grid-cols-3 items-center px-2 sm:px-4 h-auto sm:h-[90px] py-2 sm:py-0">
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="w-8 h-8 bg-background-secondary animate-pulse rounded sm:hidden" />
           <div className="w-[180px] sm:w-[220px] h-[40px] sm:h-[60px] bg-background-secondary animate-pulse rounded" />
