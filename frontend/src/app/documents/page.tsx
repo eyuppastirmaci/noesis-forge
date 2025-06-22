@@ -9,7 +9,6 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   Search,
   Eye,
   ArrowDown,
@@ -19,6 +18,7 @@ import {
   Presentation,
   FileImage,
 } from "lucide-react";
+import LinkButton from "@/components/ui/LinkButton";
 import {
   Document,
   DocumentListRequest,
@@ -38,6 +38,7 @@ import CustomTooltip from "@/components/ui/CustomTooltip";
 import IconButton from "@/components/ui/IconButton";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import { Select, SelectOption } from "@/components/ui/Select";
+import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
 
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -250,22 +251,16 @@ const DocumentsPage: React.FC = () => {
           </div>
 
           {/* Upload Button - Separate */}
-          <Link
-            href="/documents/upload"
-            className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
-          >
+          <LinkButton href="/documents/upload">
             Upload
-          </Link>
+          </LinkButton>
         </div>
 
         {/* Results Header with Loading State */}
         <div className="flex justify-between items-center mb-4">
           <div className="text-sm text-foreground-secondary">
             {isLoading ? (
-              <div className="flex items-center">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span>Loading documents...</span>
-              </div>
+              <TextSkeleton />
             ) : (
               <span>
                 {documents.length} of {total} documents
@@ -301,14 +296,11 @@ const DocumentsPage: React.FC = () => {
             </button>
           </div>
         ) : isLoading ? (
-          // Loading state for documents grid
-          <div className="flex justify-center items-center py-32">
-            <div className="flex flex-col items-center">
-              <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-              <span className="text-foreground-secondary text-lg">
-                Loading documents...
-              </span>
-            </div>
+          // Loading state for documents grid - Skeleton Cards
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <DocumentCardSkeleton key={index} />
+            ))}
           </div>
         ) : documents.length === 0 ? (
           // Empty state
@@ -322,12 +314,9 @@ const DocumentsPage: React.FC = () => {
                 ? "Try adjusting your search criteria"
                 : "Get started by uploading your first document"}
             </p>
-            <Link
-              href="/documents/upload"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            >
+            <LinkButton href="/documents/upload">
               Upload Document
-            </Link>
+            </LinkButton>
           </div>
         ) : (
           // Documents Grid

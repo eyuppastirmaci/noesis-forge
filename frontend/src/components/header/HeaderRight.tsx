@@ -282,19 +282,30 @@ export default function HeaderRight() {
 
         <div
           ref={avatarRef}
-          className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800"
+          className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-background-secondary transition-colors"
           onClick={toggleDropdown}
         >
-          <div className="group w-9 h-9 bg-primary border border-icon-button-border hover:border-icon-button-border-hover active:border-icon-button-border-active rounded-full flex items-center justify-center cursor-pointer">
-            <span className="text-sm font-medium text-primary-foreground select-none">
+          <div className="group w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
+            backgroundColor: 'var(--avatar-background)',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'var(--avatar-border)'
+          }} onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--avatar-border-hover)';
+          }} onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--avatar-border)';
+          }}>
+            <span className="text-sm font-medium select-none" style={{
+              color: 'var(--avatar-text)'
+            }}>
               {avatarLetter}
             </span>
           </div>
-          <span className="text-sm font-medium select-none">
+          <span className="text-sm font-medium text-foreground select-none">
             {session?.user?.name || session?.user?.username || "User"}
           </span>
           <ChevronDown
-            className={`w-4 h-4 text-foreground-secondary ${
+            className={`w-4 h-4 text-foreground-secondary transition-transform duration-200 ${
               isDropdownOpen ? "rotate-180" : ""
             }`}
           />

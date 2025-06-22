@@ -51,7 +51,9 @@
   --color-warning: var(--color-yellow);
   --color-info: var(--color-blue);
   --color-primary: var(--color-gray-900);
+  --color-primary-foreground: var(--color-gray-50);
   --color-accent: var(--color-gray-50);
+  --color-accent-foreground: var(--color-gray-900);
   --color-primary-soft: var(--color-gray-800);
   --color-accent-soft: var(--color-gray-100);
 
@@ -70,6 +72,12 @@
   --color-icon-button-icon: var(--color-gray-600);
   --color-icon-button-icon-hover: var(--color-gray-800);
   --color-icon-button-icon-active: var(--color-gray-900);
+
+  /* Avatar Colors */
+  --color-avatar-background: var(--color-gray-50);
+  --color-avatar-border: var(--color-gray-400);
+  --color-avatar-border-hover: var(--color-gray-500);
+  --color-avatar-text: var(--color-gray-600);
 
   /* Custom utility colors - Tailwind v4 format */
   --color-primary-DEFAULT: var(--color-primary);
@@ -170,7 +178,9 @@
 
     /* Theme Variables - Light Mode */
     --primary: var(--color-primary);
+    --primary-foreground: var(--color-primary-foreground);
     --accent: var(--color-accent);
+    --accent-foreground: var(--color-accent-foreground);
     --primary-soft: var(--color-primary-soft);
     --accent-soft: var(--color-accent-soft);
 
@@ -189,6 +199,12 @@
     --icon-button-icon: var(--color-icon-button-icon);
     --icon-button-icon-hover: var(--color-icon-button-icon-hover);
     --icon-button-icon-active: var(--color-icon-button-icon-active);
+
+    /* Avatar Variables - Light Mode */
+    --avatar-background: var(--color-avatar-background);
+    --avatar-border: var(--color-avatar-border);
+    --avatar-border-hover: var(--color-avatar-border-hover);
+    --avatar-text: var(--color-avatar-text);
   }
 
   .dark {
@@ -199,6 +215,16 @@
     --color-foreground-secondary: var(--color-gray-400);
     --color-border: var(--color-gray-600);
     --color-border-hover: var(--color-gray-500);
+    
+    /* Primary colors for dark mode */
+    --color-primary-foreground: var(--color-gray-950);
+    --color-accent-foreground: var(--color-gray-50);
+
+    /* Avatar Colors - Dark Mode */
+    --color-avatar-background: var(--color-gray-950);
+    --color-avatar-border: var(--color-gray-500);
+    --color-avatar-border-hover: var(--color-gray-400);
+    --color-avatar-text: var(--color-gray-300);
 
     /* IconButton Specific Variables - Dark Mode */
     --color-icon-button-border: var(--color-gray-500);
@@ -210,7 +236,9 @@
 
     /* Theme Variables - Dark Mode */
     --primary: var(--color-gray-100);
+    --primary-foreground: var(--color-primary-foreground);
     --accent: var(--color-gray-950);
+    --accent-foreground: var(--color-accent-foreground);
     --primary-soft: var(--color-gray-200);
     --accent-soft: var(--color-gray-900);
 
@@ -229,5 +257,11 @@
     --icon-button-icon: var(--color-icon-button-icon);
     --icon-button-icon-hover: var(--color-icon-button-icon-hover);
     --icon-button-icon-active: var(--color-icon-button-icon-active);
+
+    /* Avatar Variables - Dark Mode */
+    --avatar-background: var(--color-avatar-background);
+    --avatar-border: var(--color-avatar-border);
+    --avatar-border-hover: var(--color-avatar-border-hover);
+    --avatar-text: var(--color-avatar-text);
   }
 }
