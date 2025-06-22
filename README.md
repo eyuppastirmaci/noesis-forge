@@ -10,11 +10,11 @@ NoesisForge transforms how organizations handle document management by leveragin
 
 ### Upload Document
 
-![upload-page](https://github.com/user-attachments/assets/0e7f1448-888b-4f5a-8788-40163e748cc1)
+![upload-documents](https://github.com/user-attachments/assets/5ad87723-ddea-4cc9-acdf-7bebcbf48de8)
 
 ### Documents
 
-![documents-page](https://github.com/user-attachments/assets/0b03341f-6739-4823-ae03-3ffacacb870c)
+![list-documents](https://github.com/user-attachments/assets/b7746b31-5a93-44ae-8ae1-877fb97f31fe)
 
 ## 🚧 Development Status
 
