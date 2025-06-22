@@ -199,38 +199,45 @@
   content: "";
   position: absolute;
   top: 0;
+  left: 0;
   right: 0;
   bottom: 0;
-  left: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.95),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
   animation: shimmer 1.5s infinite;
 }
 
 .dark .skeleton-shimmer::after {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
 }
 
 /* Sidebar Styles */
 .sidebar {
-  @apply w-64 h-full flex flex-col;
-  background: var(--background);
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
+  @apply bg-background border-r border-border overflow-y-auto;
+  width: 256px;
+  height: 100vh;
+  flex-shrink: 0;
 }
 
 .sidebar-content {
   @apply flex flex-col pr-4 py-4 space-y-2;
+}
+
+/* Mobile sidebar header with close button */
+.sidebar-mobile-header {
+  @apply flex justify-end items-center p-4 border-b border-border;
+}
+
+.sidebar-close-button {
+  @apply flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-200;
+  background: transparent;
+  color: var(--foreground-secondary);
+  border: none;
+  cursor: pointer;
+}
+
+.sidebar-close-button:hover {
+  background: var(--background-secondary);
+  color: var(--foreground);
 }
 
 .sidebar-section {
@@ -238,7 +245,7 @@
 }
 
 .sidebar-section-header {
-  @apply w-full flex items-center justify-between px-0 py-2 text-sm font-medium rounded-lg transition-colors duration-200;
+  @apply w-full flex items-center justify-between px-0 py-2 text-sm font-medium rounded-lg transition-colors duration-200 pl-2;
   background: transparent;
   color: var(--foreground-secondary);
   border: none;
@@ -265,7 +272,7 @@
 }
 
 .sidebar-section-content {
-  @apply mt-2 space-y-1 ml-0;
+  @apply mt-2 space-y-1 ml-0 pl-2;
 }
 
 .sidebar-item {
@@ -334,10 +341,31 @@
 /* Responsive sidebar */
 @media (max-width: 768px) {
   .sidebar {
-    @apply fixed inset-y-0 left-0 z-50 transform -translate-x-full transition-transform duration-300;
+    @apply fixed inset-y-0 left-0 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out;
+    width: 280px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    max-height: 100vh;
+    overflow-y: auto;
   }
   
   .sidebar.open {
     @apply translate-x-0;
+  }
+  
+  .dark .sidebar {
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Adjust content padding on mobile to account for close button */
+  .sidebar-content {
+    @apply pt-2 pb-4 pr-4 pl-4;
+  }
+}
+
+/* Desktop sidebar */
+@media (min-width: 769px) {
+  .sidebar {
+    @apply relative translate-x-0;
+    width: 256px;
   }
 }

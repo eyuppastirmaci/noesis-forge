@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/store';
+import { closeSidebar } from '@/store/slices/sidebarSlice';
 import {
   LayoutDashboard,
   FileText,
@@ -37,6 +40,16 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronRight,
+  Layers,
+  BookOpen,
+  SearchIcon,
+  MessageSquareText,
+  BarChart,
+  Users2,
+  BellIcon,
+  SettingsIcon,
+  ShieldIcon,
+  X,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -49,12 +62,14 @@ interface SidebarSection {
   title: string;
   items: SidebarItem[];
   defaultOpen?: boolean;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
 }
 
 const sidebarSections: SidebarSection[] = [
   {
     title: 'Main',
     defaultOpen: true,
+    icon: LayoutDashboard,
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     ],
@@ -62,6 +77,7 @@ const sidebarSections: SidebarSection[] = [
   {
     title: 'Documents',
     defaultOpen: true,
+    icon: BookOpen,
     items: [
       { label: 'All Documents', href: '/documents', icon: FileText },
       { label: 'Upload', href: '/documents/upload', icon: Upload },
@@ -72,6 +88,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Collections',
+    icon: Layers,
     items: [
       { label: 'Collections', href: '/collections', icon: FolderOpen },
       { label: 'Create Collection', href: '/collections/create', icon: Plus },
@@ -80,6 +97,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Search',
+    icon: SearchIcon,
     items: [
       { label: 'Search', href: '/search', icon: Search },
       { label: 'Advanced Search', href: '/search/advanced', icon: SearchX },
@@ -88,6 +106,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Chat',
+    icon: MessageSquareText,
     items: [
       { label: 'Chat', href: '/chat', icon: MessageSquare },
       { label: 'New Chat', href: '/chat/new', icon: MessageCircle },
@@ -96,6 +115,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Analytics',
+    icon: BarChart,
     items: [
       { label: 'Overview', href: '/analytics', icon: BarChart3 },
       { label: 'Usage', href: '/analytics/usage', icon: Activity },
@@ -105,6 +125,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Team',
+    icon: Users2,
     items: [
       { label: 'Members', href: '/team/members', icon: Users },
       { label: 'Permissions', href: '/team/permissions', icon: Shield },
@@ -113,6 +134,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Notifications',
+    icon: BellIcon,
     items: [
       { label: 'All Notifications', href: '/notifications/all', icon: Bell },
       { label: 'Mentions', href: '/notifications/mentions', icon: AtSign },
@@ -121,6 +143,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Settings',
+    icon: SettingsIcon,
     items: [
       { label: 'Profile', href: '/settings/profile', icon: User },
       { label: 'Preferences', href: '/settings/preferences', icon: Sliders },
@@ -130,6 +153,7 @@ const sidebarSections: SidebarSection[] = [
   },
   {
     title: 'Admin',
+    icon: ShieldIcon,
     items: [
       { label: 'Admin Panel', href: '/admin', icon: Crown },
       { label: 'Users', href: '/admin/users', icon: UserCog },
@@ -143,9 +167,32 @@ const sidebarSections: SidebarSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const dispatch = useDispatch();
+  const isOpen = useSelector((state: RootState) => state.sidebar.isOpen);
   const [openSections, setOpenSections] = useState<Set<string>>(
     new Set(sidebarSections.filter(section => section.defaultOpen).map(section => section.title))
   );
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      const sidebar = document.querySelector('.sidebar');
+      const hamburger = document.querySelector('.hamburger-button');
+      
+      if (isOpen && sidebar && !sidebar.contains(target) && hamburger && !hamburger.contains(target)) {
+        dispatch(closeSidebar());
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, dispatch]);
 
   const toggleSection = (sectionTitle: string) => {
     const newOpenSections = new Set(openSections);
@@ -163,8 +210,6 @@ export default function Sidebar() {
       return pathname === href;
     }
     
-    // For other routes, check if current path matches exactly or is a direct child
-    // But avoid matching parent routes when we're on a more specific child route
     if (pathname === href) {
       return true;
     }
@@ -186,27 +231,57 @@ export default function Sidebar() {
     return false;
   };
 
+  // Check if a section has any active items
+  const isSectionActive = (section: SidebarSection) => {
+    return section.items.some(item => isActive(item.href));
+  };
+
   return (
-    <div className="sidebar">
-      <div className="sidebar-content">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => dispatch(closeSidebar())}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+        {/* Mobile Close Button */}
+        <div className="sidebar-mobile-header md:hidden">
+          <button
+            onClick={() => dispatch(closeSidebar())}
+            className="sidebar-close-button"
+            aria-label="Close sidebar"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="sidebar-content">
         {sidebarSections.map((section) => {
-          const isOpen = openSections.has(section.title);
+          const isSectionOpen = openSections.has(section.title);
+          const SectionIcon = section.icon;
           
           return (
             <div key={section.title} className="sidebar-section">
               <button
                 onClick={() => toggleSection(section.title)}
-                className="sidebar-section-header"
+                className={`sidebar-section-header ${isSectionActive(section) ? 'active' : ''}`}
               >
-                <span className="sidebar-section-title">{section.title}</span>
-                {isOpen ? (
+                <div className="flex items-center gap-2">
+                  <SectionIcon size={16} className={`${isSectionActive(section) ? 'text-blue-500' : 'text-foreground-secondary'}`} />
+                  <span className={`sidebar-section-title ${isSectionActive(section) ? 'text-blue-500 font-bold' : ''}`}>{section.title}</span>
+                </div>
+                {isSectionOpen ? (
                   <ChevronDown size={16} className="sidebar-section-icon" />
                 ) : (
                   <ChevronRight size={16} className="sidebar-section-icon" />
                 )}
               </button>
               
-              {isOpen && (
+              {isSectionOpen && (
                 <div className="sidebar-section-content">
                   {section.items.map((item) => {
                     const IconComponent = item.icon;
@@ -217,6 +292,12 @@ export default function Sidebar() {
                         key={item.href}
                         href={item.href}
                         className={`sidebar-item ${active ? 'sidebar-item-active' : ''}`}
+                        onClick={() => {
+                          // Close sidebar on mobile when clicking a link
+                          if (window.innerWidth < 768) {
+                            dispatch(closeSidebar());
+                          }
+                        }}
                       >
                         <IconComponent size={18} className="sidebar-item-icon" />
                         <span className="sidebar-item-label">{item.label}</span>
@@ -228,7 +309,8 @@ export default function Sidebar() {
             </div>
           );
         })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
