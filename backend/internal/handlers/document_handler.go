@@ -600,6 +600,7 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 
 	successfulDownloads := 0
 	failedDownloads := 0
+	usedFilenames := make(map[string]bool) // Track used filenames to avoid duplicates
 
 	for result := range resultChan {
 		if result.error != nil {
@@ -616,16 +617,16 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 		extension := filepath.Ext(filename)
 
 		// Check for duplicate filenames and add counter if needed
-		for {
-			_, err := zipWriter.Create(filename)
-			if err == nil {
-				break // Filename is unique
-			}
-			// If file already exists in ZIP, modify filename
+		originalFilename := filename
+		for usedFilenames[filename] {
 			filename = fmt.Sprintf("%s_%d%s", baseFilename, counter, extension)
 			counter++
 		}
 
+		// Mark filename as used
+		usedFilenames[filename] = true
+
+		// Create file entry in ZIP
 		fileWriter, err := zipWriter.Create(filename)
 		if err != nil {
 			failedDownloads++
@@ -633,6 +634,7 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 			continue
 		}
 
+		// Write file content
 		_, err = fileWriter.Write(result.content)
 		if err != nil {
 			failedDownloads++
@@ -640,6 +642,8 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 			continue
 		}
 
+		logrus.Infof("[BULK_DOWNLOAD] Added file to ZIP: %s (original: %s, size: %d bytes)",
+			filename, originalFilename, len(result.content))
 		successfulDownloads++
 	}
 
