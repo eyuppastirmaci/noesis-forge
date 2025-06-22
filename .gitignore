@@ -40,8 +40,9 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (exclude example files)
 frontend/.env*
+!frontend/.env.example
 
 # vercel
 frontend/.vercel
