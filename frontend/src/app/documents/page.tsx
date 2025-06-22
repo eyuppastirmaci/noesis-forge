@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect, useDeferredValue, useTransition, memo } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useDeferredValue,
+  useTransition,
+} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import {
-  Plus,
-  Download,
-  Trash2,
   ChevronLeft,
   ChevronRight,
-  Search,
-  Eye,
-  ArrowDown,
   FileText,
   File,
   FileSpreadsheet,
@@ -31,212 +31,15 @@ import {
   getErrorMessage,
 } from "@/types";
 import {
-  documentService,
   documentQueries,
   documentMutations,
 } from "@/services/document.services";
-import CustomTooltip from "@/components/ui/CustomTooltip";
-import IconButton from "@/components/ui/IconButton";
-import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
+
 import { Select, SelectOption } from "@/components/ui/Select";
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
 import { debounce } from "@/utils";
-
-const SearchInput = memo(({ 
-  value, 
-  onChange, 
-  onClear 
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onClear: () => void;
-}) => {
-  const [localValue, setLocalValue] = useState(value);
-
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-    onChange(newValue);
-  }, [onChange]);
-
-  const handleClear = useCallback(() => {
-    setLocalValue("");
-    onClear();
-  }, [onClear]);
-
-  return (
-    <div className="lg:flex-1 lg:max-w-md relative">
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-      <input
-        type="text"
-        placeholder="Search documents..."
-        value={localValue}
-        onChange={handleInputChange}
-        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
-      />
-      {localValue && (
-        <button
-          type="button"
-          onClick={handleClear}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
-    </div>
-  );
-});
-
-SearchInput.displayName = 'SearchInput';
-
-const DocumentCard = memo(({ 
-  document, 
-  onDownload, 
-  onDelete, 
-  isDownloading, 
-  isDeleting 
-}: {
-  document: Document;
-  onDownload: (document: Document) => void;
-  onDelete: (document: Document) => void;
-  isDownloading: boolean;
-  isDeleting: boolean;
-}) => {
-  const formatFileSize = useCallback((bytes: number) => {
-    return documentService.formatFileSize(bytes);
-  }, []);
-
-  const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }, []);
-
-  const getStatusBadge = useCallback((status: DocumentStatus) => {
-    const statusColors = {
-      ready:
-        "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-      processing:
-        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-      failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
-      deleted: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300",
-    };
-
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[status]}`}
-      >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  }, []);
-
-  return (
-    <div className="rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[180px] flex flex-col bg-background-secondary border border-border">
-      <div className="p-4 flex flex-col h-full">
-        {/* Header with icon and actions */}
-        <div className="flex items-start justify-between mb-3">
-          <DocumentTypeIndicator
-            fileType={document.fileType}
-            size="md"
-            className="flex-shrink-0"
-          />
-          <div className="flex space-x-1 flex-shrink-0">
-            <div data-tooltip-id={`download-${document.id}`}>
-              <IconButton
-                Icon={Download}
-                onClick={() => onDownload(document)}
-                variant="default"
-                size="sm"
-                bordered={false}
-                disabled={isDownloading}
-              />
-            </div>
-            <CustomTooltip
-              anchorSelect={`[data-tooltip-id='download-${document.id}']`}
-            >
-              Download document
-            </CustomTooltip>
-
-            <div data-tooltip-id={`delete-${document.id}`}>
-              <IconButton
-                Icon={Trash2}
-                onClick={() => onDelete(document)}
-                variant="danger"
-                size="sm"
-                bordered={false}
-                disabled={isDeleting}
-              />
-            </div>
-            <CustomTooltip
-              anchorSelect={`[data-tooltip-id='delete-${document.id}']`}
-            >
-              Delete document
-            </CustomTooltip>
-          </div>
-        </div>
-
-        {/* Document title */}
-        <h3 className="text-sm font-medium mb-2 line-clamp-2 flex-grow text-foreground">
-          {document.title}
-        </h3>
-
-        {/* Document metadata */}
-        <div className="space-y-1.5 text-xs mt-auto text-foreground-secondary">
-          <div className="flex justify-between items-center">
-            <span>{formatFileSize(document.fileSize)}</span>
-            <span>{formatDate(document.createdAt)}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex-shrink-0">
-              {getStatusBadge(document.status)}
-            </div>
-            <div className="flex space-x-3 flex-shrink-0">
-              <span
-                className="flex items-center space-x-1"
-                data-tooltip-id={`views-${document.id}`}
-              >
-                <Eye className="w-3 h-3 flex-shrink-0" />
-                <span className="flex-shrink-0">
-                  {document.viewCount}
-                </span>
-              </span>
-              <CustomTooltip
-                anchorSelect={`[data-tooltip-id='views-${document.id}']`}
-              >
-                Total views: {document.viewCount}
-              </CustomTooltip>
-
-              <span
-                className="flex items-center space-x-1"
-                data-tooltip-id={`downloads-${document.id}`}
-              >
-                <ArrowDown className="w-3 h-3 flex-shrink-0" />
-                <span className="flex-shrink-0">
-                  {document.downloadCount}
-                </span>
-              </span>
-              <CustomTooltip
-                anchorSelect={`[data-tooltip-id='downloads-${document.id}']`}
-              >
-                Total downloads: {document.downloadCount}
-              </CustomTooltip>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-DocumentCard.displayName = 'DocumentCard';
+import SearchInput from "@/components/SearchInput";
+import DocumentCard from "@/components/DocumentCard";
 
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -244,7 +47,7 @@ const DocumentsPage: React.FC = () => {
 
   // State for filters and pagination
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchInput, setSearchInput] = useState(""); // Separate state for input
+  const [searchInput, setSearchInput] = useState("");
   const deferredSearchInput = useDeferredValue(searchInput);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -294,8 +97,8 @@ const DocumentsPage: React.FC = () => {
         setSearchQuery(query);
         setCurrentPage(1);
       });
-    }, 300),
-    [] 
+    }, 700),
+    []
   );
 
   useEffect(() => {
@@ -357,35 +160,50 @@ const DocumentsPage: React.FC = () => {
   // Download mutation
   const downloadMutation = useMutation(documentMutations.download());
 
-  const handleDownloadDocument = useCallback(async (document: Document) => {
-    try {
-      await downloadMutation.mutateAsync({
-        id: document.id,
-        originalFileName: document.originalFileName,
-      });
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert(`Failed to download document: ${getErrorMessage(error)}`);
-    }
-  }, [downloadMutation]);
-
-  const handleDeleteDocument = useCallback(async (document: Document) => {
-    if (
-      window.confirm(`Are you sure you want to delete "${document.title}"?`)
-    ) {
+  const handleDownloadDocument = useCallback(
+    async (document: Document) => {
       try {
-        await deleteMutation.mutateAsync(document.id);
+        await downloadMutation.mutateAsync({
+          id: document.id,
+          originalFileName: document.originalFileName,
+        });
       } catch (error) {
-        console.error("Delete failed:", error);
-        alert(`Failed to delete document: ${getErrorMessage(error)}`);
+        console.error("Download failed:", error);
+        alert(`Failed to download document: ${getErrorMessage(error)}`);
       }
-    }
-  }, [deleteMutation]);
+    },
+    [downloadMutation]
+  );
+
+  const handleDeleteDocument = useCallback(
+    async (document: Document) => {
+      if (
+        window.confirm(`Are you sure you want to delete "${document.title}"?`)
+      ) {
+        try {
+          await deleteMutation.mutateAsync(document.id);
+        } catch (error) {
+          console.error("Delete failed:", error);
+          alert(`Failed to delete document: ${getErrorMessage(error)}`);
+        }
+      }
+    },
+    [deleteMutation]
+  );
 
   // Memoized document data to prevent unnecessary re-renders
-  const documents = useMemo(() => documentsData?.documents || [], [documentsData?.documents]);
-  const totalPages = useMemo(() => documentsData?.totalPages || 0, [documentsData?.totalPages]);
-  const total = useMemo(() => documentsData?.total || 0, [documentsData?.total]);
+  const documents = useMemo(
+    () => documentsData?.documents || [],
+    [documentsData?.documents]
+  );
+  const totalPages = useMemo(
+    () => documentsData?.totalPages || 0,
+    [documentsData?.totalPages]
+  );
+  const total = useMemo(
+    () => documentsData?.total || 0,
+    [documentsData?.total]
+  );
 
   return (
     <div className="max-h-[calc(100vh-92px)] overflow-y-scroll bg-background">
@@ -400,6 +218,7 @@ const DocumentsPage: React.FC = () => {
                 value={searchInput}
                 onChange={handleSearchInputChange}
                 onClear={handleSearchClear}
+                placeholder="Search documents..."
               />
 
               {/* Filters Row */}
@@ -434,9 +253,7 @@ const DocumentsPage: React.FC = () => {
           </div>
 
           {/* Upload Button - Separate */}
-          <LinkButton href="/documents/upload">
-            Upload
-          </LinkButton>
+          <LinkButton href="/documents/upload">Upload</LinkButton>
         </div>
 
         {/* Results Header with Loading State */}
@@ -499,9 +316,7 @@ const DocumentsPage: React.FC = () => {
                 ? "Try adjusting your search criteria"
                 : "Get started by uploading your first document"}
             </p>
-            <LinkButton href="/documents/upload">
-              Upload Document
-            </LinkButton>
+            <LinkButton href="/documents/upload">Upload Document</LinkButton>
           </div>
         ) : (
           // Documents Grid with Optimized Cards
