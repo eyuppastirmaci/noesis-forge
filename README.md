@@ -1,4 +1,5 @@
-# NoesisForge
+![noesis_forge_logo](https://github.com/user-attachments/assets/3b1e5cbb-17e3-43eb-a5f2-3f5bff36ba04)
+
 
 **NoesisForge** is a modern, AI-powered document management and intelligent search platform. It combines advanced document processing capabilities with artificial intelligence to provide semantic search, automated content analysis, and conversational interactions with your documents.
 
@@ -392,5 +393,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **The Go community** for excellent tooling and libraries
 - **React and Next.js teams** for frontend frameworks
 - **All open-source contributors** who make projects like this possible
-
 
