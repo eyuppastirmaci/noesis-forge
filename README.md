@@ -71,11 +71,11 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Data encryption (End-to-end data protection)
 
 **Sidebar & Layout System**
-- ☐ `AuthenticatedLayout` component
-- ☐ `PublicLayout` component
-- ☐ `Sidebar` component (collapsible, responsive)
+- ✅ `AuthenticatedLayout` component
+- ✅ `PublicLayout` component
+- ✅ `Sidebar` component (collapsible, responsive)
 - ☐ Route protection (`PrivateRoute` wrapper)
-- ☐ Navigation state management
+- ✅ Navigation state management
 
 **Dashboard**
 - ☐ Basic dashboard layout
