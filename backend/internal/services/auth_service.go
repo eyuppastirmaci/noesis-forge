@@ -450,7 +450,7 @@ func (s *AuthService) ClearAuthCookies(c *gin.Context) {
 // BlacklistToken adds a token to the blacklist
 func (s *AuthService) BlacklistToken(ctx context.Context, token string, expiration time.Duration) error {
 	if s.redis == nil {
-		return fmt.Errorf("Redis not available for token blacklisting")
+		return fmt.Errorf("redis not available for token blacklisting")
 	}
 
 	err := s.redis.Set(ctx, "blacklist:"+token, "1", expiration).Err()
