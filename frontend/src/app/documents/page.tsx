@@ -18,6 +18,9 @@ import {
   Presentation,
   FileImage,
   X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import LinkButton from "@/components/ui/LinkButton";
 import {
@@ -89,6 +92,47 @@ const DocumentsPage: React.FC = () => {
     { value: "20", label: "20" },
     { value: "50", label: "50" },
     { value: "100", label: "100" },
+  ];
+
+  const sortOptions: SelectOption[] = [
+    { 
+      value: "date", 
+      label: "Date Created", 
+      icon: <ArrowUpDown className="w-4 h-4" /> 
+    },
+    { 
+      value: "size", 
+      label: "File Size", 
+      icon: <ArrowUpDown className="w-4 h-4" /> 
+    },
+    { 
+      value: "views", 
+      label: "View Count", 
+      icon: <ArrowUpDown className="w-4 h-4" /> 
+    },
+    { 
+      value: "downloads", 
+      label: "Download Count", 
+      icon: <ArrowUpDown className="w-4 h-4" /> 
+    },
+    { 
+      value: "title", 
+      label: "Title", 
+      icon: <ArrowUpDown className="w-4 h-4" /> 
+    },
+  ];
+
+  const sortDirectionOptions: SelectOption[] = [
+    { 
+      value: "desc", 
+      label: "Descending", 
+      icon: <ArrowDown className="w-4 h-4" /> 
+    },
+    { 
+      value: "asc", 
+      label: "Ascending", 
+      icon: <ArrowUp className="w-4 h-4" /> 
+    },
   ];
 
   const debouncedSearch = useCallback(
@@ -243,6 +287,34 @@ const DocumentsPage: React.FC = () => {
                   }
                   className="min-w-[140px]"
                   aria-label="Filter by document status"
+                />
+
+                {/* Sort By */}
+                <Select
+                  options={sortOptions}
+                  value={sortBy}
+                  onChange={(value) =>
+                    startTransition(() => {
+                      setSortBy(value as DocumentSortField);
+                      setCurrentPage(1);
+                    })
+                  }
+                  className="min-w-[140px]"
+                  aria-label="Sort by field"
+                />
+
+                {/* Sort Direction */}
+                <Select
+                  options={sortDirectionOptions}
+                  value={sortDir}
+                  onChange={(value) =>
+                    startTransition(() => {
+                      setSortDir(value as DocumentSortDirection);
+                      setCurrentPage(1);
+                    })
+                  }
+                  className="min-w-[120px]"
+                  aria-label="Sort direction"
                 />
               </div>
             </div>

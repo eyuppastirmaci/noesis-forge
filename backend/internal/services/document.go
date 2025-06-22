@@ -168,6 +168,8 @@ func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, re
 		orderBy = "file_size"
 	case "views":
 		orderBy = "view_count"
+	case "downloads":
+		orderBy = "download_count"
 	}
 
 	if req.SortDir == "asc" {

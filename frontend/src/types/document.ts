@@ -223,7 +223,7 @@ export enum DocumentStatus {
   }
   
   // Helper Types
-  export type DocumentSortField = "name" | "date" | "size" | "views" | "title";
+  export type DocumentSortField = "name" | "date" | "size" | "views" | "downloads" | "title";
   export type DocumentSortDirection = "asc" | "desc";
   export type DocumentFilterStatus = DocumentStatus | "all";
   export type DocumentFilterType = DocumentType | "all";

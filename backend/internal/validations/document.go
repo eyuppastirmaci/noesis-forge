@@ -185,7 +185,7 @@ func ValidateDocumentList() gin.HandlerFunc {
 
 		// Validate sortBy
 		sortBy := c.DefaultQuery("sortBy", "date")
-		validSortFields := []string{"name", "date", "size", "views", "title"}
+		validSortFields := []string{"name", "date", "size", "views", "downloads", "title"}
 		if !slices.Contains(validSortFields, sortBy) {
 			fieldErrors["sortBy"] = "Invalid sort field"
 			sortBy = "date"
