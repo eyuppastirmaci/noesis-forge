@@ -17,33 +17,6 @@ NoesisForge is a modern document processing and AI-powered search system built w
 - [Deployment](#deployment)
 - [Contributing](#contributing)
 
-## 🏗️ Architecture
-
-The project follows a **Clean Architecture** pattern with a **Modular Monolith** approach:
-
-```
-┌─────────────────┐
-│   Frontend      │
-│ (React/Next.js) │
-└─────────────────┘
-         │
-┌─────────────────┐
-│  API Gateway    │
-│   (Gin Router)  │
-└─────────────────┘
-         │
-┌─────────────────┐
-│ Core Services   │
-│ (Modular Layer) │
-└─────────────────┘
-         │
-┌─────────────────┐
-│   Data Layer    │
-│ (PostgreSQL +   │
-│  Redis + Qdrant)│
-└─────────────────┘
-```
-
 ## 🛠️ Tech Stack
 
 - **Language:** Go 1.24.2
