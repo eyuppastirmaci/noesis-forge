@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -39,12 +39,14 @@ import IconButton from "@/components/ui/IconButton";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import { Select, SelectOption } from "@/components/ui/Select";
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
+import { debounce } from "@/utils";
 
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   // State for filters and pagination
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // Separate state for input
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortBy, setSortBy] = useState<DocumentSortField>("date");
@@ -130,10 +132,28 @@ const DocumentsPage: React.FC = () => {
   // Download mutation
   const downloadMutation = useMutation(documentMutations.download());
 
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      setSearchQuery(query);
+      setCurrentPage(1); // Reset to first page when searching
+    }, 500), // 500ms delay
+    []
+  );
+
+  // Handle search input change
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    debouncedSearch(value);
+  };
+
   // Event handlers
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1); // Reset to first page when searching
+    // Immediately apply search without waiting for debounce
+    setSearchQuery(searchInput);
+    setCurrentPage(1);
   };
 
   const handleDeleteDocument = async (document: Document) => {
@@ -211,8 +231,8 @@ const DocumentsPage: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Search documents..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchInput}
+                    onChange={handleSearchInputChange}
                     className="w-full pl-10 pr-4 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
                   />
                 </div>
@@ -310,7 +330,7 @@ const DocumentsPage: React.FC = () => {
               No documents found
             </h3>
             <p className="mb-4 text-foreground-secondary">
-              {searchQuery
+              {searchInput
                 ? "Try adjusting your search criteria"
                 : "Get started by uploading your first document"}
             </p>
