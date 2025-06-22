@@ -37,6 +37,7 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
 }) => {
   const [isDragActive, setIsDragActive] = useState(false);
   const [isDragReject, setIsDragReject] = useState(false);
+  const [errors, setErrors] = useState<FileError[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFiles = useCallback(
@@ -79,8 +80,11 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
       const fileArray = Array.from(files);
       const { validFiles, errors } = validateFiles(fileArray);
 
+      // Set errors in state to display them
+      setErrors(errors);
+
       if (errors.length > 0) {
-        // Show errors (you can customize this)
+        // Log errors for debugging
         console.error("File validation errors:", errors);
         errors.forEach(({ file, error }) => {
           console.error(`${file.name}: ${error}`);
@@ -94,12 +98,19 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
     [disabled, validateFiles, onFilesSelected]
   );
 
+  const clearErrors = useCallback(() => {
+    setErrors([]);
+  }, []);
+
   const onDragEnter = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
       if (disabled) return;
+
+      // Clear previous errors when dragging new files
+      setErrors([]);
 
       const items = Array.from(e.dataTransfer.items);
       const hasInvalidFiles = items.some((item) => {
@@ -149,6 +160,9 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Clear previous errors when selecting new files
+      setErrors([]);
+      
       if (e.target.files) {
         handleFiles(e.target.files);
         // Reset input value to allow selecting the same file again
@@ -260,6 +274,43 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
           </div>
         )}
       </div>
+
+      {/* Error Messages */}
+      {errors.length > 0 && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-red-800">
+                File Upload Error{errors.length > 1 ? "s" : ""}
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <ul className="list-disc pl-5 space-y-1">
+                  {errors.map((error, index) => (
+                    <li key={index}>
+                      <span className="font-medium">{error.file.name}:</span> {error.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <button
+                  type="button"
+                  onClick={clearErrors}
+                  className="inline-flex bg-red-50 rounded-md p-1.5 text-red-400 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-red-50 focus:ring-red-600"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
