@@ -28,25 +28,43 @@ export function LoginForm() {
 
   // Handle successful login redirect
   useEffect(() => {
-    if (state.success && state.credentials) {
+    if (state.success && state.credentials && state.user && state.tokens) {
+      // Set cookies client-side (only in browser environment)
+      if (typeof document !== 'undefined' && state.tokens) {
+        console.log("[LOGIN] Setting cookies client-side");
+        // Set access token cookie
+        document.cookie = `access_token=${state.tokens.accessToken}; path=/; max-age=${state.tokens.expiresIn}; secure=${location.protocol === 'https:'}; samesite=lax`;
+        
+        // Set refresh token cookie (7 days)
+        const refreshMaxAge = 7 * 24 * 60 * 60; // 7 days in seconds
+        document.cookie = `refresh_token=${state.tokens.refreshToken}; path=/; max-age=${refreshMaxAge}; secure=${location.protocol === 'https:'}; samesite=lax`;
+        
+        console.log("[LOGIN] Cookies set client-side successfully");
+      }
+
+      // Update NextAuth session with user credentials and info
       signIn("credentials", {
         identifier: state.credentials.identifier,
         password: state.credentials.password,
+        // Pass user info as additional data (custom fields)
+        name: state.user.name,
+        username: state.user.username,
+        email: state.user.email,
         redirect: false,
       }).then((result) => {
+        const userName = state.user?.name || state.user?.username || "User";
         if (result?.ok) {
-          const userName = state.user?.name || state.user?.username || "User";
           toast.info(`Welcome ${userName}`);
           router.push(state.redirectTo || "/");
         } else {
-          console.error("NextAuth signIn failed:", result?.error);
-          toast.error("Sign in completed but session update failed.");
-          // Still redirect even if NextAuth fails
+          // Even if NextAuth fails, we have cookies, so just redirect
+          console.warn("NextAuth session update failed, but login succeeded with cookies");
+          toast.info(`Welcome ${userName}`);
           router.push(state.redirectTo || "/");
         }
       });
     }
-  }, [state.success, state.credentials, state.redirectTo, router]);
+  }, [state.success, state.credentials, state.user, state.tokens, state.redirectTo, router]);
 
   // Handle field error clearing
   const handleFieldChange = (fieldName: string) => {

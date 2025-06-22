@@ -132,8 +132,6 @@ const DocumentUploadPage: React.FC = () => {
 
   // Handle global public checkbox change
   const handleGlobalPublicChange = (checked: boolean) => {
-    // If we're in indeterminate state or checking, set all to true
-    // If we're unchecking when all are selected, set all to false
     const newState = globalCheckboxState.indeterminate ? true : checked;
 
     setGlobalIsPublic(newState);

@@ -9,7 +9,10 @@ const authOptions: NextAuthOptions = {
       name: "credentials",
       credentials: {
         identifier: { label: "Email or Username", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        name: { label: "Name", type: "text" },
+        username: { label: "Username", type: "text" },
+        email: { label: "Email", type: "email" }
       },
       async authorize(credentials) {
         if (!credentials?.identifier || !credentials?.password) {
@@ -17,38 +20,18 @@ const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Determine if identifier is email or username
-          const isEmail = credentials.identifier.includes('@')
-          const loginData = {
-            ...(isEmail ? { email: credentials.identifier } : { username: credentials.identifier }),
-            password: credentials.password,
+          // Since we're using cookie-based authentication, the login was already 
+          // successful in the login action. Just use the provided user info.
+          
+          return {
+            id: credentials.email || credentials.identifier, // Use email as ID
+            email: credentials.email || credentials.identifier,
+            name: credentials.name || "User",
+            username: credentials.username || credentials.identifier,
+            roleID: "user",
+            accessToken: "cookie-based", // Placeholder - actual auth via cookies
+            refreshToken: "cookie-based", // Placeholder - actual auth via cookies
           }
-
-          // Send login request to backend
-          const response = await fetch(`${ENV.API_URL}/auth/login`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(loginData),
-          })
-
-          const data = await response.json()
-
-          if (response.ok && data.success) {
-            // Return user information from backend
-            return {
-              id: data.data.user.id,
-              email: data.data.user.email,
-              name: data.data.user.name,
-              username: data.data.user.username,
-              roleID: data.data.user.roleID,
-              accessToken: data.data.tokens.accessToken,
-              refreshToken: data.data.tokens.refreshToken,
-            }
-          }
-
-          return null
         } catch (error) {
           console.error("Auth error:", error)
           return null

@@ -89,9 +89,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Set HTTP-only cookies for secure token storage
-	h.authService.SetAuthCookies(c, tokens)
-
 	data := gin.H{
 		"user": gin.H{
 			"id":            user.ID,
@@ -109,60 +106,56 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"createdAt": user.CreatedAt,
 			"updatedAt": user.UpdatedAt,
 		},
-		// Don't return tokens in response body for security
+		// Return tokens in response body for frontend to set cookies
 		"tokens": gin.H{
-			"tokenType": "Bearer",
-			"expiresIn": tokens.ExpiresIn,
+			"accessToken":  tokens.AccessToken,
+			"refreshToken": tokens.RefreshToken,
+			"tokenType":    "Bearer",
+			"expiresIn":    tokens.ExpiresIn,
 		},
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Login successful")
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	// Get refresh token from cookie instead of request body
-	refreshToken, err := c.Cookie("refresh_token")
+	// Get refresh token from request body
+	var req services.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	tokens, err := h.authService.RefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "SESSION_EXPIRED", "Your session has expired. Please login again.")
 		return
 	}
-
-	tokens, err := h.authService.RefreshToken(c.Request.Context(), refreshToken)
-	if err != nil {
-		// Clear cookies on refresh failure
-		h.authService.ClearAuthCookies(c)
-		utils.ErrorResponse(c, http.StatusUnauthorized, "SESSION_EXPIRED", "Your session has expired. Please login again.")
-		return
-	}
-
-	// Set new tokens in cookies
-	h.authService.SetAuthCookies(c, tokens)
 
 	data := gin.H{
 		"tokens": gin.H{
-			"tokenType": "Bearer",
-			"expiresIn": tokens.ExpiresIn,
+			"accessToken":  tokens.AccessToken,
+			"refreshToken": tokens.RefreshToken,
+			"tokenType":    "Bearer",
+			"expiresIn":    tokens.ExpiresIn,
 		},
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Token refreshed successfully")
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// Get refresh token from cookie
-	refreshToken, err := c.Cookie("refresh_token")
-	if err != nil {
-		// Clear cookies anyway
-		h.authService.ClearAuthCookies(c)
-		utils.SuccessResponse(c, http.StatusOK, nil, "Logout successful")
-		return
+	// Get refresh token from request body (optional)
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
 	}
 
-	if err := h.authService.Logout(c.Request.Context(), refreshToken); err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "LOGOUT_FAILED", err.Error())
-		return
+	// Try to get refresh token from request body
+	if err := c.ShouldBindJSON(&req); err == nil && req.RefreshToken != "" {
+		if err := h.authService.Logout(c.Request.Context(), req.RefreshToken); err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "LOGOUT_FAILED", err.Error())
+			return
+		}
 	}
 
-	// Clear HTTP-only cookies
-	h.authService.ClearAuthCookies(c)
 	utils.SuccessResponse(c, http.StatusOK, nil, "Logout successful")
 }
 

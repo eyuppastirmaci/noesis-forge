@@ -127,34 +127,20 @@ export default function HeaderRight() {
   // Authenticated - show full header
   const handleLogout = async () => {
     try {
-      // Get refresh token from localStorage (if available)
-      const refreshToken = localStorage.getItem('refresh_token');
+      // Call frontend logout API route which handles both backend and NextAuth logout
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
       
-      // Call backend logout if refresh token exists
-      if (refreshToken) {
-        try {
-          const response = await fetch('/api/auth/logout', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ refreshToken }),
-          });
-          
-          if (!response.ok) {
-            console.warn('Backend logout failed, continuing with NextAuth logout');
-          }
-        } catch (error) {
-          console.warn('Backend logout error:', error);
-        }
+      if (!response.ok) {
+        console.warn('Logout API failed');
       }
       
-      // Clear localStorage tokens
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      
-      // Sign out from NextAuth
+      // Sign out from NextAuth (clears NextAuth session)
       await signOut({ redirect: true, callbackUrl: "/" });
     } catch (error) {
       console.error('Logout error:', error);

@@ -40,19 +40,46 @@ export type ProfileUpdateResponse = SuccessResponse<ProfileUpdateResponseData>;
 export type PasswordChangeResponse = SuccessResponse<null>;
 
 export class AuthService {
+  private setCookies(tokens: AuthTokens) {
+    // Only set cookies in browser environment
+    if (typeof document === 'undefined') {
+      console.log("[AUTH] Debug - Cannot set cookies, document is undefined (SSR)");
+      return;
+    }
+    
+    console.log("[AUTH] Debug - Setting access token cookie, length:", tokens.accessToken.length);
+    // Set access token cookie
+    document.cookie = `access_token=${tokens.accessToken}; path=/; max-age=${tokens.expiresIn}; secure=${location.protocol === 'https:'}; samesite=lax`;
+    
+    console.log("[AUTH] Debug - Setting refresh token cookie, length:", tokens.refreshToken.length);
+    // Set refresh token cookie (7 days)
+    const refreshMaxAge = 7 * 24 * 60 * 60; // 7 days in seconds
+    document.cookie = `refresh_token=${tokens.refreshToken}; path=/; max-age=${refreshMaxAge}; secure=${location.protocol === 'https:'}; samesite=lax`;
+    
+    console.log("[AUTH] Debug - Cookies set successfully");
+  }
+
+  private clearCookies() {
+    // Only clear cookies in browser environment
+    if (typeof document === 'undefined') return;
+    
+    document.cookie = 'access_token=; path=/; max-age=0';
+    document.cookie = 'refresh_token=; path=/; max-age=0';
+  }
+
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponseData>(
       API_ENDPOINTS.AUTH.LOGIN,
       credentials
     );
 
+    // Set tokens in apiClient only (cookies will be handled client-side)
     if (response.data.tokens) {
-      apiClient.setAuthTokens({
-        accessToken: response.data.tokens.accessToken,
-        refreshToken: response.data.tokens.refreshToken,
-        tokenType: response.data.tokens.tokenType || "Bearer",
-        expiresIn: response.data.tokens.expiresIn || 3600,
-      });
+      console.log("[AUTH] Debug - Setting tokens in apiClient:", response.data.tokens.accessToken ? 'Access token present' : 'No access token');
+      apiClient.setAuthTokens(response.data.tokens);
+      console.log("[AUTH] Debug - ApiClient tokens set");
+    } else {
+      console.log("[AUTH] Debug - No tokens in response");
     }
 
     return response;
@@ -73,28 +100,39 @@ export class AuthService {
       { refreshToken }
     );
 
+    // Set new tokens in cookies
     if (response.data.tokens) {
-      apiClient.setAuthTokens({
-        accessToken: response.data.tokens.accessToken,
-        refreshToken: response.data.tokens.refreshToken,
-        tokenType: response.data.tokens.tokenType || "Bearer",
-        expiresIn: response.data.tokens.expiresIn || 3600,
-      });
+      this.setCookies(response.data.tokens);
+      // Also set in apiClient for immediate use
+      apiClient.setAuthTokens(response.data.tokens);
     }
 
     return response;
   }
 
-  async logout(refreshToken: string): Promise<LogoutResponse> {
+  async logout(refreshToken?: string): Promise<LogoutResponse> {
     try {
-      const response = await apiClient.post<null>(API_ENDPOINTS.AUTH.LOGOUT, {
-        refreshToken,
-      });
-
+      // Get refresh token from cookies if not provided
+      const tokenToSend = refreshToken || this.getCookieValue('refresh_token');
+      const body = tokenToSend ? { refreshToken: tokenToSend } : {};
+      const response = await apiClient.post<null>(API_ENDPOINTS.AUTH.LOGOUT, body);
       return response;
     } finally {
+      // Clear cookies and local storage
+      this.clearCookies();
       apiClient.clearAuth();
     }
+  }
+
+  private getCookieValue(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop()?.split(';').shift() || null;
+    }
+    return null;
   }
 
   async getProfile(): Promise<ProfileResponse> {
@@ -156,8 +194,9 @@ export const authMutations = {
   }),
 
   logout: () => ({
-    mutationFn: async (refreshToken: string) => {
-      const response = await authService.logout(refreshToken);
+    mutationFn: async () => {
+      // No need to pass refreshToken - it's in the cookie
+      const response = await authService.logout();
       return response;
     },
   }),

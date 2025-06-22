@@ -3,17 +3,9 @@ import { authService } from '@/services/auth.service'
 
 export async function POST(request: NextRequest) {
   try {
-    const { refreshToken } = await request.json()
-
-    if (!refreshToken) {
-      return NextResponse.json(
-        { error: 'Refresh token is required' },
-        { status: 400 }
-      )
-    }
-
-    // Call backend logout
-    await authService.logout(refreshToken)
+    // No need to get refreshToken from body - it's in the cookie
+    // Call backend logout (cookies will be sent automatically)
+    await authService.logout()
 
     return NextResponse.json({ success: true })
   } catch (error) {

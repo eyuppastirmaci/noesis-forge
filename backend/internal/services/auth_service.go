@@ -317,7 +317,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.TokenClaims, er
 		}
 	}
 
-	token, err := jwt.ParseWithClaims(tokenString, &models.TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -328,8 +328,39 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.TokenClaims, er
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 
-	if claims, ok := token.Claims.(*models.TokenClaims); ok && token.Valid {
-		return claims, nil
+	if mapClaims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		// Convert MapClaims to TokenClaims
+		userIDStr, ok := mapClaims["sub"].(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid user ID in token")
+		}
+
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid user ID format in token")
+		}
+
+		roleIDStr, ok := mapClaims["roleID"].(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid role ID in token")
+		}
+
+		roleID, err := uuid.Parse(roleIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid role ID format in token")
+		}
+
+		email, _ := mapClaims["email"].(string)
+		username, _ := mapClaims["username"].(string)
+		roleName, _ := mapClaims["role"].(string)
+
+		return &models.TokenClaims{
+			UserID:   userID,
+			Email:    email,
+			Username: username,
+			RoleID:   roleID,
+			RoleName: roleName,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("invalid token claims")
@@ -379,16 +410,24 @@ func (s *AuthService) generateTokenPair(user *models.User) (*models.TokenPair, e
 
 // Add cookie helper methods after the existing methods
 func (s *AuthService) SetAuthCookies(c *gin.Context, tokens *models.TokenPair) {
+	s.logger.Infof("Setting auth cookies - Access token length: %d, Refresh token length: %d", len(tokens.AccessToken), len(tokens.RefreshToken))
+
+	// For development, use None to allow cross-origin cookies
+	if s.config.Environment != "production" {
+		c.SetSameSite(http.SameSiteNoneMode)
+	} else {
+		c.SetSameSite(http.SameSiteStrictMode)
+	}
+
 	// Set access token in HTTP-only cookie
-	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie(
 		"access_token",
 		tokens.AccessToken,
 		int(tokens.ExpiresIn),
 		"/",
-		"",
-		s.config.Environment == "production", // secure flag for production
-		true,                                 // httpOnly
+		"",    // Empty domain - will use current origin
+		false, // secure = false for development (required for SameSite=None in dev)
+		true,  // httpOnly
 	)
 
 	// Set refresh token in HTTP-only cookie
@@ -397,10 +436,12 @@ func (s *AuthService) SetAuthCookies(c *gin.Context, tokens *models.TokenPair) {
 		tokens.RefreshToken,
 		7*24*3600, // 7 days
 		"/",
-		"",
-		s.config.Environment == "production", // secure flag for production
-		true,                                 // httpOnly
+		"",    // Empty domain - will use current origin
+		false, // secure = false for development
+		true,  // httpOnly
 	)
+
+	s.logger.Infof("Auth cookies set successfully with SameSite=None, Secure=false for development")
 }
 
 func (s *AuthService) ClearAuthCookies(c *gin.Context) {

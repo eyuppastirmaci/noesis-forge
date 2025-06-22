@@ -13,25 +13,27 @@ import (
 
 func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Try to get token from cookie first (more secure)
-		token, err := c.Cookie("access_token")
-		if err != nil || token == "" {
-			// Fallback to Authorization header for backward compatibility
-			authHeader := c.GetHeader("Authorization")
-			if authHeader == "" {
+		var token string
+
+		// First try Authorization header (preferred method)
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			// Extract token from "Bearer <token>" format
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token = parts[1]
+			}
+		}
+
+		// If no Authorization header, try cookie (fallback)
+		if token == "" {
+			var err error
+			token, err = c.Cookie("access_token")
+			if err != nil || token == "" {
 				utils.ErrorResponse(c, http.StatusUnauthorized, "MISSING_TOKEN", "Authentication token is required")
 				c.Abort()
 				return
 			}
-
-			// Extract token from "Bearer <token>" format
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				utils.ErrorResponse(c, http.StatusUnauthorized, "INVALID_TOKEN_FORMAT", "Invalid authorization header format")
-				c.Abort()
-				return
-			}
-			token = parts[1]
 		}
 
 		// Validate token
@@ -69,6 +71,7 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 		}
 
 		// Set user context
+		fmt.Printf("[AUTH] DEBUG - Setting user context: UserID=%s, Email=%s\n", claims.UserID, claims.Email)
 		c.Set("userID", claims.UserID)
 		c.Set("userEmail", claims.Email)
 		c.Set("username", claims.Username)

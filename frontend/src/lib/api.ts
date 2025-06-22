@@ -1,5 +1,4 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
-import { getSession } from "next-auth/react";
 import {
   ApiResponse,
   SuccessResponse,
@@ -8,13 +7,23 @@ import {
   HttpStatus,
   AuthTokens,
   isSuccessResponse,
-  STORAGE_KEYS,
 } from "@/types";
 import { API_CONFIG } from "@/config/api";
 
 class ApiClient {
   private client: AxiosInstance;
   private baseURL: string;
+
+  private getCookieValue(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop()?.split(';').shift() || null;
+    }
+    return null;
+  }
 
   constructor(baseURL: string = API_CONFIG.BASE_URL) {
     this.baseURL = baseURL;
@@ -29,16 +38,19 @@ class ApiClient {
   }
 
   private setupInterceptors(): void {
-    // Request interceptor - automatically adds authentication token
+    // Request interceptor - add Authorization header from cookies
     this.client.interceptors.request.use(
       async (config) => {
-        // NextAuth session'dan token al
-        const token = await this.getAccessToken();
+        // Get access token from cookies
+        const accessToken = this.getCookieValue('access_token');
+        console.log("[API] Debug - Access token from cookie:", accessToken ? `${accessToken.substring(0, 20)}...` : 'null');
         
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`;
-        } 
-
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+          console.log("[API] Debug - Authorization header set");
+        } else {
+          console.log("[API] Debug - No access token found in cookies");
+        }
         return config;
       },
       (error) => {
@@ -82,12 +94,8 @@ class ApiClient {
 
           try {
             await this.refreshToken();
-            // Retry the original request with new token
-            const token = await this.getAccessToken();
-            if (token) {
-              error.config.headers.Authorization = `Bearer ${token}`;
-              return this.client.request(error.config);
-            }
+            // Retry the original request - cookies will be automatically included
+            return this.client.request(error.config);
           } catch (refreshError) {
             // Handle refresh failure by clearing auth and redirecting
             this.handleAuthFailure();
@@ -151,41 +159,15 @@ class ApiClient {
   }
 
   private async getAccessToken(): Promise<string | null> {
-    if (typeof window === "undefined") return null;
-    
-    try {
-      const session = await getSession();
-     
-      
-      if (session?.accessToken) {
-        return session.accessToken as string;
-      }
-      
-      // Removed localStorage token retrieval for security
-      // Tokens are now stored in HTTP-only cookies
-      return null;
-    } catch (error) {
-      console.error("[API] Error getting session:", error);
-      return null;
-    }
+    // Tokens are now stored in HTTP-only cookies
+    // No need to get them from session or localStorage
+    return null;
   }
 
   private async getRefreshToken(): Promise<string | null> {
-    if (typeof window === "undefined") return null;
-    
-    try {
-      const session = await getSession();
-      if (session?.refreshToken) {
-        return session.refreshToken as string;
-      }
-      
-      // Removed localStorage token retrieval for security
-      // Tokens are now stored in HTTP-only cookies
-      return null;
-    } catch (error) {
-      console.error("[API] Error getting refresh token:", error);
-      return null;
-    }
+    // Tokens are now stored in HTTP-only cookies
+    // No need to get them from session or localStorage
+    return null;
   }
 
   private setTokens(tokens: AuthTokens): void {
@@ -201,21 +183,23 @@ class ApiClient {
   }
 
   private async refreshToken(): Promise<void> {
-    const refreshToken = await this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error("Your session has expired. Please login again.");
-    }
-
     try {
+      const refreshToken = this.getCookieValue('refresh_token');
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
       const response = await axios.post(`${this.baseURL}/auth/refresh`, {
-        refreshToken,
+        refreshToken
+      }, {
+        withCredentials: true
       });
 
-      const tokens = response.data.tokens || response.data.data.tokens;
-      this.setTokens(tokens);
+      // Tokens are handled by auth service when login/refresh is called
+      console.log("[API] Tokens refreshed successfully");
     } catch (error) {
       this.clearTokens();
-      throw error;
+      throw new Error("Your session has expired. Please login again.");
     }
   }
 
@@ -239,8 +223,7 @@ class ApiClient {
 
   public async debugAuth(): Promise<void> {
     try {
-      const session = await getSession();
-      const localToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      console.log("[API] Using HTTP-only cookies for authentication");
     } catch (error) {
       console.error("Debug error:", error);
     }

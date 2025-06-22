@@ -52,6 +52,12 @@ export interface LoginState {
     username: string
     email: string
   }
+  tokens?: {
+    accessToken: string
+    refreshToken: string
+    tokenType: string
+    expiresIn: number
+  }
 }
 
 export async function loginAction(prevState: LoginState, formData: FormData): Promise<LoginState> {
@@ -70,7 +76,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
 
     const response = await authService.login(loginRequest as LoginRequest)
 
-    // Return success with credentials to trigger NextAuth signIn in the component
+    // Return success with credentials and tokens to trigger NextAuth signIn in the component
     return {
       errors: [],
       success: true,
@@ -80,6 +86,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
         username: response.data.user.username,
         email: response.data.user.email,
       },
+      tokens: response.data.tokens, // Include tokens for client-side cookie setting
       redirectTo: '/'
     }
   } catch (error: unknown) {
