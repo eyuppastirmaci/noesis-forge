@@ -6,5 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function RecentDocumentsLayout({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
+  return children;
 }

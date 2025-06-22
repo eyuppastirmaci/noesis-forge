@@ -5,5 +5,5 @@ interface Props {
 }
 
 export default function AuthLayout({ children }: Props) {
-  return <div>{children}</div>;
+  return children;
 }

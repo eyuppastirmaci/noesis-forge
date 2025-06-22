@@ -314,7 +314,7 @@ const DocumentUploadPage: React.FC = () => {
   }, [files]);
 
   return (
-    <div className="max-h-[calc(100vh-90px)] overflow-y-auto">
+    <div className="flex-1 max-h-[calc(100vh-90px)] overflow-y-auto">
       <div className="max-w-4xl mx-auto p-6 bg-background">
         {/* Header */}
         <div className="mb-8">

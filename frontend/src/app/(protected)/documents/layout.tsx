@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function DocumentsLayout({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
+  return children;
 }
