@@ -127,20 +127,32 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 		return nil, nil, fmt.Errorf(standardError)
 	}
 
+	userFound := true
 	if err := query.First(&user).Error; err != nil {
-		// Don't reveal if user exists or not - return standard error
+		userFound = false
+	}
+
+	// TIMING ATTACK PREVENTION:
+	// Always perform password hash check even if user doesn't exist
+	// This ensures constant time response regardless of username validity
+	if userFound {
+		// Check actual password for existing user
+		if !utils.CheckPasswordHash(req.Password, user.Password) {
+			// Increment failed attempts (but don't reveal this to user)
+			s.db.Model(&user).Update("failed_attempts", gorm.Expr("failed_attempts + 1"))
+			// Don't reveal if password is wrong - return standard error
+			return nil, nil, fmt.Errorf(standardError)
+		}
+	} else {
+		// User doesn't exist, but perform a fake password check to maintain constant time
+		// Use a dummy hash to ensure the same computational cost
+		dummyHash := "$2a$14$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj9QQTxRWC4G" // bcrypt cost 14
+		utils.CheckPasswordHash(req.Password, dummyHash)
+		// Return standard error after constant time delay
 		return nil, nil, fmt.Errorf(standardError)
 	}
 
-	// Check password
-	if !utils.CheckPasswordHash(req.Password, user.Password) {
-		// Increment failed attempts (but don't reveal this to user)
-		s.db.Model(&user).Update("failed_attempts", gorm.Expr("failed_attempts + 1"))
-		// Don't reveal if password is wrong - return standard error
-		return nil, nil, fmt.Errorf(standardError)
-	}
-
-	// Check if account is locked
+	// Additional checks for valid user
 	if user.IsLocked() {
 		// For security, return standard error instead of revealing account status
 		return nil, nil, fmt.Errorf(standardError)
