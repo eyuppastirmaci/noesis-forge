@@ -17,6 +17,11 @@ import {
   Search,
   Eye,
   ArrowDown,
+  FileText,
+  File,
+  FileSpreadsheet,
+  Presentation,
+  FileImage,
 } from "lucide-react";
 import {
   Document,
@@ -36,6 +41,7 @@ import {
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import IconButton from "@/components/ui/IconButton";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
+import { Select, SelectOption } from "@/components/ui/Select";
 
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -51,6 +57,31 @@ const DocumentsPage: React.FC = () => {
     "all"
   );
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Select options
+  const documentTypeOptions: SelectOption[] = [
+    { value: "all", label: "All Types", icon: <File className="w-4 h-4" /> },
+    { value: "pdf", label: "PDF", icon: <FileText className="w-4 h-4" /> },
+    { value: "docx", label: "Word", icon: <FileText className="w-4 h-4" /> },
+    { value: "txt", label: "Text", icon: <FileText className="w-4 h-4" /> },
+    { value: "xlsx", label: "Excel", icon: <FileSpreadsheet className="w-4 h-4" /> },
+    { value: "pptx", label: "PowerPoint", icon: <Presentation className="w-4 h-4" /> },
+    { value: "other", label: "Other", icon: <FileImage className="w-4 h-4" /> },
+  ];
+
+  const documentStatusOptions: SelectOption[] = [
+    { value: "all", label: "All Status" },
+    { value: "ready", label: "Ready" },
+    { value: "processing", label: "Processing" },
+    { value: "failed", label: "Failed" },
+  ];
+
+  const pageSizeOptions: SelectOption[] = [
+    { value: "10", label: "10 per page" },
+    { value: "20", label: "20 per page" },
+    { value: "50", label: "50 per page" },
+    { value: "100", label: "100 per page" },
+  ];
 
   // Build query parameters
   const queryParams: DocumentListRequest = useMemo(
@@ -265,44 +296,21 @@ const DocumentsPage: React.FC = () => {
 
               {/* Filters */}
               <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
-                <select
+                <Select
+                  options={documentTypeOptions}
                   value={filterType}
-                  onChange={(e) =>
-                    setFilterType(e.target.value as DocumentType | "all")
-                  }
-                  className="px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                  style={{
-                    backgroundColor: "var(--background)",
-                    border: "1px solid var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <option value="all">All Types</option>
-                  <option value="pdf">PDF</option>
-                  <option value="docx">Word</option>
-                  <option value="txt">Text</option>
-                  <option value="xlsx">Excel</option>
-                  <option value="pptx">PowerPoint</option>
-                  <option value="other">Other</option>
-                </select>
+                  onChange={(value) => setFilterType(value as DocumentType | "all")}
+                  className="min-w-[150px]"
+                  aria-label="Filter by document type"
+                />
 
-                <select
+                <Select
+                  options={documentStatusOptions}
                   value={filterStatus}
-                  onChange={(e) =>
-                    setFilterStatus(e.target.value as DocumentStatus | "all")
-                  }
-                  className="px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                  style={{
-                    backgroundColor: "var(--background)",
-                    border: "1px solid var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <option value="all">All Status</option>
-                  <option value="ready">Ready</option>
-                  <option value="processing">Processing</option>
-                  <option value="failed">Failed</option>
-                </select>
+                  onChange={(value) => setFilterStatus(value as DocumentStatus | "all")}
+                  className="min-w-[130px]"
+                  aria-label="Filter by document status"
+                />
 
                 <button
                   type="submit"
@@ -367,24 +375,16 @@ const DocumentsPage: React.FC = () => {
             </CustomTooltip>
 
             {/* Page Size Selector */}
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
+            <Select
+              options={pageSizeOptions}
+              value={pageSize.toString()}
+              onChange={(value) => {
+                setPageSize(Number(value));
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-              style={{
-                backgroundColor: "var(--background-secondary)",
-                border: "1px solid var(--border)",
-                color: "var(--foreground)",
-              }}
-            >
-              <option value={10}>10 per page</option>
-              <option value={20}>20 per page</option>
-              <option value={50}>50 per page</option>
-              <option value={100}>100 per page</option>
-            </select>
+              className="min-w-[140px]"
+              aria-label="Select page size"
+            />
           </div>
         </div>
 
