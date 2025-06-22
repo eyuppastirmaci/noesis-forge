@@ -191,33 +191,6 @@ const DocumentsPage: React.FC = () => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-2 text-foreground-secondary">
-          Loading documents...
-        </span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-red-600 dark:text-red-400 mb-4">
-          Failed to load documents: {getErrorMessage(error)}
-        </div>
-        <button
-          onClick={() => refetch()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
   const documents = documentsData?.documents || [];
   const totalPages = documentsData?.totalPages || 0;
   const total = documentsData?.total || 0;
@@ -225,7 +198,7 @@ const DocumentsPage: React.FC = () => {
   return (
     <div className="max-h-[calc(100vh-92px)] overflow-y-scroll bg-background">
       <div className="max-w-7xl mx-auto p-4">
-        {/* Header with Search/Filters and Upload */}
+        {/* Header with Search/Filters and Upload - Always visible */}
         <div className="mb-4 flex flex-col lg:flex-row lg:items-center gap-3">
           {/* Search and Filters Container */}
           <div className="flex-1">
@@ -285,10 +258,19 @@ const DocumentsPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* Compact Results Header */}
+        {/* Results Header with Loading State */}
         <div className="flex justify-between items-center mb-4">
           <div className="text-sm text-foreground-secondary">
-            {documents.length} of {total} documents
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Loading documents...</span>
+              </div>
+            ) : (
+              <span>
+                {documents.length} of {total} documents
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -305,8 +287,31 @@ const DocumentsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Documents Grid */}
-        {documents.length === 0 ? (
+        {/* Content Area with Conditional Rendering */}
+        {error ? (
+          <div className="text-center py-12">
+            <div className="text-red-600 dark:text-red-400 mb-4">
+              Failed to load documents: {getErrorMessage(error)}
+            </div>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : isLoading ? (
+          // Loading state for documents grid
+          <div className="flex justify-center items-center py-32">
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+              <span className="text-foreground-secondary text-lg">
+                Loading documents...
+              </span>
+            </div>
+          </div>
+        ) : documents.length === 0 ? (
+          // Empty state
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📄</div>
             <h3 className="text-lg font-medium mb-2 text-foreground">
@@ -325,6 +330,7 @@ const DocumentsPage: React.FC = () => {
             </Link>
           </div>
         ) : (
+          // Documents Grid
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {documents.map((document) => (
               <div
@@ -385,7 +391,7 @@ const DocumentsPage: React.FC = () => {
                       <span>{formatFileSize(document.fileSize)}</span>
                       <span>{formatDate(document.createdAt)}</span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex-shrink-0">
                         {getStatusBadge(document.status)}
@@ -429,8 +435,8 @@ const DocumentsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Compact Pagination */}
-        {totalPages > 1 && (
+        {/* Pagination - Only show when not loading and has documents */}
+        {!isLoading && !error && totalPages > 1 && (
           <div className="mt-6 flex items-center justify-center">
             <nav className="flex items-center space-x-2">
               <button
