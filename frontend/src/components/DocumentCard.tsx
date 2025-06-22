@@ -13,6 +13,7 @@ interface DocumentCardProps {
   document: Document;
   onDownload: (document: Document) => void;
   onDelete: (document: Document) => void;
+  onPreview: (document: Document) => void;
   isDownloading: boolean;
   isDeleting: boolean;
   isSelectionMode?: boolean;
@@ -25,6 +26,7 @@ const DocumentCard = memo(({
   document, 
   onDownload, 
   onDelete, 
+  onPreview,
   isDownloading, 
   isDeleting,
   isSelectionMode = false,
@@ -71,6 +73,10 @@ const DocumentCard = memo(({
   const handleDeleteCancel = useCallback(() => {
     setShowDeleteModal(false);
   }, []);
+
+  const handlePreviewClick = useCallback(() => {
+    onPreview(document);
+  }, [document, onPreview]);
 
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
@@ -128,6 +134,21 @@ const DocumentCard = memo(({
             />
             {!isSelectionMode && (
               <div className="flex space-x-1 flex-shrink-0">
+                <div data-tooltip-id={`preview-${document.id}`}>
+                  <IconButton
+                    Icon={Eye}
+                    onClick={handlePreviewClick}
+                    variant="default"
+                    size="sm"
+                    bordered={false}
+                  />
+                </div>
+                <CustomTooltip
+                  anchorSelect={`[data-tooltip-id='preview-${document.id}']`}
+                >
+                  Preview document
+                </CustomTooltip>
+
                 <div data-tooltip-id={`download-${document.id}`}>
                   <IconButton
                     Icon={Download}

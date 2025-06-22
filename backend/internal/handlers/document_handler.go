@@ -258,11 +258,14 @@ func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 	}
 
 	// Generate presigned URL for preview (valid for 1 hour)
-	url, err := h.minioService.GeneratePresignedURL(c.Request.Context(), document.StoragePath, 3600)
+	logrus.Infof("[PREVIEW] Generating presigned URL for document %s, storage path: %s", documentID, document.StoragePath)
+	url, err := h.minioService.GeneratePresignedURL(c.Request.Context(), document.StoragePath, 3600*time.Second)
 	if err != nil {
+		logrus.Errorf("[PREVIEW] Failed to generate presigned URL for document %s: %v", documentID, err)
 		utils.ErrorResponse(c, http.StatusInternalServerError, "PREVIEW_FAILED", "Failed to generate preview URL")
 		return
 	}
+	logrus.Infof("[PREVIEW] Successfully generated presigned URL for document %s", documentID)
 
 	data := gin.H{
 		"url": url,

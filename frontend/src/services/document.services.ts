@@ -62,12 +62,6 @@ export class DocumentService {
     request: UploadDocumentRequest,
     onProgress?: (progress: number) => void
   ): Promise<DocumentUploadResponse> {
-    console.log("[DOCUMENT_SERVICE] 🚀 Starting upload:", {
-      fileName: request.file.name,
-      fileSize: this.formatFileSize(request.file.size),
-      title: request.title
-    });
-
     const formData = new FormData();
     formData.append("file", request.file);
     formData.append("title", request.title);
@@ -95,18 +89,12 @@ export class DocumentService {
               const progress = Math.round(
                 (progressEvent.loaded * 100) / progressEvent.total
               );
-              console.log(`[DOCUMENT_SERVICE] 📊 Upload progress: ${progress}%`);
               onProgress(progress);
             }
           },
           timeout: 300000, // 5 minutes for large files
         }
       );
-
-      console.log("[DOCUMENT_SERVICE] ✅ Upload successful:", {
-        documentId: response.data.document.id,
-        fileName: response.data.document.originalFileName
-      });
 
       return response;
     } catch (error) {
@@ -121,8 +109,6 @@ export class DocumentService {
   async getDocuments(
     request: DocumentListRequest = {}
   ): Promise<DocumentListApiResponse> {
-    console.log("[DOCUMENT_SERVICE] 📋 Fetching documents:", request);
-
     const params = new URLSearchParams();
 
     if (request.page) params.append("page", request.page.toString());
@@ -138,10 +124,6 @@ export class DocumentService {
     
     try {
       const response = await apiClient.get<DocumentListResponseData>(url);
-      console.log("[DOCUMENT_SERVICE] ✅ Documents fetched:", {
-        total: response.data.total,
-        page: response.data.page
-      });
       return response;
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] ❌ Failed to fetch documents:", error);
@@ -153,13 +135,10 @@ export class DocumentService {
    * Get a single document by ID
    */
   async getDocument(id: string): Promise<DocumentDetailResponse> {
-    console.log("[DOCUMENT_SERVICE] 📄 Fetching document:", id);
-
     try {
       const response = await apiClient.get<DocumentDetailResponseData>(
         DOCUMENT_ENDPOINTS.GET(id)
       );
-      console.log("[DOCUMENT_SERVICE] ✅ Document fetched:", response.data.document.title);
       return response;
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] ❌ Failed to fetch document:", error);
@@ -171,13 +150,10 @@ export class DocumentService {
    * Delete a document
    */
   async deleteDocument(id: string): Promise<DocumentDeleteResponse> {
-    console.log("[DOCUMENT_SERVICE] 🗑️ Deleting document:", id);
-
     try {
       const response = await apiClient.delete<null>(
         DOCUMENT_ENDPOINTS.DELETE(id)
       );
-      console.log("[DOCUMENT_SERVICE] ✅ Document deleted successfully");
       return response;
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] ❌ Failed to delete document:", error);
@@ -189,12 +165,6 @@ export class DocumentService {
    * Download a document - Updated to use NextAuth session
    */
   async downloadDocument(id: string, originalFileName: string): Promise<void> {
-    console.log("[DOCUMENT_SERVICE] ⬇️ Starting download:", { 
-      id, 
-      originalFileName,
-      apiBaseUrl: API_CONFIG.BASE_URL,
-      fullUrl: `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.DOWNLOAD(id)}`
-    });
 
     try {
       // 🔥 Updated: Use NextAuth session instead of localStorage
@@ -203,7 +173,6 @@ export class DocumentService {
       try {
         const session = await getSession();
         token = session?.accessToken as string || null;
-        console.log("[DOCUMENT_SERVICE] 🔑 Token from NextAuth:", !!token);
       } catch (sessionError) {
         console.warn("[DOCUMENT_SERVICE] ⚠️ Failed to get NextAuth session, fallback to localStorage");
         token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -236,7 +205,6 @@ export class DocumentService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      console.log("[DOCUMENT_SERVICE] ✅ Download completed:", originalFileName);
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] ❌ Download error:", error);
       throw error;
@@ -247,13 +215,10 @@ export class DocumentService {
    * Get preview URL for a document
    */
   async getDocumentPreview(id: string): Promise<DocumentPreviewApiResponse> {
-    console.log("[DOCUMENT_SERVICE] 👁️ Getting preview URL:", id);
-
     try {
       const response = await apiClient.get<DocumentPreviewResponseData>(
         DOCUMENT_ENDPOINTS.PREVIEW(id)
       );
-      console.log("[DOCUMENT_SERVICE] ✅ Preview URL generated");
       return response;
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] ❌ Failed to get preview URL:", error);
@@ -265,12 +230,6 @@ export class DocumentService {
    * Validate a file before upload
    */
   validateFile(file: File): FileValidationResult {
-    console.log("[DOCUMENT_SERVICE] 🔍 Validating file:", {
-      name: file.name,
-      size: this.formatFileSize(file.size),
-      type: file.type
-    });
-
     // Check file size
     if (file.size > FILE_SIZE_LIMITS.MAX_FILE_SIZE) {
       const error = `File size must be less than ${this.formatFileSize(
@@ -308,7 +267,6 @@ export class DocumentService {
       return { isValid: false, error };
     }
 
-    console.log("[DOCUMENT_SERVICE] ✅ File validation passed");
     return { isValid: true };
   }
 
@@ -362,8 +320,6 @@ export class DocumentService {
     validFiles: File[];
     errors: Array<{ file: File; error: string }>;
   } {
-    console.log("[DOCUMENT_SERVICE] 🔍 Validating multiple files:", files.length);
-
     const validFiles: File[] = [];
     const errors: Array<{ file: File; error: string }> = [];
 
@@ -390,12 +346,6 @@ export class DocumentService {
 
       validFiles.push(file);
     }
-
-    console.log("[DOCUMENT_SERVICE] 📊 Validation results:", {
-      validFiles: validFiles.length,
-      errors: errors.length,
-      totalSize: this.formatFileSize(totalSize)
-    });
 
     return { validFiles, errors };
   }
@@ -433,31 +383,15 @@ export class DocumentService {
   }
 
   /**
-   * 🔧 Debug method for checking authentication
+   * Debug method for checking authentication
    */
   async debugAuth(): Promise<void> {
-    console.log("=== 🔍 DOCUMENT SERVICE AUTH DEBUG ===");
-    
     try {
       const session = await getSession();
-      console.log("NextAuth Session:", {
-        exists: !!session,
-        userEmail: session?.user?.email,
-        hasAccessToken: !!session?.accessToken,
-        tokenLength: session?.accessToken ? (session.accessToken as string).length : 0
-      });
-      
       const localToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-      console.log("LocalStorage Token:", {
-        exists: !!localToken,
-        tokenLength: localToken?.length || 0
-      });
-      
     } catch (error) {
       console.error("Auth debug error:", error);
     }
-    
-    console.log("=== 🔍 DOCUMENT SERVICE AUTH DEBUG END ===");
   }
 
   /**
@@ -467,13 +401,6 @@ export class DocumentService {
     request: BulkUploadDocumentRequest,
     onProgress?: (progress: number) => void
   ): Promise<SuccessResponse<BulkUploadResponse>> {
-    console.log("[DOCUMENT_SERVICE] 🚀 Starting bulk upload:", {
-      fileCount: request.files.length,
-      totalSize: this.formatFileSize(
-        request.files.reduce((sum: number, file: File) => sum + file.size, 0)
-      ),
-    });
-
     const formData = new FormData();
     
     // Append all files with the same field name "files"
@@ -508,19 +435,12 @@ export class DocumentService {
               const progress = Math.round(
                 (progressEvent.loaded * 100) / progressEvent.total
               );
-              console.log(`[DOCUMENT_SERVICE] 📊 Bulk upload progress: ${progress}%`);
               onProgress(progress);
             }
           },
           timeout: 600000, // 10 minutes for bulk uploads
         }
       );
-
-      console.log("[DOCUMENT_SERVICE] ✅ Bulk upload successful:", {
-        successful: response.data.successful_uploads,
-        failed: response.data.failed_uploads,
-        total: response.data.total_files,
-      });
 
       return response;
     } catch (error) {
@@ -533,11 +453,6 @@ export class DocumentService {
    * Delete multiple documents
    */
   async bulkDeleteDocuments(documentIds: string[]): Promise<BulkDeleteResponse> {
-    console.log("[DOCUMENT_SERVICE] 🗑️ Starting bulk delete:", {
-      documentCount: documentIds.length,
-      documentIds: documentIds.slice(0, 5) // Log first 5 IDs
-    });
-
     try {
       const response = await apiClient.post<BulkDeleteResponseData>(
         DOCUMENT_ENDPOINTS.BULK_DELETE,
@@ -546,12 +461,6 @@ export class DocumentService {
           timeout: 120000, // 2 minutes for bulk operations
         }
       );
-
-      console.log("[DOCUMENT_SERVICE] ✅ Bulk delete successful:", {
-        successful: response.data.successful_deletes,
-        failed: response.data.failed_deletes,
-        total: response.data.total_documents
-      });
 
       return response;
     } catch (error) {
@@ -564,11 +473,6 @@ export class DocumentService {
    * Download multiple documents as a ZIP file
    */
   async bulkDownloadDocuments(documentIds: string[]): Promise<void> {
-    console.log("[DOCUMENT_SERVICE] ⬇️ Starting bulk download:", {
-      documentCount: documentIds.length,
-      documentIds: documentIds.slice(0, 5) // Log first 5 IDs
-    });
-
     try {
       // 🔥 Updated: Use NextAuth session for authentication
       let token: string | null = null;
@@ -576,7 +480,6 @@ export class DocumentService {
       try {
         const session = await getSession();
         token = session?.accessToken as string || null;
-        console.log("[DOCUMENT_SERVICE] 🔑 Token from NextAuth:", !!token);
       } catch (sessionError) {
         console.warn("[DOCUMENT_SERVICE] ⚠️ Failed to get NextAuth session, fallback to localStorage");
         token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -603,8 +506,6 @@ export class DocumentService {
         throw new Error(`Bulk download failed: ${response.status} ${response.statusText}`);
       }
 
-      console.log("[DOCUMENT_SERVICE] ✅ ZIP file received from backend");
-
       // Create blob from response
       const blob = await response.blob();
       
@@ -621,8 +522,6 @@ export class DocumentService {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
-      console.log("[DOCUMENT_SERVICE] ✅ Bulk download completed:", filename);
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] ❌ Bulk download failed:", error);
       throw error;
@@ -707,12 +606,10 @@ export const documentMutations = {
       request: UploadDocumentRequest;
       onProgress?: (progress: number) => void;
     }) => {
-      console.log("[DOCUMENT_MUTATIONS] 🚀 Upload mutation started");
       const response = await documentService.uploadDocument(
         request,
         onProgress
       );
-      console.log("[DOCUMENT_MUTATIONS] ✅ Upload mutation completed");
       return response.data;
     },
   }),
@@ -728,12 +625,10 @@ export const documentMutations = {
       request: BulkUploadDocumentRequest;
       onProgress?: (progress: number) => void;
     }) => {
-      console.log("[DOCUMENT_MUTATIONS] 🚀 Bulk upload mutation started");
       const response = await documentService.bulkUploadDocuments(
         request,
         onProgress
       );
-      console.log("[DOCUMENT_MUTATIONS] ✅ Bulk upload mutation completed");
       return response.data;
     },
   }),
@@ -743,9 +638,7 @@ export const documentMutations = {
    */
   delete: () => ({
     mutationFn: async (id: string) => {
-      console.log("[DOCUMENT_MUTATIONS] 🗑️ Delete mutation started:", id);
       const response = await documentService.deleteDocument(id);
-      console.log("[DOCUMENT_MUTATIONS] ✅ Delete mutation completed");
       return response;
     },
   }),
@@ -755,9 +648,7 @@ export const documentMutations = {
    */
   bulkDelete: () => ({
     mutationFn: async ({ documentIds }: { documentIds: string[] }) => {
-      console.log("[DOCUMENT_MUTATIONS] 🗑️ Bulk delete mutation started:", documentIds.length);
       const response = await documentService.bulkDeleteDocuments(documentIds);
-      console.log("[DOCUMENT_MUTATIONS] ✅ Bulk delete mutation completed");
       return response.data;
     },
   }),
@@ -773,9 +664,7 @@ export const documentMutations = {
       id: string;
       originalFileName: string;
     }) => {
-      console.log("[DOCUMENT_MUTATIONS] ⬇️ Download mutation started:", { id, originalFileName });
       await documentService.downloadDocument(id, originalFileName);
-      console.log("[DOCUMENT_MUTATIONS] ✅ Download mutation completed");
     },
   }),
 
@@ -784,9 +673,7 @@ export const documentMutations = {
    */
   bulkDownload: () => ({
     mutationFn: async ({ documentIds }: { documentIds: string[] }) => {
-      console.log("[DOCUMENT_MUTATIONS] ⬇️ Bulk download mutation started:", documentIds.length);
       await documentService.bulkDownloadDocuments(documentIds);
-      console.log("[DOCUMENT_MUTATIONS] ✅ Bulk download mutation completed");
     },
   }),
 };

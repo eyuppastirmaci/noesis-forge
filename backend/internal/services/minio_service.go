@@ -175,11 +175,14 @@ func (s *MinIOService) DeleteFile(ctx context.Context, objectName string) error 
 }
 
 func (s *MinIOService) GeneratePresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
+	logrus.Infof("[MINIO] Generating presigned URL for object: %s, bucket: %s, expiry: %s", objectName, s.config.BucketName, expiry)
 	url, err := s.client.PresignedGetObject(ctx, s.config.BucketName, objectName, expiry, nil)
 	if err != nil {
+		logrus.Errorf("[MINIO] Failed to generate presigned URL for object %s: %v", objectName, err)
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
+	logrus.Infof("[MINIO] Successfully generated presigned URL: %s", url.String())
 	return url.String(), nil
 }
 

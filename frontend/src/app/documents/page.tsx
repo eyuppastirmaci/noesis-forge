@@ -40,6 +40,7 @@ import {
 import {
   documentQueries,
   documentMutations,
+  documentService,
 } from "@/services/document.services";
 
 import { Select, SelectOption } from "@/components/ui/Select";
@@ -252,6 +253,22 @@ const DocumentsPage: React.FC = () => {
       }
     },
     [deleteMutation]
+  );
+
+  const handlePreviewDocument = useCallback(
+    async (document: Document) => {
+      try {
+        const response = await documentService.getDocumentPreview(document.id);
+        const previewUrl = response.data.url;
+        
+        // Open preview in new tab
+        window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      } catch (error) {
+        console.error("Preview failed:", error);
+        alert(`Failed to preview document: ${getErrorMessage(error)}`);
+      }
+    },
+    []
   );
 
   // Multi-select handlers
@@ -560,6 +577,7 @@ const DocumentsPage: React.FC = () => {
                 document={document}
                 onDownload={handleDownloadDocument}
                 onDelete={handleDeleteDocument}
+                onPreview={handlePreviewDocument}
                 isDownloading={downloadMutation.isPending}
                 isDeleting={deleteMutation.isPending}
                 isSelectionMode={isSelectionMode}
