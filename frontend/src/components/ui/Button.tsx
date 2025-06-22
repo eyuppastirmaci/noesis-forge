@@ -25,8 +25,8 @@ export default function Button({
 
   const variantClasses = {
     primary: "bg-blue text-white hover:bg-blue-dark hover:shadow-lg active:bg-blue-dark shadow-md",
-    secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300 hover:shadow-md active:bg-gray-400 border border-gray-200",
-    ghost: "text-gray-700 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200",
+    secondary: "bg-background-secondary text-foreground hover:bg-border hover:shadow-md active:bg-border-hover border border-border",
+    ghost: "text-foreground-secondary hover:bg-background-secondary hover:text-foreground active:bg-border",
     error: "bg-red text-white hover:bg-red-dark hover:shadow-lg active:bg-red-dark shadow-md"
   };
 

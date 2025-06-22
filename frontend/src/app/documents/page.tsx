@@ -177,15 +177,11 @@ const DocumentsPage: React.FC = () => {
 
   const handleDeleteDocument = useCallback(
     async (document: Document) => {
-      if (
-        window.confirm(`Are you sure you want to delete "${document.title}"?`)
-      ) {
-        try {
-          await deleteMutation.mutateAsync(document.id);
-        } catch (error) {
-          console.error("Delete failed:", error);
-          alert(`Failed to delete document: ${getErrorMessage(error)}`);
-        }
+      try {
+        await deleteMutation.mutateAsync(document.id);
+      } catch (error) {
+        console.error("Delete failed:", error);
+        throw new Error(getErrorMessage(error));
       }
     },
     [deleteMutation]

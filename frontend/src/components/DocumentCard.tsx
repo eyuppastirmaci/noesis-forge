@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useCallback, memo } from "react";
+import React, { useCallback, memo, useState } from "react";
 import { Download, Trash2, Eye, ArrowDown } from "lucide-react";
 import { Document, DocumentStatus } from "@/types";
 import { documentService } from "@/services/document.services";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import IconButton from "@/components/ui/IconButton";
 import CustomTooltip from "@/components/ui/CustomTooltip";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import { toast } from "@/utils";
 
 interface DocumentCardProps {
   document: Document;
@@ -25,6 +27,7 @@ const DocumentCard = memo(({
   isDeleting,
   className = ""
 }: DocumentCardProps) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const formatFileSize = useCallback((bytes: number) => {
     return documentService.formatFileSize(bytes);
   }, []);
@@ -56,8 +59,28 @@ const DocumentCard = memo(({
     );
   }, []);
 
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteModal(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    try {
+      await onDelete(document);
+      toast.success(`"${document.title}" has been deleted successfully.`);
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast.error(`Failed to delete "${document.title}". Please try again.`);
+    }
+  }, [document, onDelete]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setShowDeleteModal(false);
+  }, []);
+
   return (
-    <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[180px] flex flex-col bg-background-secondary border border-border ${className}`}>
+    <>
+      <div className={`rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[180px] flex flex-col bg-background-secondary border border-border ${className}`}>
       <div className="p-4 flex flex-col h-full">
         {/* Header with icon and actions */}
         <div className="flex items-start justify-between mb-3">
@@ -86,7 +109,7 @@ const DocumentCard = memo(({
             <div data-tooltip-id={`delete-${document.id}`}>
               <IconButton
                 Icon={Trash2}
-                onClick={() => onDelete(document)}
+                onClick={handleDeleteClick}
                 variant="danger"
                 size="sm"
                 bordered={false}
@@ -151,7 +174,21 @@ const DocumentCard = memo(({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Document"
+        description={`Are you sure you want to delete "${document.title}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="error"
+        isLoading={isDeleting}
+      />
+    </>
   );
 });
 
