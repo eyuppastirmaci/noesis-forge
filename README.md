@@ -6,6 +6,12 @@
 
 NoesisForge transforms how organizations handle document management by leveraging cutting-edge AI technologies. Upload documents, extract meaningful insights, and interact with your content through natural language queries. Whether you're managing legal documents, research papers, or business reports, NoesisForge makes your information instantly searchable and actionable.
 
+## 🚧 Development Status
+
+**This is a learning-oriented project currently under active development. Not recommended for production use.**
+
+While the core document management features are functional, many advanced AI capabilities are still being implemented. The project serves as a practical exploration of modern web development, AI integration, and scalable architecture patterns. There's still a long road ahead, but contributions, feedback, and suggestions are welcome as we continue to build and improve the platform.
+
 ## ✨ Key Features
 
 ### 📄 **Document Management**
@@ -75,34 +81,34 @@ NoesisForge transforms how organizations handle document management by leveragin
 ### Phase 2: Document Management Core
 
 **Document Upload**
-- ☐ File upload component (drag & drop)
-- ☐ MinIO integration
+- ✅ File upload component (drag & drop)
+- ✅ MinIO integration
 - ☐ Upload progress tracking
-- ☐ Basic metadata form
-- ☐ Backend: Document service, MinIO setup
-- ☐ Batch processing (Handle multiple documents simultaneously)
+- ✅ Basic metadata form
+- ✅ Backend: Document service, MinIO setup
+- ✅ Batch processing (Handle multiple documents simultaneously)
 - ☐ Version control (Track document changes and revisions)
 
 **Documents List**
-- ☐ Document grid/list view
-- ☐ Basic filtering & sorting
-- ☐ Pagination
-- ☐ Document actions (download, delete)
-- ☐ Backend: Document CRUD APIs
+- ✅ Document grid/list view
+- ✅ Basic filtering & sorting
+- ✅ Pagination
+- ✅ Document actions (download, delete, preview)
+- ✅ Backend: Document CRUD APIs
 
 **Document Viewer**
 - ☐ PDF viewer integration
-- ☐ Document metadata display
-- ☐ Download functionality
+- ✅ Document metadata display
+- ✅ Download functionality
 - ☐ Basic sharing (generate link)
 
 ### Phase 3: Search Foundation
 
 **Basic Search**
-- ☐ Search input component
-- ☐ Search results page
+- ✅ Search input component
+- ✅ Search results page (integrated in documents list)
 - ☐ PostgreSQL full-text search
-- ☐ Backend: Search service basics
+- ✅ Backend: Search service basics
 
 **Document Processing Pipeline**
 - ☐ RabbitMQ setup
@@ -240,7 +246,8 @@ NoesisForge transforms how organizations handle document management by leveragin
 ### Prerequisites
 - **Go** 1.24.2 or higher
 - **Node.js** 18+ (for frontend)
-- **PostgreSQL** 13+
+- **PostgreSQL** 13+ (or use Docker Compose)
+- **MinIO** (or use Docker Compose)
 - **Redis** 6+
 - **Ollama** (for local LLM)
 - **Docker** & Docker Compose (recommended)
@@ -251,12 +258,31 @@ NoesisForge transforms how organizations handle document management by leveragin
 git clone https://github.com/eyuppastirmaci/noesis-forge.git
 cd noesis-forge
 
-# Start all services
+# Start all services (PostgreSQL + MinIO)
 docker-compose up -d
 
-# Access the application
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8080
+# Access the services
+# PostgreSQL: localhost:5432 (noesis_forge/postgres/1997)
+# MinIO API: http://localhost:9000
+# MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
+
+# Then run backend and frontend manually (see Manual Installation)
+```
+
+### Alternative: Infrastructure Only
+If you prefer to run only the infrastructure services (PostgreSQL + MinIO) with Docker:
+
+```bash
+# Start only database and storage services
+docker-compose up -d postgres minio minio-init
+
+# Check services are running
+docker-compose ps
+
+# Access the services
+# PostgreSQL: localhost:5432 (noesis_forge/postgres/1997)
+# MinIO API: http://localhost:9000
+# MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
 ```
 
 ### Manual Installation
