@@ -25,9 +25,9 @@ export default function HeaderLeft() {
   const getLogoSrc = () => {
     const currentTheme = resolvedTheme || theme;
     if (currentTheme === "dark") {
-      return "/assets/images/logo/logo-dark.svg";
+      return "/assets/images/logo/header-logo-dark.png";
     }
-    return "/assets/images/logo/logo-light.svg";
+    return "/assets/images/logo/header-logo-light.png";
   };
 
   return (

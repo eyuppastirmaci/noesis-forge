@@ -220,3 +220,124 @@
     transparent
   );
 }
+
+/* Sidebar Styles */
+.sidebar {
+  @apply w-64 h-full flex flex-col;
+  background: var(--background);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.sidebar-content {
+  @apply flex flex-col pr-4 py-4 space-y-2;
+}
+
+.sidebar-section {
+  @apply w-full;
+}
+
+.sidebar-section-header {
+  @apply w-full flex items-center justify-between px-0 py-2 text-sm font-medium rounded-lg transition-colors duration-200;
+  background: transparent;
+  color: var(--foreground-secondary);
+  border: none;
+  cursor: pointer;
+}
+
+.sidebar-section-header:hover {
+  background: var(--background-secondary);
+  color: var(--foreground);
+}
+
+.sidebar-section-title {
+  @apply text-xs uppercase tracking-wide font-semibold;
+  color: var(--foreground-secondary);
+}
+
+.sidebar-section-icon {
+  @apply transition-transform duration-200;
+  color: var(--foreground-secondary);
+}
+
+.sidebar-section-header:hover .sidebar-section-icon {
+  color: var(--foreground);
+}
+
+.sidebar-section-content {
+  @apply mt-2 space-y-1 ml-0;
+}
+
+.sidebar-item {
+  @apply flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 no-underline;
+  color: var(--foreground-secondary);
+  background: transparent;
+}
+
+.sidebar-item:hover {
+  background: var(--background-secondary);
+  color: var(--foreground);
+  transform: translateX(2px);
+  text-decoration: none;
+}
+
+.sidebar-item-active {
+  background: var(--color-blue-light);
+  color: white;
+  font-weight: 600;
+}
+
+.sidebar-item-active:hover {
+  background: var(--color-blue-light);
+  color: white;
+}
+
+.sidebar-item-icon {
+  @apply flex-shrink-0 transition-colors duration-200;
+  color: inherit;
+}
+
+.sidebar-item-label {
+  @apply transition-colors duration-200;
+  color: inherit;
+}
+
+/* Dark mode specific styles */
+.dark .sidebar-item-active {
+  background: var(--color-blue);
+  color: white;
+}
+
+.dark .sidebar-item-active:hover {
+  background: var(--color-blue);
+  color: white;
+}
+
+/* Scrollbar styles for sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* Responsive sidebar */
+@media (max-width: 768px) {
+  .sidebar {
+    @apply fixed inset-y-0 left-0 z-50 transform -translate-x-full transition-transform duration-300;
+  }
+  
+  .sidebar.open {
+    @apply translate-x-0;
+  }
+}
