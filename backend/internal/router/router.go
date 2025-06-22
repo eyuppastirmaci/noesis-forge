@@ -85,8 +85,8 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	// CORS with environment-specific settings
 	var allowedOrigins []string
 	if r.config.Environment == "production" {
-		// In production, use specific allowed origins
-		allowedOrigins = []string{"https://yourdomain.com"} // Update with your domain
+		// Production domain will be added here in the future.
+		allowedOrigins = []string{"https://yourdomain.com"}
 	}
 	r.engine.Use(middleware.CORS(r.config.Environment, allowedOrigins))
 

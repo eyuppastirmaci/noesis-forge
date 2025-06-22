@@ -15,6 +15,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 	auth := r.Group("/auth")
 	{
 		// Public routes with rate limiting and validation middleware
+
 		// Login endpoint - strict rate limiting (5 requests per minute)
 		auth.POST("/login",
 			middleware.StrictRateLimit(5),

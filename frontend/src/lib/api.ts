@@ -5,7 +5,6 @@ import {
   ApiClientError,
   ApiErrorCode,
   HttpStatus,
-  AuthTokens,
   isSuccessResponse,
 } from "@/types";
 import { API_CONFIG } from "@/config/api";
