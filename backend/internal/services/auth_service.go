@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -124,7 +125,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 		query = query.Where("username = ?", req.Username)
 	} else {
 		// Don't reveal that fields are missing - return standard error
-		return nil, nil, fmt.Errorf(standardError)
+		return nil, nil, errors.New(standardError)
 	}
 
 	userFound := true
@@ -132,8 +133,6 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 		userFound = false
 	}
 
-	// TIMING ATTACK PREVENTION:
-	// Always perform password hash check even if user doesn't exist
 	// This ensures constant time response regardless of username validity
 	if userFound {
 		// Check actual password for existing user
@@ -141,27 +140,26 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 			// Increment failed attempts (but don't reveal this to user)
 			s.db.Model(&user).Update("failed_attempts", gorm.Expr("failed_attempts + 1"))
 			// Don't reveal if password is wrong - return standard error
-			return nil, nil, fmt.Errorf(standardError)
+			return nil, nil, errors.New(standardError)
 		}
 	} else {
-		// User doesn't exist, but perform a fake password check to maintain constant time
 		// Use a dummy hash to ensure the same computational cost
 		dummyHash := "$2a$14$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj9QQTxRWC4G" // bcrypt cost 14
 		utils.CheckPasswordHash(req.Password, dummyHash)
 		// Return standard error after constant time delay
-		return nil, nil, fmt.Errorf(standardError)
+		return nil, nil, errors.New(standardError)
 	}
 
 	// Additional checks for valid user
 	if user.IsLocked() {
 		// For security, return standard error instead of revealing account status
-		return nil, nil, fmt.Errorf(standardError)
+		return nil, nil, errors.New(standardError)
 	}
 
 	// Check if email is verified (for production, skip for development)
 	if s.config.Environment == "production" && !user.EmailVerified {
 		// For security, return standard error instead of revealing verification status
-		return nil, nil, fmt.Errorf(standardError)
+		return nil, nil, errors.New(standardError)
 	}
 
 	// Generate tokens
@@ -169,7 +167,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 	if err != nil {
 		// This is a server error, log it but return standard error to user
 		s.logger.WithError(err).Error("Failed to generate tokens during login")
-		return nil, nil, fmt.Errorf(standardError)
+		return nil, nil, errors.New(standardError)
 	}
 
 	// Update last login
