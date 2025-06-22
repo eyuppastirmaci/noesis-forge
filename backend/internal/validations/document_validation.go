@@ -454,43 +454,136 @@ func ValidateBulkDownload() gin.HandlerFunc {
 func validateUploadedFile(file *multipart.FileHeader) map[string]string {
 	errors := make(map[string]string)
 
-	// Check file size (100MB max)
-	maxSize := int64(100 * 1024 * 1024) // 100MB
-	if file.Size > maxSize {
+	// Check file size (100MB limit)
+	if file.Size > 100*1024*1024 {
 		errors["file"] = "File size must be less than 100MB"
+		return errors
 	}
 
 	// Check if file is empty
 	if file.Size == 0 {
 		errors["file"] = "File cannot be empty"
+		return errors
 	}
 
-	// Check file extension
-	allowedExtensions := map[string]bool{
-		".pdf":  true,
-		".docx": true,
-		".doc":  true,
-		".txt":  true,
-		".xlsx": true,
-		".xls":  true,
-		".pptx": true,
-		".ppt":  true,
-		".md":   true,
+	// Validate filename
+	if file.Filename == "" {
+		errors["file"] = "File must have a name"
+		return errors
 	}
 
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if !allowedExtensions[ext] {
-		errors["file"] = "File type not supported. Supported types: PDF, DOCX, DOC, TXT, XLSX, XLS, PPTX, PPT, MD"
-	}
-
-	// Check filename length
-	if len(file.Filename) > 255 {
-		errors["file"] = "Filename is too long (max 255 characters)"
-	}
-
-	// Check for malicious filenames
+	// Check for malicious filename characters
 	if containsMaliciousCharacters(file.Filename) {
 		errors["file"] = "Filename contains invalid characters"
+		return errors
+	}
+
+	// Get file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+
+	// Allowed extensions
+	allowedExtensions := map[string]bool{
+		".pdf":  true,
+		".doc":  true,
+		".docx": true,
+		".txt":  true,
+		".rtf":  true,
+		".odt":  true,
+		".xls":  true,
+		".xlsx": true,
+		".ppt":  true,
+		".pptx": true,
+		".odp":  true,
+		".ods":  true,
+	}
+
+	if !allowedExtensions[ext] {
+		errors["file"] = "File type not allowed. Supported formats: PDF, DOC, DOCX, TXT, RTF, ODT, XLS, XLSX, PPT, PPTX, ODP, ODS"
+		return errors
+	}
+
+	// MIME type validation - open file and check actual content type
+	src, err := file.Open()
+	if err != nil {
+		errors["file"] = "Cannot read file"
+		return errors
+	}
+	defer src.Close()
+
+	// Read first 512 bytes for MIME type detection
+	buffer := make([]byte, 512)
+	_, err = src.Read(buffer)
+	if err != nil {
+		errors["file"] = "Cannot read file content"
+		return errors
+	}
+
+	// Detect content type
+	contentType := http.DetectContentType(buffer)
+
+	// Allowed MIME types
+	allowedMIMETypes := map[string]bool{
+		"application/pdf":    true,
+		"application/msword": true,
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+		"text/plain":      true,
+		"application/rtf": true,
+		"application/vnd.oasis.opendocument.text":                                   true,
+		"application/vnd.ms-excel":                                                  true,
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         true,
+		"application/vnd.ms-powerpoint":                                             true,
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
+		"application/vnd.oasis.opendocument.presentation":                           true,
+		"application/vnd.oasis.opendocument.spreadsheet":                            true,
+		"application/octet-stream":                                                  true, // Fallback for some office documents
+	}
+
+	if !allowedMIMETypes[contentType] {
+		errors["file"] = fmt.Sprintf("File content type not allowed: %s", contentType)
+		return errors
+	}
+
+	// Additional security checks
+	// Check for executable headers
+	if len(buffer) >= 2 {
+		// Check for PE/EXE headers
+		if buffer[0] == 0x4D && buffer[1] == 0x5A {
+			errors["file"] = "Executable files are not allowed"
+			return errors
+		}
+		// Check for ELF headers
+		if len(buffer) >= 4 && buffer[0] == 0x7F && buffer[1] == 0x45 && buffer[2] == 0x4C && buffer[3] == 0x46 {
+			errors["file"] = "Executable files are not allowed"
+			return errors
+		}
+	}
+
+	// Check for script content in text files
+	if contentType == "text/plain" {
+		content := string(buffer)
+		suspiciousPatterns := []string{
+			"<script",
+			"javascript:",
+			"vbscript:",
+			"onload=",
+			"onerror=",
+			"eval(",
+			"exec(",
+		}
+
+		lowerContent := strings.ToLower(content)
+		for _, pattern := range suspiciousPatterns {
+			if strings.Contains(lowerContent, pattern) {
+				errors["file"] = "File contains potentially malicious content"
+				return errors
+			}
+		}
+	}
+
+	// Path traversal protection
+	if strings.Contains(file.Filename, "..") || strings.Contains(file.Filename, "/") || strings.Contains(file.Filename, "\\") {
+		errors["file"] = "Invalid filename: path traversal attempt detected"
+		return errors
 	}
 
 	return errors

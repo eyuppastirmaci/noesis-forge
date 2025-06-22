@@ -69,91 +69,100 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Get validated login request from context
 	value, exists := c.Get("validatedLogin")
 	if !exists {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
+		// For validation errors, return the standard security message
+		utils.ErrorResponse(c, http.StatusUnauthorized, "LOGIN_FAILED", "Invalid email/username or password")
 		return
 	}
 
 	req, ok := value.(*services.LoginRequest)
 	if !ok {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Invalid validated data type")
+		// For validation errors, return the standard security message
+		utils.ErrorResponse(c, http.StatusUnauthorized, "LOGIN_FAILED", "Invalid email/username or password")
 		return
 	}
 
 	user, tokens, err := h.authService.Login(c.Request.Context(), req)
 	if err != nil {
-		status := http.StatusUnauthorized
-		code := "LOGIN_FAILED"
-
-		// Handle specific login errors as field errors
-		if err.Error() == "invalid credentials" {
-			fieldErrors := map[string]string{
-				"password": "Invalid email/username or password",
-			}
-			utils.FieldValidationErrorResponse(c, "Login failed", fieldErrors)
-			return
-		}
-
-		if err.Error() == "account is locked" {
-			status = http.StatusForbidden
-			code = "ACCOUNT_LOCKED"
-			fieldErrors := map[string]string{
-				"password": "Account is temporarily locked due to multiple failed attempts",
-			}
-			utils.FieldValidationErrorResponse(c, "Account locked", fieldErrors)
-			return
-		}
-
-		if err.Error() == "email not verified" {
-			fieldErrors := map[string]string{
-				"email": "Please verify your email address before logging in",
-			}
-			utils.FieldValidationErrorResponse(c, "Email verification required", fieldErrors)
-			return
-		}
-
-		utils.ErrorResponse(c, status, code, err.Error())
+		// Always return the same error message for all login failures
+		// This prevents user enumeration attacks
+		utils.ErrorResponse(c, http.StatusUnauthorized, "LOGIN_FAILED", "Invalid email/username or password")
 		return
 	}
 
+	// Set HTTP-only cookies for secure token storage
+	h.authService.SetAuthCookies(c, tokens)
+
 	data := gin.H{
-		"user":   user,
-		"tokens": tokens,
+		"user": gin.H{
+			"id":            user.ID,
+			"email":         user.Email,
+			"username":      user.Username,
+			"name":          user.Name,
+			"emailVerified": user.EmailVerified,
+			"status":        user.Status,
+			"role": gin.H{
+				"id":          user.Role.ID,
+				"name":        user.Role.Name,
+				"displayName": user.Role.DisplayName,
+				"permissions": user.Role.Permissions,
+			},
+			"createdAt": user.CreatedAt,
+			"updatedAt": user.UpdatedAt,
+		},
+		// Don't return tokens in response body for security
+		"tokens": gin.H{
+			"tokenType": "Bearer",
+			"expiresIn": tokens.ExpiresIn,
+		},
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Login successful")
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	var req services.RefreshTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
+	// Get refresh token from cookie instead of request body
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "SESSION_EXPIRED", "Your session has expired. Please login again.")
 		return
 	}
 
-	tokens, err := h.authService.RefreshToken(c.Request.Context(), req.RefreshToken)
+	tokens, err := h.authService.RefreshToken(c.Request.Context(), refreshToken)
 	if err != nil {
-		utils.UnauthorizedResponse(c, "REFRESH_FAILED", err.Error())
+		// Clear cookies on refresh failure
+		h.authService.ClearAuthCookies(c)
+		utils.ErrorResponse(c, http.StatusUnauthorized, "SESSION_EXPIRED", "Your session has expired. Please login again.")
 		return
 	}
+
+	// Set new tokens in cookies
+	h.authService.SetAuthCookies(c, tokens)
 
 	data := gin.H{
-		"tokens": tokens,
+		"tokens": gin.H{
+			"tokenType": "Bearer",
+			"expiresIn": tokens.ExpiresIn,
+		},
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Token refreshed successfully")
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	var req services.RefreshTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
-		return
-	}
-
-	err := h.authService.Logout(c.Request.Context(), req.RefreshToken)
+	// Get refresh token from cookie
+	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "LOGOUT_FAILED", err.Error())
+		// Clear cookies anyway
+		h.authService.ClearAuthCookies(c)
+		utils.SuccessResponse(c, http.StatusOK, nil, "Logout successful")
 		return
 	}
 
+	if err := h.authService.Logout(c.Request.Context(), refreshToken); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "LOGOUT_FAILED", err.Error())
+		return
+	}
+
+	// Clear HTTP-only cookies
+	h.authService.ClearAuthCookies(c)
 	utils.SuccessResponse(c, http.StatusOK, nil, "Logout successful")
 }
 

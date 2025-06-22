@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { LoginForm } from "./login-form";
+import { RegistrationSuccessMessage } from "./registration-success-message";
 
 export default function LoginPage() {
   return (
@@ -10,6 +11,11 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold text-center mb-8">
             Sign In
           </h2>
+
+          {/* Show registration success message if coming from registration */}
+          <Suspense fallback={null}>
+            <RegistrationSuccessMessage />
+          </Suspense>
 
           <Suspense fallback={<div>Loading...</div>}>
             <LoginForm />

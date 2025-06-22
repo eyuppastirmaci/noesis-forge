@@ -1,12 +1,14 @@
 package router
 
 import (
+	"context"
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -17,6 +19,7 @@ type Router struct {
 	roleService     *services.RoleService
 	documentService *services.DocumentService
 	minioService    *services.MinIOService
+	redisClient     *redis.Client
 }
 
 func New(cfg *config.Config, db *gorm.DB) *Router {
@@ -27,8 +30,27 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 
 	engine := gin.New()
 
+	// Initialize Redis client (optional for token blacklisting)
+	var redisClient *redis.Client
+	if cfg.Redis.URL != "" || cfg.Redis.URL == "redis://localhost:6379" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379", // Default Redis address
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+
+		// Test Redis connection (don't fail if Redis is not available)
+		ctx := context.Background()
+		_, err := redisClient.Ping(ctx).Result()
+		if err != nil {
+			// Log warning but don't fail - Redis is optional
+			gin.DefaultWriter.Write([]byte("Warning: Redis connection failed, token blacklisting disabled\n"))
+			redisClient = nil
+		}
+	}
+
 	// Initialize services
-	authService := services.NewAuthService(db, cfg)
+	authService := services.NewAuthService(db, cfg, redisClient)
 	roleService := services.NewRoleService(db)
 
 	// Initialize MinIO service
@@ -48,6 +70,7 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 		roleService:     roleService,
 		documentService: documentService,
 		minioService:    minioService,
+		redisClient:     redisClient,
 	}
 }
 
@@ -55,7 +78,19 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	// Global middleware
 	r.engine.Use(gin.Logger())
 	r.engine.Use(gin.Recovery())
-	r.engine.Use(middleware.CORS())
+
+	// Security headers
+	r.engine.Use(middleware.SecurityHeaders(r.config.Environment))
+
+	// CORS with environment-specific settings
+	var allowedOrigins []string
+	if r.config.Environment == "production" {
+		// In production, use specific allowed origins
+		allowedOrigins = []string{"https://yourdomain.com"} // Update with your domain
+	}
+	r.engine.Use(middleware.CORS(r.config.Environment, allowedOrigins))
+
+	// Global rate limiting
 	r.engine.Use(middleware.RateLimit(100)) // 100 requests per minute per IP
 
 	// Root endpoint
@@ -68,8 +103,9 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 		})
 	})
 
-	// API routes
+	// API routes with security headers
 	api := r.engine.Group("/api/v1")
+	api.Use(middleware.APISecurityHeaders())
 
 	// Register routes
 	RegisterHealthRoutes(api, db)

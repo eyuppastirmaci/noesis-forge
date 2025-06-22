@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import Form from "next/form";
 import { Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
@@ -27,28 +26,15 @@ export function RegisterForm() {
     setIsMounted(true);
   }, []);
 
-  // Handle successful registration and auto-login
+  // Handle successful registration - redirect to login page
   useEffect(() => {
-    if (state.success && state.loginCredentials) {
-      // Auto-login after successful registration
-      signIn("credentials", {
-        identifier: state.loginCredentials.identifier,
-        password: state.loginCredentials.password,
-        redirect: false,
-      }).then((result) => {
-        if (result?.ok) {
-          const userName = state.user?.name || state.user?.username || "User";
-          toast.success(`Account created successfully! Welcome ${userName}!`);
-          router.push(state.redirectTo || "/");
-        } else {
-          console.error("NextAuth signIn failed after registration:", result?.error);
-          toast.info("Account created successfully! Please sign in.");
-          // Still redirect even if NextAuth fails
-          router.push(state.redirectTo || "/");
-        }
-      });
+    if (state.success && state.user) {
+      const userName = state.user?.name || state.user?.username || "User";
+      toast.success(`Account created successfully! Welcome ${userName}! Please sign in to continue.`);
+      // Redirect to login page instead of auto-login
+      router.push("/auth/login?message=registration-success");
     }
-  }, [state.success, state.loginCredentials, state.redirectTo, router]);
+  }, [state.success, state.user, router]);
 
   // Handle field error clearing
   const handleFieldChange = (fieldName: string) => {

@@ -6,60 +6,74 @@ import (
 	"strings"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    "AUTHORIZATION_REQUIRED",
-				"message": "Authorization header is required",
-			})
-			c.Abort()
-			return
-		}
+		// Try to get token from cookie first (more secure)
+		token, err := c.Cookie("access_token")
+		if err != nil || token == "" {
+			// Fallback to Authorization header for backward compatibility
+			authHeader := c.GetHeader("Authorization")
+			if authHeader == "" {
+				utils.ErrorResponse(c, http.StatusUnauthorized, "MISSING_TOKEN", "Authentication token is required")
+				c.Abort()
+				return
+			}
 
-		// Check if the header starts with "Bearer "
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    "INVALID_TOKEN_FORMAT",
-				"message": "Authorization header must start with 'Bearer '",
-			})
-			c.Abort()
-			return
-		}
-
-		// Extract token
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    "EMPTY_TOKEN",
-				"message": "Token cannot be empty",
-			})
-			c.Abort()
-			return
+			// Extract token from "Bearer <token>" format
+			parts := strings.Split(authHeader, " ")
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				utils.ErrorResponse(c, http.StatusUnauthorized, "INVALID_TOKEN_FORMAT", "Invalid authorization header format")
+				c.Abort()
+				return
+			}
+			token = parts[1]
 		}
 
 		// Validate token
-		tokenClaims, err := authService.ValidateToken(tokenString)
+		claims, err := authService.ValidateToken(token)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    "INVALID_TOKEN",
-				"message": "Invalid or expired token",
-			})
+			// Try to refresh token if it's expired and we have a refresh token cookie
+			if strings.Contains(err.Error(), "token is expired") {
+				refreshToken, refreshErr := c.Cookie("refresh_token")
+				if refreshErr == nil && refreshToken != "" {
+					// Try to refresh the token
+					newTokens, refreshErr := authService.RefreshToken(c.Request.Context(), refreshToken)
+					if refreshErr == nil {
+						// Set new tokens in cookies
+						authService.SetAuthCookies(c, newTokens)
+
+						// Validate the new token
+						claims, err = authService.ValidateToken(newTokens.AccessToken)
+						if err == nil {
+							// Set user context and continue
+							c.Set("userID", claims.UserID)
+							c.Set("userEmail", claims.Email)
+							c.Set("username", claims.Username)
+							c.Set("roleID", claims.RoleID)
+							c.Set("roleName", claims.RoleName)
+							c.Next()
+							return
+						}
+					}
+				}
+			}
+
+			utils.ErrorResponse(c, http.StatusUnauthorized, "INVALID_TOKEN", err.Error())
 			c.Abort()
 			return
 		}
 
-		// Set user info in context
-		c.Set("userID", tokenClaims.UserID)
-		c.Set("userEmail", tokenClaims.Email)
-		c.Set("username", tokenClaims.Username)
-		c.Set("roleID", tokenClaims.RoleID)
-		c.Set("roleName", tokenClaims.RoleName)
+		// Set user context
+		c.Set("userID", claims.UserID)
+		c.Set("userEmail", claims.Email)
+		c.Set("username", claims.Username)
+		c.Set("roleID", claims.RoleID)
+		c.Set("roleName", claims.RoleName)
 		c.Next()
 	}
 }

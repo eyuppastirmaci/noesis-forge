@@ -161,11 +161,8 @@ class ApiClient {
         return session.accessToken as string;
       }
       
-      const localStorageToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-      if (localStorageToken) {
-        return localStorageToken;
-      }
-      
+      // Removed localStorage token retrieval for security
+      // Tokens are now stored in HTTP-only cookies
       return null;
     } catch (error) {
       console.error("[API] Error getting session:", error);
@@ -182,7 +179,9 @@ class ApiClient {
         return session.refreshToken as string;
       }
       
-      return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      // Removed localStorage token retrieval for security
+      // Tokens are now stored in HTTP-only cookies
+      return null;
     } catch (error) {
       console.error("[API] Error getting refresh token:", error);
       return null;
@@ -190,22 +189,21 @@ class ApiClient {
   }
 
   private setTokens(tokens: AuthTokens): void {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken);
-    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
+    // Tokens are now stored in HTTP-only cookies by the backend
+    // No need to store them in localStorage
+    console.log("[API] Tokens set in HTTP-only cookies by backend");
   }
 
   private clearTokens(): void {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+    // Tokens are now stored in HTTP-only cookies by the backend
+    // No need to clear them from localStorage
+    console.log("[API] Tokens cleared from HTTP-only cookies by backend");
   }
 
   private async refreshToken(): Promise<void> {
     const refreshToken = await this.getRefreshToken();
     if (!refreshToken) {
-      throw new Error("No refresh token available");
+      throw new Error("Your session has expired. Please login again.");
     }
 
     try {

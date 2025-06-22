@@ -91,7 +91,12 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
     
     // Check if it's an ApiClientError
     if (error instanceof ApiClientError) {
-      errorMessage = error.message
+      // Handle session expired message during login - it should be treated as login failure
+      if (error.message === "Your session has expired. Please login again.") {
+        errorMessage = "Invalid email/username or password"
+      } else {
+        errorMessage = error.message
+      }
       
       // Check for validation errors in the error response
       if (error.validationErrors && error.validationErrors.length > 0) {
@@ -132,7 +137,12 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
         errorMessage = errorData.error.message
       }
     } else if (error instanceof Error) {
-      errorMessage = error.message
+      // Handle session expired message during login - it should be treated as login failure
+      if (error.message === "Your session has expired. Please login again.") {
+        errorMessage = "Invalid email/username or password"
+      } else {
+        errorMessage = error.message
+      }
     }
     
     return {
@@ -157,23 +167,19 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
   try {
     const response = await authService.register(formValues as RegisterRequest)
 
-    // Auto-login after successful registration
+    // Return success without login credentials (no auto-login)
     return {
       errors: [],
       success: true,
-      loginCredentials: {
-        identifier: formValues.email,
-        password: formValues.password,
-      },
       user: {
         name: response.data.user.name,
         username: response.data.user.username,
         email: response.data.user.email,
       },
-      redirectTo: '/' 
+      redirectTo: '/auth/login'
     }
-      } catch (error: unknown) {
-      console.error('Registration error:', error)
+  } catch (error: unknown) {
+    console.error('Registration error:', error)
     
     // Handle API error responses
     let errorMessage = 'Registration failed'

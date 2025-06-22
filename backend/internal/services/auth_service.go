@@ -3,13 +3,16 @@ package services
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -17,13 +20,15 @@ import (
 type AuthService struct {
 	db     *gorm.DB
 	config *config.Config
+	redis  *redis.Client
 	logger *logrus.Entry
 }
 
-func NewAuthService(db *gorm.DB, cfg *config.Config) *AuthService {
+func NewAuthService(db *gorm.DB, cfg *config.Config, redisClient *redis.Client) *AuthService {
 	return &AuthService{
 		db:     db,
 		config: cfg,
+		redis:  redisClient,
 		logger: logrus.WithField("service", "auth"),
 	}
 }
@@ -108,6 +113,9 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*mode
 func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.User, *models.TokenPair, error) {
 	var user models.User
 
+	// Define a standard error message for all login failures
+	standardError := "Invalid email/username or password"
+
 	// Find user by email or username
 	query := s.db.Preload("Role.Permissions")
 	if req.Email != "" {
@@ -115,34 +123,41 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 	} else if req.Username != "" {
 		query = query.Where("username = ?", req.Username)
 	} else {
-		return nil, nil, fmt.Errorf("email or username is required")
+		// Don't reveal that fields are missing - return standard error
+		return nil, nil, fmt.Errorf(standardError)
 	}
 
 	if err := query.First(&user).Error; err != nil {
-		return nil, nil, fmt.Errorf("invalid credentials")
+		// Don't reveal if user exists or not - return standard error
+		return nil, nil, fmt.Errorf(standardError)
 	}
 
 	// Check password
 	if !utils.CheckPasswordHash(req.Password, user.Password) {
-		// Increment failed attempts
+		// Increment failed attempts (but don't reveal this to user)
 		s.db.Model(&user).Update("failed_attempts", gorm.Expr("failed_attempts + 1"))
-		return nil, nil, fmt.Errorf("invalid credentials")
+		// Don't reveal if password is wrong - return standard error
+		return nil, nil, fmt.Errorf(standardError)
 	}
 
 	// Check if account is locked
 	if user.IsLocked() {
-		return nil, nil, fmt.Errorf("account is locked")
+		// For security, return standard error instead of revealing account status
+		return nil, nil, fmt.Errorf(standardError)
 	}
 
 	// Check if email is verified (for production, skip for development)
 	if s.config.Environment == "production" && !user.EmailVerified {
-		return nil, nil, fmt.Errorf("email not verified")
+		// For security, return standard error instead of revealing verification status
+		return nil, nil, fmt.Errorf(standardError)
 	}
 
 	// Generate tokens
 	tokens, err := s.generateTokenPair(&user)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate tokens: %w", err)
+		// This is a server error, log it but return standard error to user
+		s.logger.WithError(err).Error("Failed to generate tokens during login")
+		return nil, nil, fmt.Errorf(standardError)
 	}
 
 	// Update last login
@@ -183,7 +198,16 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*m
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	// Delete refresh token
+	// Add token to blacklist if Redis is available
+	if s.redis != nil {
+		// Blacklist the refresh token
+		err := s.redis.Set(ctx, "blacklist:"+refreshToken, "1", 24*time.Hour).Err()
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to blacklist refresh token")
+		}
+	}
+
+	// Delete refresh token from database
 	result := s.db.Where("token = ?", refreshToken).Delete(&models.RefreshToken{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to logout: %w", result.Error)
@@ -271,9 +295,19 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, req 
 }
 
 func (s *AuthService) ValidateToken(tokenString string) (*models.TokenClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	// Check if token is blacklisted
+	if s.redis != nil {
+		exists, err := s.redis.Exists(context.Background(), "blacklist:"+tokenString).Result()
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to check token blacklist")
+		} else if exists > 0 {
+			return nil, fmt.Errorf("token is blacklisted")
+		}
+	}
+
+	token, err := jwt.ParseWithClaims(tokenString, &models.TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(s.config.JWT.Secret), nil
 	})
@@ -282,17 +316,8 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.TokenClaims, er
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userID, _ := uuid.Parse(claims["sub"].(string))
-		roleID, _ := uuid.Parse(claims["roleID"].(string))
-
-		return &models.TokenClaims{
-			UserID:   userID,
-			Email:    claims["email"].(string),
-			Username: claims["username"].(string),
-			RoleID:   roleID,
-			RoleName: claims["role"].(string),
-		}, nil
+	if claims, ok := token.Claims.(*models.TokenClaims); ok && token.Valid {
+		return claims, nil
 	}
 
 	return nil, fmt.Errorf("invalid token claims")
@@ -338,4 +363,63 @@ func (s *AuthService) generateTokenPair(user *models.User) (*models.TokenPair, e
 		TokenType:    "Bearer",
 		ExpiresIn:    int(s.config.JWT.ExpiresIn.Seconds()),
 	}, nil
+}
+
+// Add cookie helper methods after the existing methods
+func (s *AuthService) SetAuthCookies(c *gin.Context, tokens *models.TokenPair) {
+	// Set access token in HTTP-only cookie
+	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetCookie(
+		"access_token",
+		tokens.AccessToken,
+		int(tokens.ExpiresIn),
+		"/",
+		"",
+		s.config.Environment == "production", // secure flag for production
+		true,                                 // httpOnly
+	)
+
+	// Set refresh token in HTTP-only cookie
+	c.SetCookie(
+		"refresh_token",
+		tokens.RefreshToken,
+		7*24*3600, // 7 days
+		"/",
+		"",
+		s.config.Environment == "production", // secure flag for production
+		true,                                 // httpOnly
+	)
+}
+
+func (s *AuthService) ClearAuthCookies(c *gin.Context) {
+	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+}
+
+// BlacklistToken adds a token to the blacklist
+func (s *AuthService) BlacklistToken(ctx context.Context, token string, expiration time.Duration) error {
+	if s.redis == nil {
+		return fmt.Errorf("Redis not available for token blacklisting")
+	}
+
+	err := s.redis.Set(ctx, "blacklist:"+token, "1", expiration).Err()
+	if err != nil {
+		return fmt.Errorf("failed to blacklist token: %w", err)
+	}
+
+	return nil
+}
+
+// IsTokenBlacklisted checks if a token is blacklisted
+func (s *AuthService) IsTokenBlacklisted(ctx context.Context, token string) (bool, error) {
+	if s.redis == nil {
+		return false, nil // If Redis is not available, assume token is not blacklisted
+	}
+
+	exists, err := s.redis.Exists(ctx, "blacklist:"+token).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to check token blacklist: %w", err)
+	}
+
+	return exists > 0, nil
 }

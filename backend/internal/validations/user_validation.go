@@ -191,25 +191,42 @@ func ValidateLogin() gin.HandlerFunc {
 		var req services.LoginRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request data", err.Error())
+			// For security, don't reveal detailed validation errors in login
+			// Return generic error message to prevent information disclosure
+			utils.ErrorResponse(c, http.StatusUnauthorized, "LOGIN_FAILED", "Invalid email/username or password")
 			c.Abort()
 			return
 		}
 
-		// Custom validations
-		fieldErrors := make(map[string]string)
+		// Basic validations - but don't reveal specific field errors
+		hasError := false
 
-		// Check if email or username is provided
+		// Check if either email or username is provided
 		if req.Email == "" && req.Username == "" {
-			fieldErrors["email"] = "Email or username is required"
+			hasError = true
 		}
 
+		// Check if password is provided
 		if req.Password == "" {
-			fieldErrors["password"] = "Password is required"
+			hasError = true
 		}
 
-		if len(fieldErrors) > 0 {
-			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+		// Basic format validation (but don't reveal which field is wrong)
+		if req.Email != "" {
+			if valid, _ := CheckEmailDomain(req.Email); !valid {
+				hasError = true
+			}
+		}
+
+		if req.Username != "" {
+			if valid, _ := CheckUsername(req.Username); !valid {
+				hasError = true
+			}
+		}
+
+		// If any validation fails, return generic error
+		if hasError {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "LOGIN_FAILED", "Invalid email/username or password")
 			c.Abort()
 			return
 		}

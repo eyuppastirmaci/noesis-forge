@@ -14,9 +14,7 @@ type Config struct {
 	Database DatabaseConfig
 	JWT      JWTConfig
 	MinIO    MinIOConfig
-
-	// Future configurations (commented out for now)
-	// Redis    RedisConfig
+	Redis    RedisConfig
 	// RabbitMQ RabbitMQConfig
 	// Qdrant   QdrantConfig
 	// Ollama   OllamaConfig

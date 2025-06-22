@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -99,6 +100,7 @@ type TokenPair struct {
 
 // Token claims for JWT validation
 type TokenClaims struct {
+	jwt.RegisteredClaims
 	UserID   uuid.UUID `json:"userID"`
 	Email    string    `json:"email"`
 	Username string    `json:"username"`

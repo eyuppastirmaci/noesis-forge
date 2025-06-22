@@ -1,10 +1,13 @@
 package app
 
 import (
+	"context"
+
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/database"
 	"github.com/eyuppastirmaci/noesis-forge/internal/router"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -13,6 +16,7 @@ type App struct {
 	Config *config.Config
 	DB     *gorm.DB
 	Router *router.Router
+	Redis  *redis.Client
 	// Services
 	AuthService     *services.AuthService
 	DocumentService *services.DocumentService
@@ -48,8 +52,29 @@ func New() (*App, error) {
 		return nil, err
 	}
 
+	// Initialize Redis client (optional for token blacklisting)
+	var redisClient *redis.Client
+	if cfg.Redis.URL != "" || cfg.Redis.URL == "redis://localhost:6379" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379", // Default Redis address
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+
+		// Test Redis connection (don't fail if Redis is not available)
+		ctx := context.Background()
+		_, err := redisClient.Ping(ctx).Result()
+		if err != nil {
+			// Log warning but don't fail - Redis is optional
+			logrus.Warnf("Redis connection failed, token blacklisting disabled: %v", err)
+			redisClient = nil
+		} else {
+			logrus.Info("Redis connection successful")
+		}
+	}
+
 	// Initialize services
-	authService := services.NewAuthService(db, cfg)
+	authService := services.NewAuthService(db, cfg, redisClient)
 
 	// Initialize MinIO service
 	minioService, err := services.NewMinIOService(&cfg.MinIO)
@@ -73,6 +98,7 @@ func New() (*App, error) {
 		Config:          cfg,
 		DB:              db,
 		Router:          r,
+		Redis:           redisClient,
 		AuthService:     authService,
 		DocumentService: documentService,
 		MinIOService:    minioService,
@@ -81,6 +107,13 @@ func New() (*App, error) {
 
 func (a *App) Close() error {
 	logrus.Info("Shutting down application...")
+
+	// Close Redis connection if exists
+	if a.Redis != nil {
+		if err := a.Redis.Close(); err != nil {
+			logrus.Errorf("Failed to close Redis connection: %v", err)
+		}
+	}
 
 	if sqlDB, err := a.DB.DB(); err == nil {
 		return sqlDB.Close()
