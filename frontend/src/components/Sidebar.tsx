@@ -248,17 +248,6 @@ export default function Sidebar() {
       
       {/* Sidebar */}
       <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-        {/* Mobile Close Button */}
-        <div className="sidebar-mobile-header md:hidden">
-          <button
-            onClick={() => dispatch(closeSidebar())}
-            className="sidebar-close-button"
-            aria-label="Close sidebar"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        
         <div className="sidebar-content">
         {sidebarSections.map((section) => {
           const isSectionOpen = openSections.has(section.title);

@@ -22,9 +22,9 @@ export default function HeaderLeft() {
 
   if (!mounted) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-background-secondary animate-pulse rounded md:hidden" />
-        <div className="w-[220px] h-[60px] bg-background-secondary animate-pulse rounded" />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="w-8 h-8 bg-background-secondary animate-pulse rounded sm:hidden" />
+        <div className="w-[180px] sm:w-[220px] h-[40px] sm:h-[60px] bg-background-secondary animate-pulse rounded" />
       </div>
     );
   }
@@ -38,26 +38,31 @@ export default function HeaderLeft() {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 w-full sm:w-auto">
       {/* Hamburger Menu Button (Mobile Only) */}
       <button
         onClick={() => dispatch(toggleSidebar())}
-        className="hamburger-button p-2 rounded-lg hover:bg-background-secondary transition-colors md:hidden"
+        className="hamburger-button p-1.5 sm:p-2 rounded-lg hover:bg-background-secondary transition-colors sm:hidden"
         aria-label="Toggle sidebar"
       >
         <Menu className="w-5 h-5 text-foreground" />
       </button>
 
-      <Link href="/">
+      <Link href="/" className="flex-shrink-0">
         <Image
           src={getLogoSrc()}
           alt="Noesis Forge"
           width={220}
           height={0}
-          className={`object-contain opacity-90 hover:opacity-100 w-[220px]`}
+          className={`object-contain opacity-90 hover:opacity-100 w-[180px] sm:w-[220px] h-auto`}
+          priority
         />
       </Link>
-      <BreadCrumb />
+      
+      {/* Hide breadcrumb on mobile */}
+      <div className="hidden lg:block">
+        <BreadCrumb />
+      </div>
     </div>
   );
 }
