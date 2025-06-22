@@ -7,6 +7,10 @@
 
 NoesisForge transforms how organizations handle document management by leveraging cutting-edge AI technologies. Upload documents, extract meaningful insights, and interact with your content through natural language queries. Whether you're managing legal documents, research papers, or business reports, NoesisForge makes your information instantly searchable and actionable.
 
+## 📸 Screenshots
+
+<!-- Add your application screenshots here -->
+
 ## 🚧 Development Status
 
 **This is a learning-oriented project currently under active development. Not recommended for production use.**
