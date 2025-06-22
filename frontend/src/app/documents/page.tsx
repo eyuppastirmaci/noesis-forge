@@ -64,8 +64,16 @@ const DocumentsPage: React.FC = () => {
     { value: "pdf", label: "PDF", icon: <FileText className="w-4 h-4" /> },
     { value: "docx", label: "Word", icon: <FileText className="w-4 h-4" /> },
     { value: "txt", label: "Text", icon: <FileText className="w-4 h-4" /> },
-    { value: "xlsx", label: "Excel", icon: <FileSpreadsheet className="w-4 h-4" /> },
-    { value: "pptx", label: "PowerPoint", icon: <Presentation className="w-4 h-4" /> },
+    {
+      value: "xlsx",
+      label: "Excel",
+      icon: <FileSpreadsheet className="w-4 h-4" />,
+    },
+    {
+      value: "pptx",
+      label: "PowerPoint",
+      icon: <Presentation className="w-4 h-4" />,
+    },
     { value: "other", label: "Other", icon: <FileImage className="w-4 h-4" /> },
   ];
 
@@ -171,8 +179,6 @@ const DocumentsPage: React.FC = () => {
     return documentService.formatFileSize(bytes);
   };
 
-
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -200,13 +206,11 @@ const DocumentsPage: React.FC = () => {
     );
   };
 
-
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-2" style={{ color: "var(--foreground-secondary)" }}>
+        <span className="ml-2 text-foreground-secondary">
           Loading documents...
         </span>
       </div>
@@ -234,24 +238,13 @@ const DocumentsPage: React.FC = () => {
   const total = documentsData?.total || 0;
 
   return (
-    <div
-      className="max-h-[calc(100vh-92px)] overflow-y-scroll"
-      style={{ backgroundColor: "var(--background)" }}
-    >
+    <div className="max-h-[calc(100vh-92px)] overflow-y-scroll bg-background">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1
-              className="text-3xl font-bold"
-              style={{ color: "var(--foreground)" }}
-            >
-              Documents
-            </h1>
-            <p
-              className="mt-1"
-              style={{ color: "var(--foreground-secondary)" }}
-            >
+            <h1 className="text-3xl font-bold text-foreground">Documents</h1>
+            <p className="mt-1 text-foreground-secondary">
               Manage and search through your uploaded documents
             </p>
           </div>
@@ -265,32 +258,18 @@ const DocumentsPage: React.FC = () => {
         </div>
 
         {/* Search and Filters */}
-        <div
-          className="rounded-lg shadow-sm p-6 mb-6"
-          style={{
-            backgroundColor: "var(--background-secondary)",
-            border: "1px solid var(--border)",
-          }}
-        >
+        <div className="rounded-lg shadow-sm p-6 mb-6 bg-background-secondary border border-border">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-4 space-y-4 lg:space-y-0">
               {/* Search Input */}
               <div className="flex-1 relative">
-                <Search
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  style={{ color: "var(--foreground-secondary)" }}
-                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
                 <input
                   type="text"
                   placeholder="Search documents..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                  style={{
-                    backgroundColor: "var(--background)",
-                    border: "1px solid var(--border)",
-                    color: "var(--foreground)",
-                  }}
+                  className="w-full pl-10 pr-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
                 />
               </div>
 
@@ -299,7 +278,9 @@ const DocumentsPage: React.FC = () => {
                 <Select
                   options={documentTypeOptions}
                   value={filterType}
-                  onChange={(value) => setFilterType(value as DocumentType | "all")}
+                  onChange={(value) =>
+                    setFilterType(value as DocumentType | "all")
+                  }
                   className="min-w-[150px]"
                   aria-label="Filter by document type"
                 />
@@ -307,7 +288,9 @@ const DocumentsPage: React.FC = () => {
                 <Select
                   options={documentStatusOptions}
                   value={filterStatus}
-                  onChange={(value) => setFilterStatus(value as DocumentStatus | "all")}
+                  onChange={(value) =>
+                    setFilterStatus(value as DocumentStatus | "all")
+                  }
                   className="min-w-[130px]"
                   aria-label="Filter by document status"
                 />
@@ -325,29 +308,20 @@ const DocumentsPage: React.FC = () => {
 
         {/* Results Header */}
         <div className="flex justify-between items-center mb-6">
-          <div
-            className="text-sm"
-            style={{ color: "var(--foreground-secondary)" }}
-          >
+          <div className="text-sm text-foreground-secondary">
             Showing {documents.length} of {total} documents
           </div>
 
           <div className="flex items-center space-x-4">
             {/* View Mode Toggle */}
-            <div
-              className="flex items-center rounded-md"
-              style={{ border: "1px solid var(--border)" }}
-            >
+            <div className="flex items-center rounded-md border border-border">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 transition-colors ${
-                  viewMode === "grid" ? "bg-blue-600 text-white" : ""
+                  viewMode === "grid"
+                    ? "bg-blue-600 text-white"
+                    : "text-foreground-secondary"
                 }`}
-                style={
-                  viewMode !== "grid"
-                    ? { color: "var(--foreground-secondary)" }
-                    : {}
-                }
                 data-tooltip-id="grid-view-tooltip"
               >
                 <Grid3X3 className="w-4 h-4" />
@@ -355,13 +329,10 @@ const DocumentsPage: React.FC = () => {
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-2 transition-colors ${
-                  viewMode === "list" ? "bg-blue-600 text-white" : ""
+                  viewMode === "list"
+                    ? "bg-blue-600 text-white"
+                    : "text-foreground-secondary"
                 }`}
-                style={
-                  viewMode !== "list"
-                    ? { color: "var(--foreground-secondary)" }
-                    : {}
-                }
                 data-tooltip-id="list-view-tooltip"
               >
                 <List className="w-4 h-4" />
@@ -392,16 +363,10 @@ const DocumentsPage: React.FC = () => {
         {documents.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📄</div>
-            <h3
-              className="text-lg font-medium mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h3 className="text-lg font-medium mb-2 text-foreground">
               No documents found
             </h3>
-            <p
-              className="mb-4"
-              style={{ color: "var(--foreground-secondary)" }}
-            >
+            <p className="mb-4 text-foreground-secondary">
               {searchQuery
                 ? "Try adjusting your search criteria"
                 : "Get started by uploading your first document"}
@@ -418,18 +383,14 @@ const DocumentsPage: React.FC = () => {
             {documents.map((document) => (
               <div
                 key={document.id}
-                className="rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[200px] flex flex-col"
-                style={{
-                  backgroundColor: "var(--background-secondary)",
-                  border: "1px solid var(--border)",
-                }}
+                className="rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[200px] flex flex-col bg-background-secondary border border-border"
               >
                 <div className="p-6 flex flex-col h-full">
                   {/* Header with icon and actions */}
                   <div className="flex items-start justify-between mb-3">
-                    <DocumentTypeIndicator 
-                      fileType={document.fileType} 
-                      size="md" 
+                    <DocumentTypeIndicator
+                      fileType={document.fileType}
+                      size="md"
                       className="flex-shrink-0"
                     />
                     <div className="flex space-x-1 flex-shrink-0">
@@ -468,18 +429,12 @@ const DocumentsPage: React.FC = () => {
                   </div>
 
                   {/* Document title */}
-                  <h3
-                    className="text-sm font-medium mb-2 line-clamp-2 flex-grow"
-                    style={{ color: "var(--foreground)" }}
-                  >
+                  <h3 className="text-sm font-medium mb-2 line-clamp-2 flex-grow text-foreground">
                     {document.title}
                   </h3>
 
                   {/* Document metadata */}
-                  <div
-                    className="space-y-2 text-xs mt-auto"
-                    style={{ color: "var(--foreground-secondary)" }}
-                  >
+                  <div className="space-y-2 text-xs mt-auto text-foreground-secondary">
                     <div>{formatFileSize(document.fileSize)}</div>
                     <div>{formatDate(document.createdAt)}</div>
                     <div className="flex items-center justify-between pr-1.5 pt-1">
@@ -524,22 +479,12 @@ const DocumentsPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div
-            className="rounded-lg shadow-sm overflow-hidden"
-            style={{
-              backgroundColor: "var(--background-secondary)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <table
-              className="min-w-full divide-y"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <thead style={{ backgroundColor: "var(--background)" }}>
+          <div className="rounded-lg shadow-sm overflow-hidden bg-background-secondary border border-border">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-background">
                 <tr>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ color: "var(--foreground-secondary)" }}
+                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity text-foreground-secondary"
                     onClick={() => handleSort("title")}
                   >
                     <div className="flex items-center space-x-1">
@@ -552,15 +497,11 @@ const DocumentsPage: React.FC = () => {
                         ))}
                     </div>
                   </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                    style={{ color: "var(--foreground-secondary)" }}
-                  >
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-foreground-secondary">
                     Type
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ color: "var(--foreground-secondary)" }}
+                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity text-foreground-secondary"
                     onClick={() => handleSort("size")}
                   >
                     <div className="flex items-center space-x-1">
@@ -573,15 +514,11 @@ const DocumentsPage: React.FC = () => {
                         ))}
                     </div>
                   </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                    style={{ color: "var(--foreground-secondary)" }}
-                  >
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-foreground-secondary">
                     Status
                   </th>
                   <th
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
-                    style={{ color: "var(--foreground-secondary)" }}
+                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity text-foreground-secondary"
                     onClick={() => handleSort("date")}
                   >
                     <div className="flex items-center space-x-1">
@@ -594,21 +531,12 @@ const DocumentsPage: React.FC = () => {
                         ))}
                     </div>
                   </th>
-                  <th
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                    style={{ color: "var(--foreground-secondary)" }}
-                  >
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-foreground-secondary">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody
-                className="divide-y"
-                style={{
-                  backgroundColor: "var(--background-secondary)",
-                  borderColor: "var(--border)",
-                }}
-              >
+              <tbody className="bg-background-secondary divide-y divide-border">
                 {documents.map((document) => (
                   <tr
                     key={document.id}
@@ -616,46 +544,31 @@ const DocumentsPage: React.FC = () => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <DocumentTypeIndicator 
-                          fileType={document.fileType} 
-                          size="sm" 
+                        <DocumentTypeIndicator
+                          fileType={document.fileType}
+                          size="sm"
                           className="mr-3 flex-shrink-0"
                         />
                         <div className="flex-grow">
-                          <div
-                            className="text-sm font-medium mb-1"
-                            style={{ color: "var(--foreground)" }}
-                          >
+                          <div className="text-sm font-medium mb-1 text-foreground">
                             {document.title}
                           </div>
-                          <div
-                            className="text-sm"
-                            style={{ color: "var(--foreground-secondary)" }}
-                          >
+                          <div className="text-sm text-foreground-secondary">
                             {document.originalFileName}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm"
-                      style={{ color: "var(--foreground)" }}
-                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {document.fileType.toUpperCase()}
                     </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm"
-                      style={{ color: "var(--foreground)" }}
-                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {formatFileSize(document.fileSize)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(document.status)}
                     </td>
-                    <td
-                      className="px-6 py-4 whitespace-nowrap text-sm"
-                      style={{ color: "var(--foreground)" }}
-                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {formatDate(document.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -707,12 +620,7 @@ const DocumentsPage: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md hover:opacity-80 disabled:opacity-50 transition-opacity"
-                style={{
-                  backgroundColor: "var(--background-secondary)",
-                  border: "1px solid var(--border)",
-                  color: "var(--foreground)",
-                }}
+                className="relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md hover:opacity-80 disabled:opacity-50 transition-opacity bg-background-secondary border border-border text-foreground"
               >
                 Previous
               </button>
@@ -721,12 +629,7 @@ const DocumentsPage: React.FC = () => {
                   setCurrentPage(Math.min(totalPages, currentPage + 1))
                 }
                 disabled={currentPage === totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md hover:opacity-80 disabled:opacity-50 transition-opacity"
-                style={{
-                  backgroundColor: "var(--background-secondary)",
-                  border: "1px solid var(--border)",
-                  color: "var(--foreground)",
-                }}
+                className="ml-3 relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md hover:opacity-80 disabled:opacity-50 transition-opacity bg-background-secondary border border-border text-foreground"
               >
                 Next
               </button>
@@ -734,10 +637,7 @@ const DocumentsPage: React.FC = () => {
 
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
-                <p
-                  className="text-sm"
-                  style={{ color: "var(--foreground-secondary)" }}
-                >
+                <p className="text-sm text-foreground-secondary">
                   Showing{" "}
                   <span className="font-medium">
                     {(currentPage - 1) * pageSize + 1}
@@ -754,12 +654,7 @@ const DocumentsPage: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity"
-                    style={{
-                      backgroundColor: "var(--background-secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground-secondary)",
-                    }}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity bg-background-secondary border border-border text-foreground-secondary"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     Previous
@@ -776,17 +671,8 @@ const DocumentsPage: React.FC = () => {
                         className={`relative inline-flex items-center px-4 py-2 text-sm font-medium transition-colors ${
                           page === currentPage
                             ? "z-10 bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 dark:text-blue-400"
-                            : "hover:opacity-80"
+                            : "hover:opacity-80 bg-background-secondary border border-border text-foreground-secondary"
                         }`}
-                        style={
-                          page !== currentPage
-                            ? {
-                                backgroundColor: "var(--background-secondary)",
-                                border: "1px solid var(--border)",
-                                color: "var(--foreground-secondary)",
-                              }
-                            : {}
-                        }
                       >
                         {page}
                       </button>
@@ -798,12 +684,7 @@ const DocumentsPage: React.FC = () => {
                       setCurrentPage(Math.min(totalPages, currentPage + 1))
                     }
                     disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity"
-                    style={{
-                      backgroundColor: "var(--background-secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground-secondary)",
-                    }}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity bg-background-secondary border border-border text-foreground-secondary"
                   >
                     Next
                     <ChevronRight className="w-4 h-4" />

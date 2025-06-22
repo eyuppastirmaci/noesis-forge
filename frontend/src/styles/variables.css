@@ -70,6 +70,38 @@
   --color-icon-button-icon: var(--color-gray-600);
   --color-icon-button-icon-hover: var(--color-gray-800);
   --color-icon-button-icon-active: var(--color-gray-900);
+
+  /* Custom utility colors - Tailwind v4 format */
+  --color-primary-DEFAULT: var(--color-primary);
+  --color-primary-soft: var(--color-primary-soft);
+
+  --color-accent-DEFAULT: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+
+  --color-background-DEFAULT: var(--color-background);
+  --color-background-secondary: var(--color-background-secondary);
+
+  --color-foreground-DEFAULT: var(--color-foreground);
+  --color-foreground-secondary: var(--color-foreground-secondary);
+
+  --color-border-DEFAULT: var(--color-border);
+  --color-border-hover: var(--color-border-hover);
+
+  --color-danger-DEFAULT: var(--color-error);
+  --color-danger-light: var(--color-red-light);
+  --color-danger-dark: var(--color-red-dark);
+
+  --color-success-DEFAULT: var(--color-success);
+  --color-success-light: var(--color-green-light);
+  --color-success-dark: var(--color-green-dark);
+
+  --color-warning-DEFAULT: var(--color-warning);
+  --color-warning-light: var(--color-yellow-light);
+  --color-warning-dark: var(--color-yellow-dark);
+
+  --color-info-DEFAULT: var(--color-info);
+  --color-info-light: var(--color-blue-light);
+  --color-info-dark: var(--color-blue-dark);
 }
 
 @layer base {
