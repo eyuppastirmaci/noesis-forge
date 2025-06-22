@@ -9,8 +9,10 @@ NoesisForge transforms how organizations handle document management by leveragin
 
 ## 📸 Screenshots
 
+### Upload Document
 ![upload-document-page](https://github.com/user-attachments/assets/177be2d4-dd26-4e8d-82e0-a861dc490f30)
 
+### Documents
 ![documents-page](https://github.com/user-attachments/assets/6cf2f1a2-836e-4d96-8228-7df857259ae0)
 
 ## 🚧 Development Status
@@ -280,6 +282,10 @@ While the core document management features are functional, many advanced AI cap
 - **Environment Management**: godotenv
 - **Logging**: Logrus with structured logging
 - **Configuration**: Environment variables + YAML
+
+## 🏗️ Architecture
+
+<!-- Add your architecture diagram here -->
 
 ## 🚀 Getting Started
 
