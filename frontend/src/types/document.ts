@@ -117,9 +117,11 @@ export enum DocumentStatus {
     LIST: "/documents",
     GET: (id: string) => `/documents/${id}`,
     DELETE: (id: string) => `/documents/${id}`,
+    BULK_DELETE: "/documents/bulk-delete",
     
     // File operations
     DOWNLOAD: (id: string) => `/documents/${id}/download`,
+    BULK_DOWNLOAD: "/documents/bulk-download",
     PREVIEW: (id: string) => `/documents/${id}/preview`,
     
     // Collections (for future)

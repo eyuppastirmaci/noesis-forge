@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +19,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -374,4 +378,299 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	// All uploads successful
 	utils.SuccessResponse(c, http.StatusCreated, response,
 		fmt.Sprintf("All %d files uploaded successfully", len(req.Files)))
+}
+
+// BulkDeleteDocuments deletes multiple documents concurrently
+func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated request from context
+	req, ok := validations.GetValidatedBulkDelete(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
+		return
+	}
+
+	logrus.Infof("[BULK_DELETE] Starting bulk delete for user %s: %d documents", userID, len(req.DocumentIDs))
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	defer cancel()
+
+	// Channel to collect results
+	type deleteResult struct {
+		documentID string
+		success    bool
+		error      error
+	}
+
+	resultChan := make(chan deleteResult, len(req.DocumentIDs))
+	semaphore := make(chan struct{}, 10) // Limit concurrent operations to 10
+
+	// Use WaitGroup to wait for all goroutines
+	var wg sync.WaitGroup
+
+	// Process each document concurrently
+	for _, documentID := range req.DocumentIDs {
+		wg.Add(1)
+		go func(docID string) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Parse UUID
+			docUUID, parseErr := uuid.Parse(docID)
+			if parseErr != nil {
+				resultChan <- deleteResult{
+					documentID: docID,
+					success:    false,
+					error:      fmt.Errorf("invalid document ID format"),
+				}
+				return
+			}
+
+			// Delete the document
+			deleteErr := h.documentService.DeleteDocument(ctx, userID, docUUID)
+			resultChan <- deleteResult{
+				documentID: docID,
+				success:    deleteErr == nil,
+				error:      deleteErr,
+			}
+		}(documentID)
+	}
+
+	// Close result channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Collect all results
+	successfulDeletes := 0
+	failedDeletes := 0
+	failures := []map[string]interface{}{}
+
+	for result := range resultChan {
+		if result.success {
+			successfulDeletes++
+		} else {
+			failedDeletes++
+			failures = append(failures, map[string]interface{}{
+				"id":    result.documentID,
+				"error": result.error.Error(),
+			})
+		}
+	}
+
+	logrus.Infof("[BULK_DELETE] Completed: %d successful, %d failed", successfulDeletes, failedDeletes)
+
+	// Prepare response
+	response := gin.H{
+		"successful_deletes": successfulDeletes,
+		"failed_deletes":     failedDeletes,
+		"total_documents":    len(req.DocumentIDs),
+	}
+
+	// Add failures if any
+	if len(failures) > 0 {
+		response["failures"] = failures
+	}
+
+	// Determine response status
+	if successfulDeletes == 0 {
+		// All deletes failed
+		utils.ErrorResponse(c, http.StatusBadRequest, "ALL_DELETES_FAILED", "All document deletions failed")
+		return
+	} else if failedDeletes > 0 {
+		// Partial success
+		utils.SuccessResponse(c, http.StatusPartialContent, response,
+			fmt.Sprintf("Deleted %d out of %d documents successfully", successfulDeletes, len(req.DocumentIDs)))
+		return
+	}
+
+	// All deletes successful
+	utils.SuccessResponse(c, http.StatusOK, response,
+		fmt.Sprintf("All %d documents deleted successfully", len(req.DocumentIDs)))
+}
+
+// BulkDownloadDocuments creates a ZIP file with multiple documents and returns download link
+func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated request from context
+	req, ok := validations.GetValidatedBulkDownload(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
+		return
+	}
+
+	logrus.Infof("[BULK_DOWNLOAD] Starting bulk download for user %s: %d documents", userID, len(req.DocumentIDs))
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)
+	defer cancel()
+
+	// Channel to collect document fetch results
+	type documentResult struct {
+		document *models.Document
+		content  []byte
+		error    error
+	}
+
+	resultChan := make(chan documentResult, len(req.DocumentIDs))
+	semaphore := make(chan struct{}, 5) // Limit concurrent downloads to 5
+
+	// Use WaitGroup to wait for all goroutines
+	var wg sync.WaitGroup
+
+	// Fetch documents and their content concurrently
+	for _, documentID := range req.DocumentIDs {
+		wg.Add(1)
+		go func(docID string) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Parse UUID
+			docUUID, parseErr := uuid.Parse(docID)
+			if parseErr != nil {
+				resultChan <- documentResult{
+					error: fmt.Errorf("invalid document ID format: %s", docID),
+				}
+				return
+			}
+
+			// Get document metadata
+			document, fetchErr := h.documentService.DownloadDocument(ctx, userID, docUUID)
+			if fetchErr != nil {
+				resultChan <- documentResult{
+					error: fmt.Errorf("failed to fetch document %s: %w", docID, fetchErr),
+				}
+				return
+			}
+
+			// Download file content from MinIO
+			fileReader, downloadErr := h.minioService.DownloadFile(ctx, document.StoragePath)
+			if downloadErr != nil {
+				resultChan <- documentResult{
+					error: fmt.Errorf("failed to download file for document %s: %w", docID, downloadErr),
+				}
+				return
+			}
+			defer fileReader.Close()
+
+			// Read file content
+			content, readErr := io.ReadAll(fileReader)
+			if readErr != nil {
+				resultChan <- documentResult{
+					error: fmt.Errorf("failed to read file content for document %s: %w", docID, readErr),
+				}
+				return
+			}
+
+			resultChan <- documentResult{
+				document: document,
+				content:  content,
+				error:    nil,
+			}
+		}(documentID)
+	}
+
+	// Close result channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Collect all results and create ZIP
+	var zipBuffer bytes.Buffer
+	zipWriter := zip.NewWriter(&zipBuffer)
+
+	successfulDownloads := 0
+	failedDownloads := 0
+
+	for result := range resultChan {
+		if result.error != nil {
+			failedDownloads++
+			logrus.Errorf("[BULK_DOWNLOAD] Error: %v", result.error)
+			continue
+		}
+
+		// Add file to ZIP
+		// Use original filename, but handle duplicates
+		filename := result.document.OriginalFileName
+		counter := 1
+		baseFilename := strings.TrimSuffix(filename, filepath.Ext(filename))
+		extension := filepath.Ext(filename)
+
+		// Check for duplicate filenames and add counter if needed
+		for {
+			_, err := zipWriter.Create(filename)
+			if err == nil {
+				break // Filename is unique
+			}
+			// If file already exists in ZIP, modify filename
+			filename = fmt.Sprintf("%s_%d%s", baseFilename, counter, extension)
+			counter++
+		}
+
+		fileWriter, err := zipWriter.Create(filename)
+		if err != nil {
+			failedDownloads++
+			logrus.Errorf("[BULK_DOWNLOAD] Failed to create ZIP entry for %s: %v", filename, err)
+			continue
+		}
+
+		_, err = fileWriter.Write(result.content)
+		if err != nil {
+			failedDownloads++
+			logrus.Errorf("[BULK_DOWNLOAD] Failed to write file content to ZIP for %s: %v", filename, err)
+			continue
+		}
+
+		successfulDownloads++
+	}
+
+	// Close ZIP writer
+	err = zipWriter.Close()
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "ZIP_CREATION_FAILED", "Failed to create ZIP file")
+		return
+	}
+
+	if successfulDownloads == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "NO_FILES_DOWNLOADED", "No files could be downloaded")
+		return
+	}
+
+	// Generate filename for ZIP
+	timestamp := time.Now().Format("20060102_150405")
+	zipFilename := fmt.Sprintf("documents_%s.zip", timestamp)
+
+	logrus.Infof("[BULK_DOWNLOAD] Created ZIP with %d files, size: %d bytes", successfulDownloads, zipBuffer.Len())
+
+	// Set response headers for ZIP download
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFilename))
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Length", fmt.Sprintf("%d", zipBuffer.Len()))
+	c.Header("Cache-Control", "no-cache")
+
+	// Send ZIP file data
+	c.Data(http.StatusOK, "application/zip", zipBuffer.Bytes())
+
+	logrus.Infof("[BULK_DOWNLOAD] ZIP download completed: %s (%d files)", zipFilename, successfulDownloads)
 }

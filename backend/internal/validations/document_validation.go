@@ -21,6 +21,8 @@ const (
 	ValidatedBulkDocumentUploadKey = "validatedBulkDocumentUpload"
 	ValidatedDocumentListKey       = "validatedDocumentList"
 	ValidatedDocumentIDKey         = "validatedDocumentID"
+	ValidatedBulkDeleteKey         = "validatedBulkDelete"
+	ValidatedBulkDownloadKey       = "validatedBulkDownload"
 )
 
 // FileMetadata represents individual file metadata
@@ -35,6 +37,11 @@ type FileMetadata struct {
 type BulkUploadDocumentRequest struct {
 	Files    []*multipart.FileHeader
 	Metadata []FileMetadata // Individual metadata for each file
+}
+
+// BulkOperationRequest represents a bulk operation request with document IDs
+type BulkOperationRequest struct {
+	DocumentIDs []string `json:"documentIds" binding:"required,min=1,max=100,dive,uuid"`
 }
 
 // ValidateDocumentUpload validates document upload requests (multipart form)
@@ -344,6 +351,104 @@ func ValidateBulkDocumentUpload() gin.HandlerFunc {
 	}
 }
 
+// ValidateBulkDelete validates bulk delete requests
+func ValidateBulkDelete() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req BulkOperationRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fieldErrors := make(map[string]string)
+			fieldErrors["documentIds"] = "Invalid document IDs provided"
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		// Validate document IDs
+		if len(req.DocumentIDs) == 0 {
+			fieldErrors := map[string]string{
+				"documentIds": "At least one document ID is required",
+			}
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		if len(req.DocumentIDs) > 100 {
+			fieldErrors := map[string]string{
+				"documentIds": "Maximum 100 documents can be deleted at once",
+			}
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		// Validate each document ID format
+		for i, id := range req.DocumentIDs {
+			if _, err := uuid.Parse(id); err != nil {
+				fieldErrors := map[string]string{
+					fmt.Sprintf("documentIds[%d]", i): "Invalid document ID format",
+				}
+				utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+				c.Abort()
+				return
+			}
+		}
+
+		// Store validated request in context
+		c.Set(ValidatedBulkDeleteKey, &req)
+		c.Next()
+	}
+}
+
+// ValidateBulkDownload validates bulk download requests
+func ValidateBulkDownload() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req BulkOperationRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			fieldErrors := make(map[string]string)
+			fieldErrors["documentIds"] = "Invalid document IDs provided"
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		// Validate document IDs
+		if len(req.DocumentIDs) == 0 {
+			fieldErrors := map[string]string{
+				"documentIds": "At least one document ID is required",
+			}
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		if len(req.DocumentIDs) > 50 {
+			fieldErrors := map[string]string{
+				"documentIds": "Maximum 50 documents can be downloaded at once",
+			}
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		// Validate each document ID format
+		for i, id := range req.DocumentIDs {
+			if _, err := uuid.Parse(id); err != nil {
+				fieldErrors := map[string]string{
+					fmt.Sprintf("documentIds[%d]", i): "Invalid document ID format",
+				}
+				utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+				c.Abort()
+				return
+			}
+		}
+
+		// Store validated request in context
+		c.Set(ValidatedBulkDownloadKey, &req)
+		c.Next()
+	}
+}
+
 // Helper functions
 
 func validateUploadedFile(file *multipart.FileHeader) map[string]string {
@@ -491,4 +596,26 @@ func GetValidatedDocumentID(c *gin.Context) (uuid.UUID, bool) {
 
 	id, ok := value.(uuid.UUID)
 	return id, ok
+}
+
+// GetValidatedBulkDelete retrieves the validated bulk delete request from context
+func GetValidatedBulkDelete(c *gin.Context) (*BulkOperationRequest, bool) {
+	value, exists := c.Get(ValidatedBulkDeleteKey)
+	if !exists {
+		return nil, false
+	}
+
+	req, ok := value.(*BulkOperationRequest)
+	return req, ok
+}
+
+// GetValidatedBulkDownload retrieves the validated bulk download request from context
+func GetValidatedBulkDownload(c *gin.Context) (*BulkOperationRequest, bool) {
+	value, exists := c.Get(ValidatedBulkDownloadKey)
+	if !exists {
+		return nil, false
+	}
+
+	req, ok := value.(*BulkOperationRequest)
+	return req, ok
 }

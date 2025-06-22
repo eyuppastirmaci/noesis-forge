@@ -22,6 +22,10 @@ func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.Docume
 		documents.GET("/:id", validations.ValidateDocumentID(), documentHandler.GetDocument)
 		documents.DELETE("/:id", validations.ValidateDocumentID(), documentHandler.DeleteDocument)
 
+		// Bulk operations
+		documents.POST("/bulk-delete", validations.ValidateBulkDelete(), documentHandler.BulkDeleteDocuments)
+		documents.POST("/bulk-download", validations.ValidateBulkDownload(), documentHandler.BulkDownloadDocuments)
+
 		// File operations with validation middleware
 		documents.GET("/:id/download", validations.ValidateDocumentID(), documentHandler.DownloadDocument)
 		documents.GET("/:id/preview", validations.ValidateDocumentID(), documentHandler.GetDocumentPreview)

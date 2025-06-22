@@ -33,6 +33,15 @@ export interface DocumentPreviewResponseData {
   url: string;
 }
 
+export interface BulkDeleteResponseData {
+  successful_deletes: number;
+  failed_deletes: number;
+  total_documents: number;
+  failures?: Array<{ id: string; error: string }>;
+}
+
+
+
 // API Response types
 export type DocumentUploadResponse =
   SuccessResponse<DocumentUploadResponseData>;
@@ -42,6 +51,8 @@ export type DocumentDetailResponse =
 export type DocumentPreviewApiResponse =
   SuccessResponse<DocumentPreviewResponseData>;
 export type DocumentDeleteResponse = SuccessResponse<null>;
+export type BulkDeleteResponse = SuccessResponse<BulkDeleteResponseData>;
+
 
 export class DocumentService {
   /**
@@ -517,6 +528,106 @@ export class DocumentService {
       throw error;
     }
   }
+
+  /**
+   * Delete multiple documents
+   */
+  async bulkDeleteDocuments(documentIds: string[]): Promise<BulkDeleteResponse> {
+    console.log("[DOCUMENT_SERVICE] 🗑️ Starting bulk delete:", {
+      documentCount: documentIds.length,
+      documentIds: documentIds.slice(0, 5) // Log first 5 IDs
+    });
+
+    try {
+      const response = await apiClient.post<BulkDeleteResponseData>(
+        DOCUMENT_ENDPOINTS.BULK_DELETE,
+        { documentIds },
+        {
+          timeout: 120000, // 2 minutes for bulk operations
+        }
+      );
+
+      console.log("[DOCUMENT_SERVICE] ✅ Bulk delete successful:", {
+        successful: response.data.successful_deletes,
+        failed: response.data.failed_deletes,
+        total: response.data.total_documents
+      });
+
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] ❌ Bulk delete failed:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download multiple documents as a ZIP file
+   */
+  async bulkDownloadDocuments(documentIds: string[]): Promise<void> {
+    console.log("[DOCUMENT_SERVICE] ⬇️ Starting bulk download:", {
+      documentCount: documentIds.length,
+      documentIds: documentIds.slice(0, 5) // Log first 5 IDs
+    });
+
+    try {
+      // 🔥 Updated: Use NextAuth session for authentication
+      let token: string | null = null;
+      
+      try {
+        const session = await getSession();
+        token = session?.accessToken as string || null;
+        console.log("[DOCUMENT_SERVICE] 🔑 Token from NextAuth:", !!token);
+      } catch (sessionError) {
+        console.warn("[DOCUMENT_SERVICE] ⚠️ Failed to get NextAuth session, fallback to localStorage");
+        token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+      }
+
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
+
+      // Backend returns ZIP file directly, not a JSON response with URL
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.BULK_DOWNLOAD}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ documentIds }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Bulk download failed: ${response.status} ${response.statusText}`);
+      }
+
+      console.log("[DOCUMENT_SERVICE] ✅ ZIP file received from backend");
+
+      // Create blob from response
+      const blob = await response.blob();
+      
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+      const filename = `documents_${timestamp}.zip`;
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log("[DOCUMENT_SERVICE] ✅ Bulk download completed:", filename);
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] ❌ Bulk download failed:", error);
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance
@@ -640,6 +751,18 @@ export const documentMutations = {
   }),
 
   /**
+   * Bulk delete documents mutation
+   */
+  bulkDelete: () => ({
+    mutationFn: async ({ documentIds }: { documentIds: string[] }) => {
+      console.log("[DOCUMENT_MUTATIONS] 🗑️ Bulk delete mutation started:", documentIds.length);
+      const response = await documentService.bulkDeleteDocuments(documentIds);
+      console.log("[DOCUMENT_MUTATIONS] ✅ Bulk delete mutation completed");
+      return response.data;
+    },
+  }),
+
+  /**
    * Download document mutation
    */
   download: () => ({
@@ -653,6 +776,17 @@ export const documentMutations = {
       console.log("[DOCUMENT_MUTATIONS] ⬇️ Download mutation started:", { id, originalFileName });
       await documentService.downloadDocument(id, originalFileName);
       console.log("[DOCUMENT_MUTATIONS] ✅ Download mutation completed");
+    },
+  }),
+
+  /**
+   * Bulk download documents mutation
+   */
+  bulkDownload: () => ({
+    mutationFn: async ({ documentIds }: { documentIds: string[] }) => {
+      console.log("[DOCUMENT_MUTATIONS] ⬇️ Bulk download mutation started:", documentIds.length);
+      await documentService.bulkDownloadDocuments(documentIds);
+      console.log("[DOCUMENT_MUTATIONS] ✅ Bulk download mutation completed");
     },
   }),
 };

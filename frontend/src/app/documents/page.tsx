@@ -21,8 +21,12 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Download,
+  Trash2,
+  Check,
 } from "lucide-react";
 import LinkButton from "@/components/ui/LinkButton";
+import Button from "@/components/ui/Button";
 import {
   Document,
   DocumentListRequest,
@@ -60,6 +64,10 @@ const DocumentsPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<DocumentStatus | "all">(
     "all"
   );
+
+  // Multi-select state
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Select options
   const documentTypeOptions: SelectOption[] = [
@@ -201,8 +209,23 @@ const DocumentsPage: React.FC = () => {
     },
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    ...documentMutations.bulkDelete(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: DOCUMENT_QUERY_KEYS.DOCUMENTS.ALL,
+      });
+      setSelectedDocuments(new Set());
+      setIsSelectionMode(false);
+    },
+  });
+
   // Download mutation
   const downloadMutation = useMutation(documentMutations.download());
+
+  // Bulk download mutation
+  const bulkDownloadMutation = useMutation(documentMutations.bulkDownload());
 
   const handleDownloadDocument = useCallback(
     async (document: Document) => {
@@ -231,6 +254,19 @@ const DocumentsPage: React.FC = () => {
     [deleteMutation]
   );
 
+  // Multi-select handlers
+  const handleDocumentSelect = useCallback((documentId: string, selected: boolean) => {
+    setSelectedDocuments(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(documentId);
+      } else {
+        newSet.delete(documentId);
+      }
+      return newSet;
+    });
+  }, []);
+
   // Memoized document data to prevent unnecessary re-renders
   const documents = useMemo(
     () => documentsData?.documents || [],
@@ -245,10 +281,65 @@ const DocumentsPage: React.FC = () => {
     [documentsData?.total]
   );
 
+  const handleSelectAll = useCallback(() => {
+    if (!documents.length) return;
+    
+    const allSelected = documents.every(doc => selectedDocuments.has(doc.id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedDocuments(new Set());
+    } else {
+      // Select all
+      setSelectedDocuments(new Set(documents.map(doc => doc.id)));
+    }
+  }, [documents, selectedDocuments]);
+
+  const handleBulkDownload = useCallback(async () => {
+    if (selectedDocuments.size === 0) return;
+    
+    try {
+      const documentIds = Array.from(selectedDocuments);
+      await bulkDownloadMutation.mutateAsync({ documentIds });
+    } catch (error) {
+      console.error("Bulk download failed:", error);
+      alert(`Failed to download documents: ${getErrorMessage(error)}`);
+    }
+  }, [selectedDocuments, bulkDownloadMutation]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedDocuments.size === 0) return;
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedDocuments.size} selected documents? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const documentIds = Array.from(selectedDocuments);
+      await bulkDeleteMutation.mutateAsync({ documentIds });
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+      alert(`Failed to delete documents: ${getErrorMessage(error)}`);
+    }
+  }, [selectedDocuments, bulkDeleteMutation]);
+
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode(!isSelectionMode);
+    if (isSelectionMode) {
+      setSelectedDocuments(new Set());
+    }
+  }, [isSelectionMode]);
+
+  // Check if all documents are selected
+  const allSelected = documents.length > 0 && documents.every(doc => selectedDocuments.has(doc.id));
+  const someSelected = selectedDocuments.size > 0 && !allSelected;
+
   return (
     <div className="max-h-[calc(100vh-92px)] overflow-y-scroll bg-background">
       <div className="max-w-7xl mx-auto p-4">
-        {/* Header with Search/Filters and Upload - Always visible */}
+        {/* Header with Search/Filters and Actions */}
         <div className="mb-4 flex flex-col lg:flex-row lg:items-center gap-3">
           {/* Search and Filters Container */}
           <div className="flex-1">
@@ -320,20 +411,94 @@ const DocumentsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Upload Button - Separate */}
-          <LinkButton href="/documents/upload">Upload</LinkButton>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            <LinkButton href="/documents/upload">Upload</LinkButton>
+          </div>
         </div>
 
-        {/* Results Header with Loading State */}
+        {/* Bulk Actions Bar */}
+        {isSelectionMode && selectedDocuments.size > 0 && (
+          <div className="mb-4 p-3 bg-background-secondary border border-border rounded-lg flex items-center justify-between">
+            <span className="text-sm text-foreground-secondary">
+              {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex items-center gap-2">
+                             <Button
+                 onClick={handleBulkDownload}
+                 disabled={bulkDownloadMutation.isPending}
+                 size="sm"
+                 variant="ghost"
+               >
+                 <Download className="w-4 h-4 mr-2" />
+                 {bulkDownloadMutation.isPending ? "Downloading..." : "Download Selected"}
+               </Button>
+               <Button
+                 onClick={handleBulkDelete}
+                 disabled={bulkDeleteMutation.isPending}
+                 size="sm"
+                 variant="error"
+               >
+                 <Trash2 className="w-4 h-4 mr-2" />
+                 {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
+               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Results Header with Select All */}
         <div className="flex justify-between items-center mb-4">
-          <div className="text-sm text-foreground-secondary">
-            {isLoading ? (
-              <TextSkeleton />
-            ) : (
-              <span>
-                {documents.length} of {total} documents
-              </span>
+          <div className="flex items-center gap-3">
+            {isSelectionMode && documents.length > 0 && (
+              <div className="flex items-center">
+                <label className="flex items-center cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(input) => {
+                        if (input) input.indeterminate = someSelected;
+                      }}
+                      onChange={handleSelectAll}
+                      className="sr-only"
+                    />
+                    <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${
+                      allSelected 
+                        ? 'bg-blue-600 border-blue-600' 
+                        : someSelected 
+                        ? 'bg-blue-100 border-blue-600' 
+                        : 'border-gray-300 hover:border-blue-400'
+                    }`}>
+                      {allSelected && <Check className="w-3 h-3 text-white" />}
+                      {someSelected && !allSelected && <div className="w-2 h-2 bg-blue-600 rounded-sm" />}
+                    </div>
+                  </div>
+                  <span className="ml-2 text-sm text-foreground-secondary">
+                    Select all
+                  </span>
+                </label>
+              </div>
             )}
+            
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-foreground-secondary">
+                {isLoading ? (
+                  <TextSkeleton />
+                ) : (
+                  <span>
+                    {documents.length} of {total} documents
+                  </span>
+                )}
+              </div>
+              
+              <Button
+                onClick={toggleSelectionMode}
+                variant={isSelectionMode ? "secondary" : "ghost"}
+                size="sm"
+              >
+                {isSelectionMode ? "Cancel Selection" : "Select Documents"}
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -397,6 +562,9 @@ const DocumentsPage: React.FC = () => {
                 onDelete={handleDeleteDocument}
                 isDownloading={downloadMutation.isPending}
                 isDeleting={deleteMutation.isPending}
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedDocuments.has(document.id)}
+                onSelect={handleDocumentSelect}
               />
             ))}
           </div>
