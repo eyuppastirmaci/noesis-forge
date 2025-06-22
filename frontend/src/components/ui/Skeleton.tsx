@@ -64,6 +64,7 @@ export const DocumentCardSkeleton: React.FC = () => {
         <div className="flex space-x-1">
           <Skeleton variant="circle" className="w-6 h-6" />
           <Skeleton variant="circle" className="w-6 h-6" />
+          <Skeleton variant="circle" className="w-6 h-6" />
         </div>
       </div>
 
