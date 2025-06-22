@@ -154,28 +154,6 @@ class ApiClient {
     }
   }
 
-  private async getAccessToken(): Promise<string | null> {
-    // Tokens are now stored in HTTP-only cookies
-    // No need to get them from session or localStorage
-    return null;
-  }
-
-  private async getRefreshToken(): Promise<string | null> {
-    // Tokens are now stored in HTTP-only cookies
-    // No need to get them from session or localStorage
-    return null;
-  }
-
-  private setTokens(tokens: AuthTokens): void {
-    // Tokens are now stored in HTTP-only cookies by the backend
-    // No need to store them in localStorage
-  }
-
-  private clearTokens(): void {
-    // Tokens are now stored in HTTP-only cookies by the backend
-    // No need to clear them from localStorage
-  }
-
   private async refreshToken(): Promise<void> {
     try {
       const refreshToken = this.getCookieValue('refresh_token');
@@ -191,33 +169,16 @@ class ApiClient {
 
       // Tokens are handled by auth service when login/refresh is called
     } catch (error) {
-      this.clearTokens();
       throw new Error("Your session has expired. Please login again.");
     }
   }
 
   private handleAuthFailure(): void {
-    this.clearTokens();
-
     // Redirect to login page in browser environment
     if (typeof window !== "undefined") {
       window.location.href = "/auth/login";
     }
   }
-
-  // Public methods
-  public setAuthTokens(tokens: AuthTokens): void {
-    this.setTokens(tokens);
-  }
-
-  public clearAuth(): void {
-    this.clearTokens();
-  }
-
-  public async debugAuth(): Promise<void> {
-    // Debug method removed for production security
-  }
-
   // HTTP methods (unchanged)
   async get<T>(
     url: string,

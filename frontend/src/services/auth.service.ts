@@ -68,11 +68,6 @@ export class AuthService {
       credentials
     );
 
-    // Set tokens in apiClient only (cookies will be handled client-side)
-    if (response.data.tokens) {
-      apiClient.setAuthTokens(response.data.tokens);
-    }
-
     return response;
   }
 
@@ -94,8 +89,6 @@ export class AuthService {
     // Set new tokens in cookies
     if (response.data.tokens) {
       this.setCookies(response.data.tokens);
-      // Also set in apiClient for immediate use
-      apiClient.setAuthTokens(response.data.tokens);
     }
 
     return response;
@@ -111,7 +104,6 @@ export class AuthService {
     } finally {
       // Clear cookies and local storage
       this.clearCookies();
-      apiClient.clearAuth();
     }
   }
 

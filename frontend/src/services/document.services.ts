@@ -1,5 +1,4 @@
 import { apiClient } from "@/lib/api";
-import { getSession } from "next-auth/react";
 import {
   Document,
   DocumentListRequest,
@@ -13,9 +12,7 @@ import {
   SUPPORTED_FILE_TYPES,
   FILE_SIZE_LIMITS,
   FileValidationResult,
-  STORAGE_KEYS,
 } from "@/types";
-import { API_CONFIG } from "@/config/api";
 import { formatFileSize } from "@/utils";
 
 // Response type definitions for API calls
@@ -162,40 +159,47 @@ export class DocumentService {
   }
 
   /**
-   * Download a document - Updated to use NextAuth session
+   * Download a document
    */
   async downloadDocument(id: string, originalFileName: string): Promise<void> {
-
     try {
-      // 🔥 Updated: Use NextAuth session instead of localStorage
-      let token: string | null = null;
-      
-      try {
-        const session = await getSession();
-        token = session?.accessToken as string || null;
-      } catch (sessionError) {
-        // Fallback to localStorage if NextAuth session fails
-        token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-      }
+      // Create a new axios instance that bypasses apiClient interceptors
+      const downloadClient = (apiClient as any).client.create({
+        withCredentials: true,
+        timeout: 60000, // 1 minute timeout for downloads
+      });
 
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
+      // Only add the request interceptor for auth (not response interceptor)
+      downloadClient.interceptors.request.use(
+        async (config: any) => {
+          // Get access token from cookies (same as apiClient)
+          const getCookieValue = (name: string): string | null => {
+            if (typeof document === 'undefined') return null;
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) {
+              return parts.pop()?.split(';').shift() || null;
+            }
+            return null;
+          };
 
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.DOWNLOAD(id)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          const accessToken = getCookieValue('access_token');
+          if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`;
+          }
+          return config;
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-      }
+      const response = await downloadClient.get(
+        DOCUMENT_ENDPOINTS.DOWNLOAD(id),
+        {
+          responseType: 'blob', // Important: get response as blob
+        }
+      );
 
-      const blob = await response.blob();
+      // Response.data should be a blob
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -383,13 +387,6 @@ export class DocumentService {
   }
 
   /**
-   * Debug method removed for production security
-   */
-  async debugAuth(): Promise<void> {
-    // Debug method removed for production security
-  }
-
-  /**
    * Upload multiple documents in a single request (bulk upload)
    */
   async bulkUploadDocuments(
@@ -469,40 +466,44 @@ export class DocumentService {
    */
   async bulkDownloadDocuments(documentIds: string[]): Promise<void> {
     try {
-      // 🔥 Updated: Use NextAuth session for authentication
-      let token: string | null = null;
-      
-      try {
-        const session = await getSession();
-        token = session?.accessToken as string || null;
-      } catch (sessionError) {
-        // Fallback to localStorage if NextAuth session fails
-        token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-      }
+      // Create a new axios instance that bypasses apiClient interceptors
+      const downloadClient = (apiClient as any).client.create({
+        withCredentials: true,
+        timeout: 120000, // 2 minute timeout for bulk downloads
+      });
 
-      if (!token) {
-        throw new Error("No authentication token available");
-      }
+      // Only add the request interceptor for auth (not response interceptor)
+      downloadClient.interceptors.request.use(
+        async (config: any) => {
+          // Get access token from cookies (same as apiClient)
+          const getCookieValue = (name: string): string | null => {
+            if (typeof document === 'undefined') return null;
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) {
+              return parts.pop()?.split(';').shift() || null;
+            }
+            return null;
+          };
 
-      // Backend returns ZIP file directly, not a JSON response with URL
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.BULK_DOWNLOAD}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ documentIds }),
+          const accessToken = getCookieValue('access_token');
+          if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`;
+          }
+          return config;
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Bulk download failed: ${response.status} ${response.statusText}`);
-      }
+      const response = await downloadClient.post(
+        DOCUMENT_ENDPOINTS.BULK_DOWNLOAD,
+        { documentIds },
+        {
+          responseType: 'blob', // Important: get response as blob
+        }
+      );
 
-      // Create blob from response
-      const blob = await response.blob();
+      // Response.data should be a blob
+      const blob = response.data;
       
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
