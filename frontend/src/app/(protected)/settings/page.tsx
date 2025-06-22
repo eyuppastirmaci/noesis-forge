@@ -1,4 +1,4 @@
-import { ThemeSwitcher } from "../../components/ThemeSwitcher";
+import { ThemeSwitcher } from "../../../components/ThemeSwitcher";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
