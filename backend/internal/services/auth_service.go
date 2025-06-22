@@ -115,7 +115,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 	var user models.User
 
 	// Define a standard error message for all login failures
-	standardError := "Invalid email/username or password"
+	standardError := "invalid email/username or password"
 
 	// Find user by email or username
 	query := s.db.Preload("Role.Permissions")
