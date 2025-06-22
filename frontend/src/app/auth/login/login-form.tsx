@@ -138,7 +138,7 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex items-center justify-center p-0 border-0 bg-transparent"
           >
             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
