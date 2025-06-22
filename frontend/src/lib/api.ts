@@ -42,15 +42,11 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config) => {
         // Get access token from cookies
-        const accessToken = this.getCookieValue('access_token');
-        console.log("[API] Debug - Access token from cookie:", accessToken ? `${accessToken.substring(0, 20)}...` : 'null');
-        
-        if (accessToken) {
-          config.headers.Authorization = `Bearer ${accessToken}`;
-          console.log("[API] Debug - Authorization header set");
-        } else {
-          console.log("[API] Debug - No access token found in cookies");
-        }
+            const accessToken = this.getCookieValue('access_token');
+    
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
         return config;
       },
       (error) => {
@@ -173,13 +169,11 @@ class ApiClient {
   private setTokens(tokens: AuthTokens): void {
     // Tokens are now stored in HTTP-only cookies by the backend
     // No need to store them in localStorage
-    console.log("[API] Tokens set in HTTP-only cookies by backend");
   }
 
   private clearTokens(): void {
     // Tokens are now stored in HTTP-only cookies by the backend
     // No need to clear them from localStorage
-    console.log("[API] Tokens cleared from HTTP-only cookies by backend");
   }
 
   private async refreshToken(): Promise<void> {
@@ -196,7 +190,6 @@ class ApiClient {
       });
 
       // Tokens are handled by auth service when login/refresh is called
-      console.log("[API] Tokens refreshed successfully");
     } catch (error) {
       this.clearTokens();
       throw new Error("Your session has expired. Please login again.");
@@ -222,11 +215,7 @@ class ApiClient {
   }
 
   public async debugAuth(): Promise<void> {
-    try {
-      console.log("[API] Using HTTP-only cookies for authentication");
-    } catch (error) {
-      console.error("Debug error:", error);
-    }
+    // Debug method removed for production security
   }
 
   // HTTP methods (unchanged)

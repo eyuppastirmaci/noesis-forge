@@ -71,7 +71,6 @@ func AuthMiddleware(authService *services.AuthService) gin.HandlerFunc {
 		}
 
 		// Set user context
-		fmt.Printf("[AUTH] DEBUG - Setting user context: UserID=%s, Email=%s\n", claims.UserID, claims.Email)
 		c.Set("userID", claims.UserID)
 		c.Set("userEmail", claims.Email)
 		c.Set("username", claims.Username)

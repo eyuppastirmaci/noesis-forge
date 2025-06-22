@@ -43,20 +43,15 @@ export class AuthService {
   private setCookies(tokens: AuthTokens) {
     // Only set cookies in browser environment
     if (typeof document === 'undefined') {
-      console.log("[AUTH] Debug - Cannot set cookies, document is undefined (SSR)");
       return;
     }
     
-    console.log("[AUTH] Debug - Setting access token cookie, length:", tokens.accessToken.length);
     // Set access token cookie
     document.cookie = `access_token=${tokens.accessToken}; path=/; max-age=${tokens.expiresIn}; secure=${location.protocol === 'https:'}; samesite=lax`;
     
-    console.log("[AUTH] Debug - Setting refresh token cookie, length:", tokens.refreshToken.length);
     // Set refresh token cookie (7 days)
     const refreshMaxAge = 7 * 24 * 60 * 60; // 7 days in seconds
     document.cookie = `refresh_token=${tokens.refreshToken}; path=/; max-age=${refreshMaxAge}; secure=${location.protocol === 'https:'}; samesite=lax`;
-    
-    console.log("[AUTH] Debug - Cookies set successfully");
   }
 
   private clearCookies() {
@@ -75,11 +70,7 @@ export class AuthService {
 
     // Set tokens in apiClient only (cookies will be handled client-side)
     if (response.data.tokens) {
-      console.log("[AUTH] Debug - Setting tokens in apiClient:", response.data.tokens.accessToken ? 'Access token present' : 'No access token');
       apiClient.setAuthTokens(response.data.tokens);
-      console.log("[AUTH] Debug - ApiClient tokens set");
-    } else {
-      console.log("[AUTH] Debug - No tokens in response");
     }
 
     return response;

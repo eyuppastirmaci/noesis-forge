@@ -137,7 +137,7 @@ export default function HeaderRight() {
       });
       
       if (!response.ok) {
-        console.warn('Logout API failed');
+        // Logout API failed silently
       }
       
       // Sign out from NextAuth (clears NextAuth session)

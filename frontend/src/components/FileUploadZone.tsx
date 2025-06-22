@@ -8,7 +8,6 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { formatFileSize, validateFile } from "@/utils";
-import { FilePreview } from "./FilePreview";
 
 interface FileUploadZoneProps {
   onFilesSelected: (files: File[]) => void;

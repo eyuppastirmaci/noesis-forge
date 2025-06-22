@@ -174,7 +174,7 @@ export class DocumentService {
         const session = await getSession();
         token = session?.accessToken as string || null;
       } catch (sessionError) {
-        console.warn("[DOCUMENT_SERVICE] ⚠️ Failed to get NextAuth session, fallback to localStorage");
+        // Fallback to localStorage if NextAuth session fails
         token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       }
 
@@ -235,35 +235,35 @@ export class DocumentService {
       const error = `File size must be less than ${this.formatFileSize(
         FILE_SIZE_LIMITS.MAX_FILE_SIZE
       )}`;
-      console.warn("[DOCUMENT_SERVICE] ❌ File too large:", error);
+      // File size validation failed
       return { isValid: false, error };
     }
 
     // Check if file is empty
     if (file.size === 0) {
       const error = "File cannot be empty";
-      console.warn("[DOCUMENT_SERVICE] ❌ Empty file:", error);
+      // Empty file validation failed
       return { isValid: false, error };
     }
 
     // Check file type
     if (!Object.keys(SUPPORTED_FILE_TYPES).includes(file.type)) {
       const error = "File type not supported. Supported types: PDF, DOCX, DOC, TXT, XLSX, XLS, PPTX, PPT, MD";
-      console.warn("[DOCUMENT_SERVICE] ❌ Unsupported file type:", file.type);
+      // File type validation failed
       return { isValid: false, error };
     }
 
     // Check filename length
     if (file.name.length > 255) {
       const error = "Filename is too long (max 255 characters)";
-      console.warn("[DOCUMENT_SERVICE] ❌ Filename too long:", file.name.length);
+      // Filename length validation failed
       return { isValid: false, error };
     }
 
     // Check for malicious filenames
     if (this.containsMaliciousCharacters(file.name)) {
       const error = "Filename contains invalid characters";
-      console.warn("[DOCUMENT_SERVICE] ❌ Malicious filename:", file.name);
+      // Malicious filename validation failed
       return { isValid: false, error };
     }
 
@@ -383,15 +383,10 @@ export class DocumentService {
   }
 
   /**
-   * Debug method for checking authentication
+   * Debug method removed for production security
    */
   async debugAuth(): Promise<void> {
-    try {
-      const session = await getSession();
-      const localToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-    } catch (error) {
-      console.error("Auth debug error:", error);
-    }
+    // Debug method removed for production security
   }
 
   /**
@@ -481,7 +476,7 @@ export class DocumentService {
         const session = await getSession();
         token = session?.accessToken as string || null;
       } catch (sessionError) {
-        console.warn("[DOCUMENT_SERVICE] ⚠️ Failed to get NextAuth session, fallback to localStorage");
+        // Fallback to localStorage if NextAuth session fails
         token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       }
 

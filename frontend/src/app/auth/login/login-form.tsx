@@ -31,15 +31,12 @@ export function LoginForm() {
     if (state.success && state.credentials && state.user && state.tokens) {
       // Set cookies client-side (only in browser environment)
       if (typeof document !== 'undefined' && state.tokens) {
-        console.log("[LOGIN] Setting cookies client-side");
         // Set access token cookie
         document.cookie = `access_token=${state.tokens.accessToken}; path=/; max-age=${state.tokens.expiresIn}; secure=${location.protocol === 'https:'}; samesite=lax`;
         
         // Set refresh token cookie (7 days)
         const refreshMaxAge = 7 * 24 * 60 * 60; // 7 days in seconds
         document.cookie = `refresh_token=${state.tokens.refreshToken}; path=/; max-age=${refreshMaxAge}; secure=${location.protocol === 'https:'}; samesite=lax`;
-        
-        console.log("[LOGIN] Cookies set client-side successfully");
       }
 
       // Update NextAuth session with user credentials and info
@@ -58,7 +55,6 @@ export function LoginForm() {
           router.push(state.redirectTo || "/");
         } else {
           // Even if NextAuth fails, we have cookies, so just redirect
-          console.warn("NextAuth session update failed, but login succeeded with cookies");
           toast.info(`Welcome ${userName}`);
           router.push(state.redirectTo || "/");
         }
