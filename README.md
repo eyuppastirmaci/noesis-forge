@@ -9,7 +9,9 @@ NoesisForge transforms how organizations handle document management by leveragin
 
 ## 📸 Screenshots
 
-<!-- Add your application screenshots here -->
+![upload-document-page](https://github.com/user-attachments/assets/177be2d4-dd26-4e8d-82e0-a861dc490f30)
+
+![documents-page](https://github.com/user-attachments/assets/6cf2f1a2-836e-4d96-8228-7df857259ae0)
 
 ## 🚧 Development Status
 
