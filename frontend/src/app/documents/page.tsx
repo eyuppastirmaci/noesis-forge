@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   Presentation,
   FileImage,
+  X,
 } from "lucide-react";
 import LinkButton from "@/components/ui/LinkButton";
 import {
@@ -41,20 +42,17 @@ import { Select, SelectOption } from "@/components/ui/Select";
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
 import { debounce } from "@/utils";
 
-// Optimized SearchInput component with React.memo
 const SearchInput = memo(({ 
   value, 
   onChange, 
-  onSubmit 
+  onClear 
 }: {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (value: string) => void;
+  onClear: () => void;
 }) => {
   const [localValue, setLocalValue] = useState(value);
-  const [isPending, startTransition] = useTransition();
 
-  // Sync with external value when it changes
   useEffect(() => {
     setLocalValue(value);
   }, [value]);
@@ -62,42 +60,39 @@ const SearchInput = memo(({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setLocalValue(newValue);
-    
-    // Use transition to make typing non-blocking
-    startTransition(() => {
-      onChange(newValue);
-    });
+    onChange(newValue);
   }, [onChange]);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(localValue);
-  }, [onSubmit, localValue]);
+  const handleClear = useCallback(() => {
+    setLocalValue("");
+    onClear();
+  }, [onClear]);
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="lg:flex-1 lg:max-w-sm relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-        <input
-          type="text"
-          placeholder="Search documents..."
-          value={localValue}
-          onChange={handleInputChange}
-          className="w-full pl-10 pr-4 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
-        />
-        {isPending && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-      </div>
-    </form>
+    <div className="lg:flex-1 lg:max-w-md relative">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+      <input
+        type="text"
+        placeholder="Search documents..."
+        value={localValue}
+        onChange={handleInputChange}
+        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
+      />
+      {localValue && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
   );
 });
 
 SearchInput.displayName = 'SearchInput';
 
-// Memoized Document Card component
 const DocumentCard = memo(({ 
   document, 
   onDownload, 
@@ -293,32 +288,28 @@ const DocumentsPage: React.FC = () => {
     { value: "100", label: "100" },
   ];
 
-  // Optimized debounced search function with proper dependencies
   const debouncedSearch = useCallback(
     debounce((query: string) => {
       startTransition(() => {
         setSearchQuery(query);
         setCurrentPage(1);
       });
-    }, 300), // Reduced delay for better UX
-    [] // Empty dependency array is fine since we're using startTransition
+    }, 300),
+    [] 
   );
 
-  // Handle search input change with deferred value
   useEffect(() => {
     debouncedSearch(deferredSearchInput);
   }, [deferredSearchInput, debouncedSearch]);
 
-  // Handle search input change
   const handleSearchInputChange = useCallback((value: string) => {
     setSearchInput(value);
   }, []);
 
-  // Event handlers
-  const handleSearch = useCallback((value: string) => {
-    // Immediately apply search without waiting for debounce
+  const handleSearchClear = useCallback(() => {
+    setSearchInput("");
     startTransition(() => {
-      setSearchQuery(value);
+      setSearchQuery("");
       setCurrentPage(1);
     });
   }, []);
@@ -366,9 +357,6 @@ const DocumentsPage: React.FC = () => {
   // Download mutation
   const downloadMutation = useMutation(documentMutations.download());
 
-
-
-  // Memoized handlers to prevent unnecessary re-renders of DocumentCard
   const handleDownloadDocument = useCallback(async (document: Document) => {
     try {
       await downloadMutation.mutateAsync({
@@ -411,7 +399,7 @@ const DocumentsPage: React.FC = () => {
               <SearchInput
                 value={searchInput}
                 onChange={handleSearchInputChange}
-                onSubmit={handleSearch}
+                onClear={handleSearchClear}
               />
 
               {/* Filters Row */}
@@ -441,15 +429,6 @@ const DocumentsPage: React.FC = () => {
                   className="min-w-[140px]"
                   aria-label="Filter by document status"
                 />
-
-                <button
-                  type="button"
-                  onClick={() => handleSearch(searchInput)}
-                  disabled={isPending}
-                  className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {isPending ? "Searching..." : "Search"}
-                </button>
               </div>
             </div>
           </div>
@@ -468,7 +447,6 @@ const DocumentsPage: React.FC = () => {
             ) : (
               <span>
                 {documents.length} of {total} documents
-                {isPending && <span className="ml-2 text-blue-600">(Updating...)</span>}
               </span>
             )}
           </div>
