@@ -15,6 +15,7 @@ import {
   FileValidationResult,
   STORAGE_KEYS,
 } from "@/types";
+import { API_CONFIG } from "@/config/api";
 
 // Response type definitions for API calls
 export interface DocumentUploadResponseData {
@@ -176,7 +177,12 @@ export class DocumentService {
    * Download a document - Updated to use NextAuth session
    */
   async downloadDocument(id: string, originalFileName: string): Promise<void> {
-    console.log("[DOCUMENT_SERVICE] ⬇️ Starting download:", { id, originalFileName });
+    console.log("[DOCUMENT_SERVICE] ⬇️ Starting download:", { 
+      id, 
+      originalFileName,
+      apiBaseUrl: API_CONFIG.BASE_URL,
+      fullUrl: `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.DOWNLOAD(id)}`
+    });
 
     try {
       // 🔥 Updated: Use NextAuth session instead of localStorage
@@ -196,9 +202,7 @@ export class DocumentService {
       }
 
       const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1"
-        }${DOCUMENT_ENDPOINTS.DOWNLOAD(id)}`,
+        `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.DOWNLOAD(id)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

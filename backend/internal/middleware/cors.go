@@ -36,6 +36,7 @@ func CORS() gin.HandlerFunc {
 		ExposeHeaders: []string{
 			"Content-Length",
 			"Content-Type",
+			"Content-Disposition",
 		},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
@@ -48,7 +49,7 @@ func CORSForProduction(allowedOrigins []string) gin.HandlerFunc {
 		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length", "Content-Type", "Content-Disposition"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	})

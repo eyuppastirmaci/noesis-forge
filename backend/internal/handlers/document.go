@@ -16,6 +16,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type DocumentHandler struct {
@@ -156,8 +157,11 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 }
 
 func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
+	logrus.Infof("[DOWNLOAD_HANDLER] Starting download request")
+
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
+		logrus.Errorf("[DOWNLOAD_HANDLER] Auth error: %v", err)
 		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
 		return
 	}
@@ -165,13 +169,17 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 	// Get validated document ID from context
 	documentID, ok := validations.GetValidatedDocumentID(c)
 	if !ok {
+		logrus.Error("[DOWNLOAD_HANDLER] Failed to get validated document ID")
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
 		return
 	}
 
+	logrus.Infof("[DOWNLOAD_HANDLER] Fetching document %s for user %s", documentID, userID)
+
 	// Get document info
 	document, err := h.documentService.DownloadDocument(c.Request.Context(), userID, documentID)
 	if err != nil {
+		logrus.Errorf("[DOWNLOAD_HANDLER] Document fetch error: %v", err)
 		if err.Error() == "document not found" {
 			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
 			return
@@ -180,26 +188,44 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 		return
 	}
 
+	logrus.Infof("[DOWNLOAD_HANDLER] Document found: %s (original: %s)", document.FileName, document.OriginalFileName)
+
 	// Get file from MinIO
+	logrus.Infof("[DOWNLOAD_HANDLER] Downloading file from storage: %s", document.StoragePath)
 	fileReader, err := h.minioService.DownloadFile(c.Request.Context(), document.StoragePath)
 	if err != nil {
+		logrus.Errorf("[DOWNLOAD_HANDLER] MinIO download error: %v", err)
 		utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", "Failed to retrieve file")
 		return
 	}
 	defer fileReader.Close()
 
-	// Set headers for file download
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Transfer-Encoding", "binary")
-	c.Header("Content-Disposition", "attachment; filename="+document.OriginalFileName)
-	c.Header("Content-Type", document.MimeType)
-
-	// Stream the file to client using io.Copy
-	_, err = io.Copy(c.Writer, fileReader)
+	// Read file content into buffer to avoid header conflicts
+	fileContent, err := io.ReadAll(fileReader)
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", "Failed to stream file")
+		logrus.Errorf("[DOWNLOAD_HANDLER] Failed to read file content: %v", err)
+		utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", "Failed to read file content")
 		return
 	}
+
+	// Safely escape filename for Content-Disposition header
+	safeFilename := strings.ReplaceAll(document.OriginalFileName, "\"", "\\\"")
+	logrus.Infof("[DOWNLOAD_HANDLER] Setting response headers for file: %s", safeFilename)
+
+	// Set all headers before writing response body
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", safeFilename))
+	c.Header("Content-Type", document.MimeType)
+	c.Header("Content-Length", fmt.Sprintf("%d", len(fileContent)))
+	c.Header("Cache-Control", "no-cache")
+
+	logrus.Infof("[DOWNLOAD_HANDLER] Headers set, sending file data")
+
+	// Send file data
+	c.Data(http.StatusOK, document.MimeType, fileContent)
+
+	logrus.Infof("[DOWNLOAD_HANDLER] File download completed successfully")
 }
 
 func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {

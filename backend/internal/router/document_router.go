@@ -9,11 +9,10 @@ import (
 )
 
 func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.DocumentService, minioService *services.MinIOService, authService *services.AuthService) {
-	// Initialize handler
 	documentHandler := handlers.NewDocumentHandler(documentService, minioService)
 
 	documents := r.Group("/documents")
-	// All document routes require authentication
+
 	documents.Use(middleware.AuthMiddleware(authService))
 	{
 		// Document CRUD operations with validation middleware
