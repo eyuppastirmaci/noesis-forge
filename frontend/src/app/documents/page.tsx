@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useDeferredValue, useTransition, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -41,12 +41,216 @@ import { Select, SelectOption } from "@/components/ui/Select";
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
 import { debounce } from "@/utils";
 
+// Optimized SearchInput component with React.memo
+const SearchInput = memo(({ 
+  value, 
+  onChange, 
+  onSubmit 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: (value: string) => void;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const [isPending, startTransition] = useTransition();
+
+  // Sync with external value when it changes
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
+    
+    // Use transition to make typing non-blocking
+    startTransition(() => {
+      onChange(newValue);
+    });
+  }, [onChange]);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(localValue);
+  }, [onSubmit, localValue]);
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="lg:flex-1 lg:max-w-sm relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
+        <input
+          type="text"
+          placeholder="Search documents..."
+          value={localValue}
+          onChange={handleInputChange}
+          className="w-full pl-10 pr-4 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
+        />
+        {isPending && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+      </div>
+    </form>
+  );
+});
+
+SearchInput.displayName = 'SearchInput';
+
+// Memoized Document Card component
+const DocumentCard = memo(({ 
+  document, 
+  onDownload, 
+  onDelete, 
+  isDownloading, 
+  isDeleting 
+}: {
+  document: Document;
+  onDownload: (document: Document) => void;
+  onDelete: (document: Document) => void;
+  isDownloading: boolean;
+  isDeleting: boolean;
+}) => {
+  const formatFileSize = useCallback((bytes: number) => {
+    return documentService.formatFileSize(bytes);
+  }, []);
+
+  const formatDate = useCallback((dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }, []);
+
+  const getStatusBadge = useCallback((status: DocumentStatus) => {
+    const statusColors = {
+      ready:
+        "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+      processing:
+        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
+      failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+      deleted: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300",
+    };
+
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[status]}`}
+      >
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  }, []);
+
+  return (
+    <div className="rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[180px] flex flex-col bg-background-secondary border border-border">
+      <div className="p-4 flex flex-col h-full">
+        {/* Header with icon and actions */}
+        <div className="flex items-start justify-between mb-3">
+          <DocumentTypeIndicator
+            fileType={document.fileType}
+            size="md"
+            className="flex-shrink-0"
+          />
+          <div className="flex space-x-1 flex-shrink-0">
+            <div data-tooltip-id={`download-${document.id}`}>
+              <IconButton
+                Icon={Download}
+                onClick={() => onDownload(document)}
+                variant="default"
+                size="sm"
+                bordered={false}
+                disabled={isDownloading}
+              />
+            </div>
+            <CustomTooltip
+              anchorSelect={`[data-tooltip-id='download-${document.id}']`}
+            >
+              Download document
+            </CustomTooltip>
+
+            <div data-tooltip-id={`delete-${document.id}`}>
+              <IconButton
+                Icon={Trash2}
+                onClick={() => onDelete(document)}
+                variant="danger"
+                size="sm"
+                bordered={false}
+                disabled={isDeleting}
+              />
+            </div>
+            <CustomTooltip
+              anchorSelect={`[data-tooltip-id='delete-${document.id}']`}
+            >
+              Delete document
+            </CustomTooltip>
+          </div>
+        </div>
+
+        {/* Document title */}
+        <h3 className="text-sm font-medium mb-2 line-clamp-2 flex-grow text-foreground">
+          {document.title}
+        </h3>
+
+        {/* Document metadata */}
+        <div className="space-y-1.5 text-xs mt-auto text-foreground-secondary">
+          <div className="flex justify-between items-center">
+            <span>{formatFileSize(document.fileSize)}</span>
+            <span>{formatDate(document.createdAt)}</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex-shrink-0">
+              {getStatusBadge(document.status)}
+            </div>
+            <div className="flex space-x-3 flex-shrink-0">
+              <span
+                className="flex items-center space-x-1"
+                data-tooltip-id={`views-${document.id}`}
+              >
+                <Eye className="w-3 h-3 flex-shrink-0" />
+                <span className="flex-shrink-0">
+                  {document.viewCount}
+                </span>
+              </span>
+              <CustomTooltip
+                anchorSelect={`[data-tooltip-id='views-${document.id}']`}
+              >
+                Total views: {document.viewCount}
+              </CustomTooltip>
+
+              <span
+                className="flex items-center space-x-1"
+                data-tooltip-id={`downloads-${document.id}`}
+              >
+                <ArrowDown className="w-3 h-3 flex-shrink-0" />
+                <span className="flex-shrink-0">
+                  {document.downloadCount}
+                </span>
+              </span>
+              <CustomTooltip
+                anchorSelect={`[data-tooltip-id='downloads-${document.id}']`}
+              >
+                Total downloads: {document.downloadCount}
+              </CustomTooltip>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+DocumentCard.displayName = 'DocumentCard';
+
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
   // State for filters and pagination
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState(""); // Separate state for input
+  const deferredSearchInput = useDeferredValue(searchInput);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortBy, setSortBy] = useState<DocumentSortField>("date");
@@ -88,6 +292,36 @@ const DocumentsPage: React.FC = () => {
     { value: "50", label: "50" },
     { value: "100", label: "100" },
   ];
+
+  // Optimized debounced search function with proper dependencies
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      startTransition(() => {
+        setSearchQuery(query);
+        setCurrentPage(1);
+      });
+    }, 300), // Reduced delay for better UX
+    [] // Empty dependency array is fine since we're using startTransition
+  );
+
+  // Handle search input change with deferred value
+  useEffect(() => {
+    debouncedSearch(deferredSearchInput);
+  }, [deferredSearchInput, debouncedSearch]);
+
+  // Handle search input change
+  const handleSearchInputChange = useCallback((value: string) => {
+    setSearchInput(value);
+  }, []);
+
+  // Event handlers
+  const handleSearch = useCallback((value: string) => {
+    // Immediately apply search without waiting for debounce
+    startTransition(() => {
+      setSearchQuery(value);
+      setCurrentPage(1);
+    });
+  }, []);
 
   // Build query parameters
   const queryParams: DocumentListRequest = useMemo(
@@ -132,31 +366,22 @@ const DocumentsPage: React.FC = () => {
   // Download mutation
   const downloadMutation = useMutation(documentMutations.download());
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce((query: string) => {
-      setSearchQuery(query);
-      setCurrentPage(1); // Reset to first page when searching
-    }, 500), // 500ms delay
-    []
-  );
 
-  // Handle search input change
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchInput(value);
-    debouncedSearch(value);
-  };
 
-  // Event handlers
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Immediately apply search without waiting for debounce
-    setSearchQuery(searchInput);
-    setCurrentPage(1);
-  };
+  // Memoized handlers to prevent unnecessary re-renders of DocumentCard
+  const handleDownloadDocument = useCallback(async (document: Document) => {
+    try {
+      await downloadMutation.mutateAsync({
+        id: document.id,
+        originalFileName: document.originalFileName,
+      });
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert(`Failed to download document: ${getErrorMessage(error)}`);
+    }
+  }, [downloadMutation]);
 
-  const handleDeleteDocument = async (document: Document) => {
+  const handleDeleteDocument = useCallback(async (document: Document) => {
     if (
       window.confirm(`Are you sure you want to delete "${document.title}"?`)
     ) {
@@ -167,54 +392,12 @@ const DocumentsPage: React.FC = () => {
         alert(`Failed to delete document: ${getErrorMessage(error)}`);
       }
     }
-  };
+  }, [deleteMutation]);
 
-  const handleDownloadDocument = async (document: Document) => {
-    try {
-      await downloadMutation.mutateAsync({
-        id: document.id,
-        originalFileName: document.originalFileName,
-      });
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert(`Failed to download document: ${getErrorMessage(error)}`);
-    }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    return documentService.formatFileSize(bytes);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const getStatusBadge = (status: DocumentStatus) => {
-    const statusColors = {
-      ready:
-        "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
-      processing:
-        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-      failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
-      deleted: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300",
-    };
-
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[status]}`}
-      >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
-
-  const documents = documentsData?.documents || [];
-  const totalPages = documentsData?.totalPages || 0;
-  const total = documentsData?.total || 0;
+  // Memoized document data to prevent unnecessary re-renders
+  const documents = useMemo(() => documentsData?.documents || [], [documentsData?.documents]);
+  const totalPages = useMemo(() => documentsData?.totalPages || 0, [documentsData?.totalPages]);
+  const total = useMemo(() => documentsData?.total || 0, [documentsData?.total]);
 
   return (
     <div className="max-h-[calc(100vh-92px)] overflow-y-scroll bg-background">
@@ -223,51 +406,52 @@ const DocumentsPage: React.FC = () => {
         <div className="mb-4 flex flex-col lg:flex-row lg:items-center gap-3">
           {/* Search and Filters Container */}
           <div className="flex-1">
-            <form onSubmit={handleSearch}>
-              <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-                {/* Search Input */}
-                <div className="lg:flex-1 lg:max-w-sm relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-                  <input
-                    type="text"
-                    placeholder="Search documents..."
-                    value={searchInput}
-                    onChange={handleSearchInputChange}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors bg-background border border-border text-foreground"
-                  />
-                </div>
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+              {/* Search Input */}
+              <SearchInput
+                value={searchInput}
+                onChange={handleSearchInputChange}
+                onSubmit={handleSearch}
+              />
 
-                {/* Filters Row */}
-                <div className="flex items-center gap-3">
-                  <Select
-                    options={documentTypeOptions}
-                    value={filterType}
-                    onChange={(value) =>
-                      setFilterType(value as DocumentType | "all")
-                    }
-                    className="min-w-[160px]"
-                    aria-label="Filter by document type"
-                  />
+              {/* Filters Row */}
+              <div className="flex items-center gap-3">
+                <Select
+                  options={documentTypeOptions}
+                  value={filterType}
+                  onChange={(value) =>
+                    startTransition(() => {
+                      setFilterType(value as DocumentType | "all");
+                      setCurrentPage(1);
+                    })
+                  }
+                  className="min-w-[160px]"
+                  aria-label="Filter by document type"
+                />
 
-                  <Select
-                    options={documentStatusOptions}
-                    value={filterStatus}
-                    onChange={(value) =>
-                      setFilterStatus(value as DocumentStatus | "all")
-                    }
-                    className="min-w-[140px]"
-                    aria-label="Filter by document status"
-                  />
+                <Select
+                  options={documentStatusOptions}
+                  value={filterStatus}
+                  onChange={(value) =>
+                    startTransition(() => {
+                      setFilterStatus(value as DocumentStatus | "all");
+                      setCurrentPage(1);
+                    })
+                  }
+                  className="min-w-[140px]"
+                  aria-label="Filter by document status"
+                />
 
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Search
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSearch(searchInput)}
+                  disabled={isPending}
+                  className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {isPending ? "Searching..." : "Search"}
+                </button>
               </div>
-            </form>
+            </div>
           </div>
 
           {/* Upload Button - Separate */}
@@ -284,6 +468,7 @@ const DocumentsPage: React.FC = () => {
             ) : (
               <span>
                 {documents.length} of {total} documents
+                {isPending && <span className="ml-2 text-blue-600">(Updating...)</span>}
               </span>
             )}
           </div>
@@ -293,8 +478,10 @@ const DocumentsPage: React.FC = () => {
               options={pageSizeOptions}
               value={pageSize.toString()}
               onChange={(value) => {
-                setPageSize(Number(value));
-                setCurrentPage(1);
+                startTransition(() => {
+                  setPageSize(Number(value));
+                  setCurrentPage(1);
+                });
               }}
               className="min-w-[80px]"
               aria-label="Items per page"
@@ -339,107 +526,17 @@ const DocumentsPage: React.FC = () => {
             </LinkButton>
           </div>
         ) : (
-          // Documents Grid
+          // Documents Grid with Optimized Cards
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {documents.map((document) => (
-              <div
+              <DocumentCard
                 key={document.id}
-                className="rounded-lg shadow-sm hover:shadow-md transition-shadow min-h-[180px] flex flex-col bg-background-secondary border border-border"
-              >
-                <div className="p-4 flex flex-col h-full">
-                  {/* Header with icon and actions */}
-                  <div className="flex items-start justify-between mb-3">
-                    <DocumentTypeIndicator
-                      fileType={document.fileType}
-                      size="md"
-                      className="flex-shrink-0"
-                    />
-                    <div className="flex space-x-1 flex-shrink-0">
-                      <div data-tooltip-id={`download-${document.id}`}>
-                        <IconButton
-                          Icon={Download}
-                          onClick={() => handleDownloadDocument(document)}
-                          variant="default"
-                          size="sm"
-                          bordered={false}
-                          disabled={downloadMutation.isPending}
-                        />
-                      </div>
-                      <CustomTooltip
-                        anchorSelect={`[data-tooltip-id='download-${document.id}']`}
-                      >
-                        Download document
-                      </CustomTooltip>
-
-                      <div data-tooltip-id={`delete-${document.id}`}>
-                        <IconButton
-                          Icon={Trash2}
-                          onClick={() => handleDeleteDocument(document)}
-                          variant="danger"
-                          size="sm"
-                          bordered={false}
-                          disabled={deleteMutation.isPending}
-                        />
-                      </div>
-                      <CustomTooltip
-                        anchorSelect={`[data-tooltip-id='delete-${document.id}']`}
-                      >
-                        Delete document
-                      </CustomTooltip>
-                    </div>
-                  </div>
-
-                  {/* Document title */}
-                  <h3 className="text-sm font-medium mb-2 line-clamp-2 flex-grow text-foreground">
-                    {document.title}
-                  </h3>
-
-                  {/* Document metadata */}
-                  <div className="space-y-1.5 text-xs mt-auto text-foreground-secondary">
-                    <div className="flex justify-between items-center">
-                      <span>{formatFileSize(document.fileSize)}</span>
-                      <span>{formatDate(document.createdAt)}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex-shrink-0">
-                        {getStatusBadge(document.status)}
-                      </div>
-                      <div className="flex space-x-3 flex-shrink-0">
-                        <span
-                          className="flex items-center space-x-1"
-                          data-tooltip-id={`views-${document.id}`}
-                        >
-                          <Eye className="w-3 h-3 flex-shrink-0" />
-                          <span className="flex-shrink-0">
-                            {document.viewCount}
-                          </span>
-                        </span>
-                        <CustomTooltip
-                          anchorSelect={`[data-tooltip-id='views-${document.id}']`}
-                        >
-                          Total views: {document.viewCount}
-                        </CustomTooltip>
-
-                        <span
-                          className="flex items-center space-x-1"
-                          data-tooltip-id={`downloads-${document.id}`}
-                        >
-                          <ArrowDown className="w-3 h-3 flex-shrink-0" />
-                          <span className="flex-shrink-0">
-                            {document.downloadCount}
-                          </span>
-                        </span>
-                        <CustomTooltip
-                          anchorSelect={`[data-tooltip-id='downloads-${document.id}']`}
-                        >
-                          Total downloads: {document.downloadCount}
-                        </CustomTooltip>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                document={document}
+                onDownload={handleDownloadDocument}
+                onDelete={handleDeleteDocument}
+                isDownloading={downloadMutation.isPending}
+                isDeleting={deleteMutation.isPending}
+              />
             ))}
           </div>
         )}
