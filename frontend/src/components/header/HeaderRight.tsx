@@ -229,7 +229,7 @@ export default function HeaderRight() {
     <>
       <div className="flex items-center gap-3 justify-end">
         {/* Upload */}
-        <IconLinkButton Icon={FileUp} href="/upload" className="btn-upload" />
+        <IconLinkButton Icon={FileUp} href="documents/upload" className="btn-upload" />
         <CustomTooltip anchorSelect=".btn-upload">Upload</CustomTooltip>
 
         {/* Recent Documents */}

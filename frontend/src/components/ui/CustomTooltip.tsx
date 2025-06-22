@@ -1,6 +1,8 @@
 "use client";
 
 import { Tooltip } from "react-tooltip";
+import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 
 export default function CustomTooltip({
   children,
@@ -10,15 +12,36 @@ export default function CustomTooltip({
 }: {
   children: React.ReactNode;
   anchorSelect?: string;
-  place?: "top" | "bottom" | "left" | "right" | "top-start" | "top-end" | "bottom-start" | "bottom-end" | "left-start" | "left-end" | "right-start" | "right-end";
+  place?:
+    | "top"
+    | "bottom"
+    | "left"
+    | "right"
+    | "top-start"
+    | "top-end"
+    | "bottom-start"
+    | "bottom-end"
+    | "left-start"
+    | "left-end"
+    | "right-start"
+    | "right-end";
   offset?: number;
 }) {
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <Tooltip
       anchorSelect={anchorSelect}
       place={place}
       offset={offset}
       style={{
+        position: "fixed",
         color: "white",
         zIndex: 9999,
         opacity: 1,
@@ -32,9 +55,11 @@ export default function CustomTooltip({
         borderWidth: 1,
         wordBreak: "break-all",
         padding: "8px",
+        pointerEvents: "none",
       }}
     >
       {children}
-    </Tooltip>
+    </Tooltip>,
+    document.body
   );
 }
