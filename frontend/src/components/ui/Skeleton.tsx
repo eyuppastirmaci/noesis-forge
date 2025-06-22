@@ -16,8 +16,8 @@ const Skeleton: React.FC<SkeletonProps> = ({
   height,
   lines = 1,
 }) => {
-  // Base shimmer animation classes
-  const shimmerClasses = "animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 bg-[length:200%_100%] animate-shimmer";
+  // Use custom skeleton-shimmer class
+  const shimmerClasses = "skeleton-shimmer";
 
   // Variant-specific classes
   const variantClasses = {
@@ -99,8 +99,10 @@ export const DocumentCardSkeleton: React.FC = () => {
 };
 
 // Text Skeleton for results header
-export const TextSkeleton: React.FC<{ className?: string }> = ({ className }) => {
+export const TextSkeleton: React.FC<{ className?: string }> = ({
+  className,
+}) => {
   return <Skeleton variant="text" className={cn("w-32 h-4", className)} />;
 };
 
-export default Skeleton; 
+export default Skeleton;

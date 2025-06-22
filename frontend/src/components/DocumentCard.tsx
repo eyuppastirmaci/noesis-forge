@@ -39,16 +39,18 @@ const DocumentCard = memo(({
   const getStatusBadge = useCallback((status: DocumentStatus) => {
     const statusColors = {
       ready:
-        "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+        "bg-green-600 dark:bg-green-600 text-white dark:text-white",
       processing:
-        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
-      failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
-      deleted: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300",
+        "bg-amber-500 dark:bg-amber-500 text-white dark:text-white",
+      failed: 
+        "bg-red-600 dark:bg-red-600 text-white dark:text-white",
+      deleted: 
+        "bg-gray-500 dark:bg-gray-500 text-white dark:text-white",
     };
 
     return (
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusColors[status]}`}
+        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${statusColors[status]}`}
       >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
