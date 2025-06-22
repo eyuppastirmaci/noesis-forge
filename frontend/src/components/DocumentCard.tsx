@@ -3,12 +3,11 @@
 import React, { useCallback, memo, useState } from "react";
 import { Download, Trash2, Eye, ArrowDown } from "lucide-react";
 import { Document, DocumentStatus } from "@/types";
-import { documentService } from "@/services/document.services";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import IconButton from "@/components/ui/IconButton";
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
-import { toast } from "@/utils";
+import { toast, formatDate, formatFileSize } from "@/utils";
 
 interface DocumentCardProps {
   document: Document;
@@ -28,17 +27,6 @@ const DocumentCard = memo(({
   className = ""
 }: DocumentCardProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const formatFileSize = useCallback((bytes: number) => {
-    return documentService.formatFileSize(bytes);
-  }, []);
-
-  const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }, []);
 
   const getStatusBadge = useCallback((status: DocumentStatus) => {
     const statusColors = {

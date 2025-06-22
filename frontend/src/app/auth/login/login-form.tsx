@@ -9,7 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { loginAction, LoginState } from "@/actions";
-import { toast } from "@/utils/toast";
+import { toast } from "@/utils/toastUtils";
 
 const initialState: LoginState = {
   errors: [],

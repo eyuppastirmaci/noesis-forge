@@ -1,13 +1,14 @@
 import { isApiClientError, getErrorMessage, extractFieldErrors } from "@/types";
-import { toast } from "./toast";
+import { toast } from "./toastUtils";
 
 // Re-export common error utilities
 export { isApiClientError, getErrorMessage, extractFieldErrors };
 
-// Additional utility functions for error handling
-
 /**
  * Check if error is a specific API error code
+ * @param error - The error object to check
+ * @param code - The specific error code to match
+ * @returns Boolean indicating if the error matches the specified code
  */
 export function isApiErrorCode(error: any, code: string): boolean {
   if (isApiClientError(error)) {
@@ -18,6 +19,8 @@ export function isApiErrorCode(error: any, code: string): boolean {
 
 /**
  * Check if error is a validation error (has field errors)
+ * @param error - The error object to check
+ * @returns Boolean indicating if the error is a validation error
  */
 export function isValidationError(error: any): boolean {
   if (isApiClientError(error)) {
@@ -28,6 +31,9 @@ export function isValidationError(error: any): boolean {
 
 /**
  * Get field error for a specific field
+ * @param error - The error object containing field errors
+ * @param field - The field name to get the error for
+ * @returns Error message for the field or undefined if no error
  */
 export function getFieldError(error: any, field: string): string | undefined {
   if (isApiClientError(error)) {
@@ -40,6 +46,9 @@ export function getFieldError(error: any, field: string): string | undefined {
 
 /**
  * Check if a specific field has an error
+ * @param error - The error object to check
+ * @param field - The field name to check for errors
+ * @returns Boolean indicating if the field has an error
  */
 export function hasFieldError(error: any, field: string): boolean {
   return !!getFieldError(error, field);
@@ -47,6 +56,8 @@ export function hasFieldError(error: any, field: string): boolean {
 
 /**
  * Format file size in human readable format
+ * @param bytes - File size in bytes
+ * @returns Formatted file size string (e.g., "1.5 MB", "256 KB")
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -60,6 +71,8 @@ export function formatFileSize(bytes: number): string {
 
 /**
  * Get file type icon based on extension or mime type
+ * @param fileType - File type/extension to get icon for
+ * @returns Emoji icon representing the file type
  */
 export function getFileTypeIcon(fileType: string): string {
   switch (fileType.toLowerCase()) {
@@ -84,6 +97,8 @@ export function getFileTypeIcon(fileType: string): string {
 
 /**
  * Extract filename without extension
+ * @param filename - The complete filename
+ * @returns Filename without the extension
  */
 export function getFilenameWithoutExtension(filename: string): string {
   const lastDotIndex = filename.lastIndexOf(".");
@@ -92,7 +107,10 @@ export function getFilenameWithoutExtension(filename: string): string {
 }
 
 /**
- * Validate file size
+ * Validate file size against maximum allowed size
+ * @param file - File object to validate
+ * @param maxSize - Maximum allowed file size in bytes (default: 100MB)
+ * @returns Validation result with error message if invalid
  */
 export function validateFileSize(
   file: File,
@@ -108,7 +126,10 @@ export function validateFileSize(
 }
 
 /**
- * Validate file type
+ * Validate file type against allowed types
+ * @param file - File object to validate
+ * @param allowedTypes - Array of allowed MIME types
+ * @returns Validation result with error message if invalid
  */
 export function validateFileType(
   file: File,
@@ -125,7 +146,8 @@ export function validateFileType(
 }
 
 /**
- * Show toast notification (you can customize this based on your toast library)
+ * Show error toast notification
+ * @param error - Error object to display
  */
 export function showErrorToast(error: any): void {
   const message = getErrorMessage(error);
@@ -133,14 +155,18 @@ export function showErrorToast(error: any): void {
 }
 
 /**
- * Show success toast
+ * Show success toast notification
+ * @param message - Success message to display
  */
 export function showSuccessToast(message: string): void {
   toast.success(message);
 }
 
 /**
- * Handle async operation with error catching
+ * Handle async operation with error catching and optional error handler
+ * @param operation - Async function to execute
+ * @param onError - Optional custom error handler function
+ * @returns Promise containing either data or error
  */
 export async function handleAsyncOperation<T>(
   operation: () => Promise<T>,

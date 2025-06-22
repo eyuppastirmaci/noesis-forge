@@ -11,7 +11,7 @@ import {
   Presentation,
   File,
 } from "lucide-react";
-import { documentService } from "@/services/document.services";
+import { formatFileSize } from "@/utils";
 
 interface FilePreviewProps {
   file: File;
@@ -113,7 +113,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
               {file.name}
             </p>
             <div className="flex items-center space-x-2 text-xs text-[var(--foreground-secondary)]">
-              <span>{documentService.formatFileSize(file.size)}</span>
+              <span>{formatFileSize(file.size)}</span>
               {status === "uploading" && showProgress && (
                 <span>• {progress}%</span>
               )}

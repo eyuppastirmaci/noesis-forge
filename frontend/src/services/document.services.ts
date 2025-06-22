@@ -16,6 +16,7 @@ import {
   STORAGE_KEYS,
 } from "@/types";
 import { API_CONFIG } from "@/config/api";
+import { formatFileSize } from "@/utils";
 
 // Response type definitions for API calls
 export interface DocumentUploadResponseData {
@@ -304,13 +305,7 @@ export class DocumentService {
    * Format file size in human readable format
    */
   formatFileSize(bytes: number): string {
-    if (bytes === 0) return "0 Bytes";
-
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    return formatFileSize(bytes);
   }
 
   /**

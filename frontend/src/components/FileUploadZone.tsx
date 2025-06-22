@@ -7,7 +7,7 @@ import {
   FolderOpen, 
   AlertTriangle
 } from "lucide-react";
-import { documentService } from "@/services/document.services";
+import { formatFileSize, validateFile } from "@/utils";
 import { FilePreview } from "./FilePreview";
 
 interface FileUploadZoneProps {
@@ -59,17 +59,10 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
       }
 
       files.forEach((file) => {
-        const validation = documentService.validateFile(file);
+        const validation = validateFile(file, maxSize);
 
         if (!validation.isValid) {
           errors.push({ file, error: validation.error || "Invalid file" });
-        } else if (file.size > maxSize) {
-          errors.push({
-            file,
-            error: `File too large. Maximum size is ${documentService.formatFileSize(
-              maxSize
-            )}`,
-          });
         } else {
           validFiles.push(file);
         }
@@ -113,7 +106,7 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
       const hasInvalidFiles = items.some((item) => {
         if (item.kind === "file") {
           const file = item.getAsFile();
-          return file && !documentService.validateFile(file).isValid;
+          return file && !validateFile(file).isValid;
         }
         return false;
       });
@@ -261,7 +254,7 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
                 Supported formats: PDF, DOCX, DOC, TXT, XLSX, XLS, PPTX, PPT, MD
               </p>
               <p className="text-xs mt-1 text-gray-500">
-                Maximum {documentService.formatFileSize(maxSize)} per file
+                Maximum {formatFileSize(maxSize)} per file
                 {multiple && `, up to ${maxFiles} files`}
               </p>
             </div>
