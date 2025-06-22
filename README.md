@@ -34,6 +34,8 @@ While the core document management features are functional, many advanced AI cap
 - **Question Answering**: Ask questions about your documents with privacy-first local processing
 - **Conversational Interface**: Chat with your document collection using Ollama models
 - **Multilingual Support**: 100+ languages supported through BGE-M3
+- **Intelligent Document Classification**: Automatic categorization of uploaded documents (Paper, Legal Document, Technical Document, etc.)
+- **Category-based Search**: Semantic search and similarity matching filtered by document types
 
 ### 🔐 **Security & Access Control**
 - **Role-based Access Control (RBAC)**: Granular permission management
@@ -103,6 +105,14 @@ While the core document management features are functional, many advanced AI cap
 - ✅ Download functionality
 - ☐ Basic sharing (generate link)
 
+**Document Detail & Management**
+- ☐ Document detail page with full metadata
+- ☐ Document favoriting/bookmarking system
+- ☐ Favorites page (My Favorite Documents)
+- ☐ Shared documents page (Documents Shared with Me)
+- ☐ Document comments and annotations
+- ☐ Document activity history
+
 ### Phase 3: Search Foundation
 
 **Basic Search**
@@ -127,6 +137,21 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Search filters enhancement
 - ☐ Search history
 - ☐ Context-aware results (Intelligent ranking and relevance scoring)
+
+**Intelligent Document Classification**
+- ☐ Document type classifier model integration
+- ☐ Automatic categorization (Paper, Legal Document, Technical Document, Report, etc.)
+- ☐ Category-based filtering in document list
+- ☐ Category-specific search interfaces
+- ☐ Confidence scores for classifications
+- ☐ Manual category override functionality
+
+**Category-based Search & Analytics**
+- ☐ Document type filters in search
+- ☐ Semantic search within specific categories
+- ☐ Document similarity matching by category
+- ☐ Category-specific search analytics
+- ☐ Cross-category similarity insights
 
 **Chat Interface**
 - ☐ Basic chat UI
@@ -195,6 +220,14 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Team creation
 - ☐ Member management
 - ☐ Team permissions
+
+**Custom AI Models**
+- ☐ Custom text embedding model integration (replacing BGE-M3)
+- ☐ Custom image embedding model integration (replacing SigLIP2)
+- ☐ Model training pipeline for domain-specific embeddings
+- ☐ A/B testing framework for model comparison
+- ☐ Model performance monitoring and metrics
+- ☐ Fine-tuning capabilities for specialized document types
 
 **Advanced Features**
 - ☐ API Keys management
