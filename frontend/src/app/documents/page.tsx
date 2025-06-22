@@ -17,10 +17,6 @@ import {
   Search,
   Eye,
   ArrowDown,
-  FileText,
-  File,
-  FileSpreadsheet,
-  Presentation,
 } from "lucide-react";
 import {
   Document,
@@ -39,6 +35,7 @@ import {
 } from "@/services/document.services";
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import IconButton from "@/components/ui/IconButton";
+import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -143,22 +140,7 @@ const DocumentsPage: React.FC = () => {
     return documentService.formatFileSize(bytes);
   };
 
-  const getFileIcon = (fileType: DocumentType) => {
-    switch (fileType) {
-      case DocumentType.PDF:
-        return <FileText className="w-6 h-6" color="#DC2626" />; // Red for PDF
-      case DocumentType.DOCX:
-        return <FileText className="w-6 h-6" color="#2563EB" />; // Blue for Word
-      case DocumentType.XLSX:
-        return <FileSpreadsheet className="w-6 h-6" color="#16A34A" />; // Green for Excel
-      case DocumentType.PPTX:
-        return <Presentation className="w-6 h-6" color="#EA580C" />; // Orange for PowerPoint
-      case DocumentType.TXT:
-        return <FileText className="w-6 h-6" color="#6B7280" />; // Gray for text
-      default:
-        return <File className="w-6 h-6" color="#6B7280" />; // Gray for other files
-    }
-  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -186,6 +168,8 @@ const DocumentsPage: React.FC = () => {
       </span>
     );
   };
+
+
 
   if (isLoading) {
     return (
@@ -443,9 +427,11 @@ const DocumentsPage: React.FC = () => {
                 <div className="p-6 flex flex-col h-full">
                   {/* Header with icon and actions */}
                   <div className="flex items-start justify-between mb-3">
-                    <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                      {getFileIcon(document.fileType)}
-                    </div>
+                    <DocumentTypeIndicator 
+                      fileType={document.fileType} 
+                      size="md" 
+                      className="flex-shrink-0"
+                    />
                     <div className="flex space-x-1 flex-shrink-0">
                       <div data-tooltip-id={`download-${document.id}`}>
                         <IconButton
@@ -630,12 +616,14 @@ const DocumentsPage: React.FC = () => {
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-6 h-6 mr-3 flex items-center justify-center">
-                          {getFileIcon(document.fileType)}
-                        </div>
-                        <div>
+                        <DocumentTypeIndicator 
+                          fileType={document.fileType} 
+                          size="sm" 
+                          className="mr-3 flex-shrink-0"
+                        />
+                        <div className="flex-grow">
                           <div
-                            className="text-sm font-medium"
+                            className="text-sm font-medium mb-1"
                             style={{ color: "var(--foreground)" }}
                           >
                             {document.title}
