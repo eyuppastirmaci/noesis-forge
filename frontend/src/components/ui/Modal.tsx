@@ -1,15 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef, ReactNode, useState } from "react";
+import React, { useRef, ReactNode, useState, useId, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import IconButton from "./IconButton";
+import { 
+  useFocusTrap, 
+  useScrollLock, 
+  useModalStack, 
+  useEscapeKey, 
+  useClickOutside 
+} from "@/hooks";
+
+// Modal size variants
+type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  size?: ModalSize;
+  closeOnOverlayClick?: boolean;
+  closeOnEscape?: boolean;
+  preserveScrollPosition?: boolean;
+  zIndex?: number;
+  animate?: boolean;
 }
 
 interface ModalHeaderProps {
@@ -27,88 +44,198 @@ interface ModalFooterProps {
   className?: string;
 }
 
-const Modal = ({ isOpen, onClose, children, className = "" }: ModalProps) => {
-  const modalRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleEscape);
-    document.addEventListener("mousedown", handleClickOutside);
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, onClose]);
-
-  if (!mounted || !isOpen) return null;
-
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-gray-900/50 dark:bg-gray-950/70 backdrop-blur-sm" />
-      
-      {/* Modal Container */}
-      <div
-        ref={modalRef}
-        className={`relative z-10 w-full max-w-md mx-4 bg-background border border-border rounded-lg shadow-xl ${className}`}
-      >
-        {/* Close Button */}
-        <div className="absolute top-3 right-3 z-10">
-          <IconButton
-            Icon={X}
-            onClick={onClose}
-            variant="default"
-            size="sm"
-            bordered={false}
-            className="hover:bg-background-secondary"
-          />
-        </div>
-        
-        {/* Modal Content */}
-        <div className="p-6">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-
-  return createPortal(modalContent, document.body);
+// Size classes mapping
+const sizeClasses: Record<ModalSize, string> = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  full: "max-w-full mx-4 my-4 max-h-[calc(100vh-2rem)]"
 };
 
-const ModalHeader = ({ children, className = "" }: ModalHeaderProps) => {
+// Animation variants with proper typing
+const overlayVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 }
+};
+
+const modalVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.95, y: 20 },
+  visible: { 
+    opacity: 1, 
+    scale: 1, 
+    y: 0,
+    transition: {
+      type: "spring" as const,
+      damping: 25,
+      stiffness: 300
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    scale: 0.95,
+    y: 20,
+    transition: {
+      duration: 0.2
+    }
+  }
+};
+
+const Modal = ({ 
+  isOpen, 
+  onClose, 
+  children, 
+  className = "",
+  size = "md",
+  closeOnOverlayClick = true,
+  closeOnEscape = true,
+  preserveScrollPosition = true,
+  zIndex: customZIndex,
+  animate = true
+}: ModalProps) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  const modalId = useId();
+  const titleId = `modal-title-${modalId}`;
+  const descriptionId = `modal-description-${modalId}`;
+
+  // Use custom hooks
+  const focusTrapRef = useFocusTrap<HTMLDivElement>(isOpen);
+  
+  useScrollLock({ 
+    isLocked: isOpen, 
+    preservePosition: preserveScrollPosition 
+  });
+  
+  const zIndex = useModalStack({ 
+    modalId, 
+    isOpen, 
+    zIndex: customZIndex 
+  });
+  
+  useEscapeKey({ 
+    isActive: isOpen && closeOnEscape, 
+    onEscape: onClose 
+  });
+  
+  useClickOutside<HTMLDivElement>({ 
+    ref: modalRef, 
+    isActive: isOpen && closeOnOverlayClick, 
+    onClickOutside: onClose 
+  });
+
+  // Handle SSR
+  useEffect(() => {
+    setContainer(document.body);
+  }, []);
+
+  if (!container) return null;
+
+  const modalContent = (
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ zIndex }}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+        >
+          {/* Backdrop */}
+          <motion.div
+            className="absolute inset-0 bg-gray-900/50 dark:bg-gray-950/70 backdrop-blur-sm"
+            variants={animate ? overlayVariants : undefined}
+          />
+          
+          {/* Modal Container */}
+          <motion.div
+            ref={(node) => {
+              modalRef.current = node;
+              if (node) {
+                focusTrapRef.current = node;
+              }
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
+            className={`
+              relative w-full ${sizeClasses[size]} 
+              bg-background border border-border rounded-lg shadow-xl 
+              overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/20
+              ${size === 'full' ? 'flex flex-col' : ''}
+              ${className}
+            `}
+            variants={animate ? modalVariants : undefined}
+            tabIndex={-1}
+          >
+            {/* Close Button */}
+            <div className="absolute top-3 right-3 z-10">
+              <IconButton
+                Icon={X}
+                onClick={onClose}
+                variant="default"
+                size="sm"
+                bordered={false}
+                className="hover:bg-background-secondary"
+                aria-label="Close modal"
+              />
+            </div>
+            
+            {/* Modal Content */}
+            <div className={`p-6 ${size === 'full' ? 'overflow-y-auto flex-1' : ''}`}>
+              {React.Children.map(children, (child) => {
+                if (React.isValidElement(child)) {
+                  if (child.type === ModalHeader) {
+                    return React.cloneElement(child as React.ReactElement<any>, {
+                      titleId
+                    });
+                  }
+                  if (child.type === ModalContent) {
+                    return React.cloneElement(child as React.ReactElement<any>, {
+                      descriptionId
+                    });
+                  }
+                }
+                return child;
+              })}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return createPortal(modalContent, container);
+};
+
+const ModalHeader = ({ 
+  children, 
+  className = "",
+  titleId
+}: ModalHeaderProps & { titleId?: string }) => {
   return (
     <div className={`mb-4 pr-8 ${className}`}>
-      <h2 className="text-lg font-semibold text-foreground">
+      <h2 
+        id={titleId}
+        className="text-lg font-semibold text-foreground"
+      >
         {children}
       </h2>
     </div>
   );
 };
 
-const ModalContent = ({ children, className = "" }: ModalContentProps) => {
+const ModalContent = ({ 
+  children, 
+  className = "",
+  descriptionId
+}: ModalContentProps & { descriptionId?: string }) => {
   return (
-    <div className={`mb-6 text-foreground-secondary ${className}`}>
+    <div 
+      id={descriptionId}
+      className={`mb-6 text-foreground-secondary ${className}`}
+    >
       {children}
     </div>
   );
@@ -116,7 +243,7 @@ const ModalContent = ({ children, className = "" }: ModalContentProps) => {
 
 const ModalFooter = ({ children, className = "" }: ModalFooterProps) => {
   return (
-    <div className={`flex justify-end space-x-3 ${className}`}>
+    <div className={`flex justify-end space-x-3 pt-4 border-t border-border ${className}`}>
       {children}
     </div>
   );
