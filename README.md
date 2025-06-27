@@ -345,7 +345,7 @@ While the core document management features are functional, many advanced AI cap
 
 ## 🏗️ Architecture
 
-![noesis-forge-architecture](https://github.com/user-attachments/assets/e206302d-fbfc-40e4-b4e7-53809ed23a2a)
+![noesis-forge-architecture-updated](https://github.com/user-attachments/assets/98b52aac-f5b4-4e74-b6fa-ccdc4c1e6c80)
 
 ## 🚀 Getting Started
 
