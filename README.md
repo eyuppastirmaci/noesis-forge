@@ -1,10 +1,8 @@
 ![noesis_forge_logo](https://github.com/user-attachments/assets/3b1e5cbb-17e3-43eb-a5f2-3f5bff36ba04)
 
-**NoesisForge** is a modern, AI-powered document management and intelligent search platform. It combines advanced document processing capabilities with artificial intelligence to provide semantic search, automated content analysis, and conversational interactions with your documents.
-
 ## 🌟 Overview
 
-NoesisForge transforms how organizations handle document management by leveraging cutting-edge AI technologies. Upload documents, extract meaningful insights, and interact with your content through natural language queries. Whether you're managing legal documents, research papers, or business reports, NoesisForge makes your information instantly searchable and actionable.
+**NoesisForge** is a self-hosted, privacy-first document management platform designed for performance. Upload documents, extract insights, and discover information through intelligent search, semantic understanding, and similarity matching - all while keeping your data completely under your control.
 
 ## 📸 Screenshots
 
@@ -32,30 +30,54 @@ While the core document management features are functional, many advanced AI cap
 
 ### 🔍 **Advanced Search Capabilities**
 - **Semantic Search**: Find documents by meaning, not just keywords
-- **Vector Similarity**: AI-powered document similarity matching
+- **Vector Similarity**: Document similarity matching
 - **Full-text Search**: Traditional keyword-based search
 - **Context-aware Results**: Intelligent ranking and relevance scoring
 
-### 🤖 **AI-Powered Features**
-- **Multimodal Embeddings**: Text and image vector representations with BGE-M3 and SigLIP2
-- **Hybrid Retrieval**: Dense, sparse, and multi-vector retrieval capabilities
-- **Content Summarization**: Automatic document summaries via local LLM
-- **Question Answering**: Ask questions about your documents with privacy-first local processing
-- **Conversational Interface**: Chat with your document collection using Ollama models
-- **Multilingual Support**: 100+ languages supported through BGE-M3
-- **Intelligent Document Classification**: Automatic categorization of uploaded documents (Paper, Legal Document, Technical Document, etc.)
-- **Category-based Search**: Semantic search and similarity matching filtered by document types
+### 🧠 **Model Options & Testing**
+- **🔄 Pre-built Models**: BGE-M3 + SigLIP2 or ColPaLI v1.2-hf
+- **📤 Custom Upload**: Test your domain-specific models
+- **⚖️ A/B Testing**: Compare accuracy, speed, and resource usage
+- **🏆 Leaderboards**: See which models perform best for your data
+- **📊 Real-time Analytics**: Live performance dashboards
+- **🎯 Auto-Selection**: AI chooses the best model for each document
 
-### 🔐 **Security & Access Control**
-- **Role-based Access Control (RBAC)**: Granular permission management
-- **JWT Authentication**: Secure user authentication
-- **Data Encryption**: End-to-end data protection
+### 🤖 **Intelligent Processing**
+- **Document Classification**: Automatic categorization (16 types)
+- **Layout Analysis**: Form and structured document understanding
+- **Content Summarization**: Local LLM-powered summaries
+- **Question Answering**: Chat with your documents locally
+- **Multilingual Support**: 100+ languages supported
+
+### 🔐 **Security & Privacy**
+- **Self-hosted**: Complete data control
+- **Local Processing**: Privacy-first approach
+- **JWT Authentication**: Secure user access
+- **Role-based Access**: Granular permission management
 - **Audit Logging**: Track all system activities
 
 ### 📊 **Analytics & Monitoring**
-- **Usage Analytics**: Understand how your documents are being used
+- **Usage Analytics**: Document access patterns
 - **Performance Metrics**: Real-time system monitoring
-- **Search Analytics**: Insights into search patterns and effectiveness
+- **Model Comparison**: Accuracy and latency dashboards
+- **Search Analytics**: Query effectiveness insights
+
+## 🎯 **Perfect For**
+
+### **Research Institutions**
+- Compare embedding models for academic papers
+- Test domain-specific models (medical, legal, technical)
+- A/B test retrieval strategies
+
+### **Enterprise Teams**
+- Self-hosted document intelligence
+- Custom model development and testing
+- Privacy-compliant AI deployment
+
+### **ML Engineers**
+- Model performance benchmarking
+- Embedding model research and development
+- Custom ML pipeline development
 
 ## 🗺️ Development Roadmap
 
@@ -138,7 +160,31 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Qdrant vector storage setup
 - ☐ Content summarization (Automatic document summaries)
 
-### Phase 4: AI Features
+### Phase 4: AI Features & Model Comparison
+
+**Advanced Embedding Pipeline**
+- ☐ ColPaLI v1.2-hf integration (unified multimodal model)
+- ☐ DiT document classification model integration  
+- ☐ LayoutLM structured document processing
+- ☐ A/B testing framework for model comparison
+- ☐ Performance benchmarking dashboard
+- ☐ Dynamic model selection based on document type
+
+**Model Performance Analytics**
+- ☐ Embedding strategy comparison (dual vs unified models)
+- ☐ Classification accuracy metrics
+- ☐ Retrieval quality scoring (NDCG, MRR, Precision@K)
+- ☐ Latency and resource usage monitoring
+- ☐ Model performance alerts and recommendations
+- ☐ Custom model integration framework
+
+**Custom Model Integration**
+- ☐ Custom model upload interface
+- ☐ Model validation and testing pipeline
+- ☐ Custom model performance evaluation
+- ☐ Model comparison dashboard (accuracy vs latency)
+- ☐ Smart model selection algorithm
+- ☐ Automatic model switching based on document type and performance
 
 **Advanced Search**
 - ☐ Vector similarity search
@@ -148,12 +194,19 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Context-aware results (Intelligent ranking and relevance scoring)
 
 **Intelligent Document Classification**
-- ☐ Document type classifier model integration
-- ☐ Automatic categorization (Paper, Legal Document, Technical Document, Report, etc.)
+- ☐ Document type classifier model integration (DiT)
+- ☐ Automatic categorization (Scientific Paper, Legal Document, Technical Document, Invoice, Form, etc.)
 - ☐ Category-based filtering in document list
 - ☐ Category-specific search interfaces
 - ☐ Confidence scores for classifications
 - ☐ Manual category override functionality
+
+**Advanced Layout Understanding**
+- ☐ LayoutLM integration for structured documents
+- ☐ Form field extraction and validation
+- ☐ Table and invoice processing
+- ☐ Key-value pair extraction
+- ☐ Structured data export (JSON, CSV)
 
 **Category-based Search & Analytics**
 - ☐ Document type filters in search
@@ -237,6 +290,10 @@ While the core document management features are functional, many advanced AI cap
 - ☐ A/B testing framework for model comparison
 - ☐ Model performance monitoring and metrics
 - ☐ Fine-tuning capabilities for specialized document types
+- ☐ Model ensemble framework (combine multiple models for optimal performance)
+- ☐ Domain-specific model training and fine-tuning
+- ☐ Edge deployment for lightweight models
+- ☐ Federated learning for privacy-preserving collaborative training
 
 **Advanced Features**
 - ☐ API Keys management
@@ -271,10 +328,13 @@ While the core document management features are functional, many advanced AI cap
 - **Type Safety**: TypeScript
 
 ### AI/ML Pipeline
-- **Text Embedding**: [BGE-M3](https://huggingface.co/BAAI/bge-m3) - Multilingual embedding model (1024D, 8192 tokens, 100+ languages)
-- **Image Embedding**: [SigLIP2](https://huggingface.co/google/siglip2-base-patch16-512) - Vision-language model for image understanding
-- **Local LLM**: Ollama - Local language model runtime (supports Llama, Mistral, CodeLlama, etc.)
-- **Vector Operations**: Qdrant native operations with hybrid retrieval support
+- **Embedding Models**: BGE-M3 + SigLIP2 (dual) or ColPaLI (unified)
+- **Custom Models**: Upload and test your own embedding models
+- **Document Processing**: DiT (classification), LayoutLM (layout analysis)
+- **Local LLM**: Ollama runtime (Llama, Mistral, CodeLlama)
+- **Vector Database**: Qdrant with hybrid retrieval
+- **Model Testing**: A/B framework with performance metrics
+- **Auto Selection**: Intelligent model switching based on document type
 
 ### DevOps & Infrastructure
 - **Containerization**: Docker & Docker Compose
@@ -292,133 +352,54 @@ While the core document management features are functional, many advanced AI cap
 ### Prerequisites
 - **Go** 1.24.2 or higher
 - **Node.js** 18+ (for frontend)
-- **PostgreSQL** 13+ (or use Docker Compose)
-- **MinIO** (or use Docker Compose)
-- **Redis** 6+
-- **Ollama** (for local LLM)
-- **Docker** & Docker Compose (recommended)
+- **Docker** & Docker Compose
 
-### Quick Start with Docker
+### Quick Setup
+
+#### 1. Clone the repository
 ```bash
-# Clone the repository
 git clone https://github.com/eyuppastirmaci/noesis-forge.git
 cd noesis-forge
-
-# Start all services (PostgreSQL + MinIO)
-docker-compose up -d
-
-# Access the services
-# PostgreSQL: localhost:5432 (noesis_forge/postgres/1997)
-# MinIO API: http://localhost:9000
-# MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
-
-# Then run backend and frontend manually (see Manual Installation)
 ```
 
-### Alternative: Infrastructure Only
-If you prefer to run only the infrastructure services (PostgreSQL + MinIO) with Docker:
-
+#### 2. Start database services
 ```bash
-# Start only database and storage services
+# Start PostgreSQL and MinIO with Docker
 docker-compose up -d postgres minio minio-init
-
-# Check services are running
-docker-compose ps
-
-# Access the services
-# PostgreSQL: localhost:5432 (noesis_forge/postgres/1997)
-# MinIO API: http://localhost:9000
-# MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)
 ```
 
-### Manual Installation
-
-#### Backend Setup
+#### 3. Setup Backend
 ```bash
-# Navigate to backend
 cd backend
 
-# Install dependencies
-go mod download
-
-# Set up environment
+# Copy environment file and configure your settings
 cp .env.example .env
-# Edit .env with your configuration
 
-# Run the application
-go run cmd/api/main.go
+# Install Air for hot reload
+go install github.com/cosmtrek/air@latest
+
+# Start backend with hot reload
+air
 ```
 
-#### Frontend Setup
+#### 4. Setup Frontend
 ```bash
-# Navigate to frontend
 cd frontend
 
 # Install dependencies
 npm install
 
-# Set up environment
+# Copy environment file and configure your settings
 cp .env.example .env.local
-# Edit .env.local with your configuration
 
 # Start development server
 npm run dev
 ```
 
-## 🧪 Development
-
-### Backend Development
-```bash
-cd backend
-
-# Install Air for hot reload
-go install github.com/cosmtrek/air@latest
-
-# Run with hot reload
-air
-
-# Run tests
-go test ./...
-
-# Code formatting
-go fmt ./...
-```
-
-### Frontend Development
-```bash
-cd frontend
-
-# Start development server
-npm run dev
-
-# Run tests
-npm run test
-
-# Build for production
-npm run build
-```
-
-## 📦 Deployment
-
-### Production Build
-```bash
-# Backend
-cd backend
-CGO_ENABLED=0 GOOS=linux go build -o bin/api cmd/api/main.go
-
-# Frontend
-cd frontend
-npm run build
-```
-
-### Docker Deployment
-```bash
-# Build and run all services
-docker-compose -f docker-compose.prod.yml up -d
-
-# Scale specific services
-docker-compose -f docker-compose.prod.yml up -d --scale api=3
-```
+### Access Your Application
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8080
+- **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
 
 ## 📄 License
 
@@ -432,6 +413,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **[Beijing Academy of Artificial Intelligence (BAAI)](https://huggingface.co/BAAI/bge-m3)** for BGE-M3 multilingual embedding model
 - **[Google Research](https://huggingface.co/google/siglip2-base-patch16-512)** for SigLIP2 vision-language model
+- **[Vidore Research](https://huggingface.co/vidore/colpali-v1.2-hf)** for ColPaLI v1.2-hf multimodal embedding model
+- **[Nomic AI](https://huggingface.co/nomic-ai/nomic-embed-multimodal-7b)** for Nomic Embed Multimodal model
+- **[Microsoft Research](https://huggingface.co/microsoft)** for DiT document classification and LayoutLM document understanding models
 - **[Ollama](https://ollama.com/)** for making local LLM deployment accessible and efficient
 - **[Qdrant](https://qdrant.tech/)** team for the excellent vector database with hybrid retrieval support
 - **[Hugging Face](https://huggingface.co/)** for providing a platform for AI model sharing
