@@ -33,6 +33,10 @@ func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 			middleware.RateLimit(10),
 			authHandler.RefreshToken)
 
+		auth.POST("/validate",
+			middleware.RateLimit(20),
+			authHandler.ValidateToken)
+
 		auth.POST("/logout",
 			middleware.RateLimit(10),
 			authHandler.Logout)

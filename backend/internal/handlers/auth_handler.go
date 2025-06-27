@@ -250,3 +250,28 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, nil, "Password changed successfully")
 }
+
+func (h *AuthHandler) ValidateToken(c *gin.Context) {
+	// Get refresh token from request body
+	var req struct {
+		RefreshToken string `json:"refreshToken" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	// Validate refresh token without consuming it
+	isValid, err := h.authService.IsRefreshTokenValid(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "VALIDATION_ERROR", "Failed to validate token")
+		return
+	}
+
+	if !isValid {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "INVALID_TOKEN", "Token is invalid or expired")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, gin.H{"valid": true}, "Token is valid")
+}

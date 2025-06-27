@@ -9,6 +9,7 @@ import {
   AuthTokens,
   User,
 } from "@/types";
+import { getCookieValue, setCookie, deleteCookie } from "@/utils";
 
 export interface LoginResponseData {
   user: User;
@@ -41,25 +42,21 @@ export type PasswordChangeResponse = SuccessResponse<null>;
 
 export class AuthService {
   private setCookies(tokens: AuthTokens) {
-    // Only set cookies in browser environment
-    if (typeof document === 'undefined') {
-      return;
-    }
-    
     // Set access token cookie
-    document.cookie = `access_token=${tokens.accessToken}; path=/; max-age=${tokens.expiresIn}; secure=${location.protocol === 'https:'}; samesite=lax`;
+    setCookie('access_token', tokens.accessToken, { 
+      maxAge: tokens.expiresIn 
+    });
     
     // Set refresh token cookie (7 days)
     const refreshMaxAge = 7 * 24 * 60 * 60; // 7 days in seconds
-    document.cookie = `refresh_token=${tokens.refreshToken}; path=/; max-age=${refreshMaxAge}; secure=${location.protocol === 'https:'}; samesite=lax`;
+    setCookie('refresh_token', tokens.refreshToken, { 
+      maxAge: refreshMaxAge 
+    });
   }
 
   private clearCookies() {
-    // Only clear cookies in browser environment
-    if (typeof document === 'undefined') return;
-    
-    document.cookie = 'access_token=; path=/; max-age=0';
-    document.cookie = 'refresh_token=; path=/; max-age=0';
+    deleteCookie('access_token');
+    deleteCookie('refresh_token');
   }
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -97,7 +94,7 @@ export class AuthService {
   async logout(refreshToken?: string): Promise<LogoutResponse> {
     try {
       // Get refresh token from cookies if not provided
-      const tokenToSend = refreshToken || this.getCookieValue('refresh_token');
+      const tokenToSend = refreshToken || getCookieValue('refresh_token');
       const body = tokenToSend ? { refreshToken: tokenToSend } : {};
       const response = await apiClient.post<null>(API_ENDPOINTS.AUTH.LOGOUT, body);
       return response;
@@ -107,16 +104,7 @@ export class AuthService {
     }
   }
 
-  private getCookieValue(name: string): string | null {
-    if (typeof document === 'undefined') return null;
-    
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      return parts.pop()?.split(';').shift() || null;
-    }
-    return null;
-  }
+
 
   async getProfile(): Promise<ProfileResponse> {
     const response = await apiClient.get<ProfileResponseData>(

@@ -13,7 +13,7 @@ import {
   FILE_SIZE_LIMITS,
   FileValidationResult,
 } from "@/types";
-import { formatFileSize } from "@/utils";
+import { formatFileSize, getCookieValue } from "@/utils";
 
 // Response type definitions for API calls
 export interface DocumentUploadResponseData {
@@ -173,16 +173,6 @@ export class DocumentService {
       downloadClient.interceptors.request.use(
         async (config: any) => {
           // Get access token from cookies (same as apiClient)
-          const getCookieValue = (name: string): string | null => {
-            if (typeof document === 'undefined') return null;
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) {
-              return parts.pop()?.split(';').shift() || null;
-            }
-            return null;
-          };
-
           const accessToken = getCookieValue('access_token');
           if (accessToken) {
             config.headers.Authorization = `Bearer ${accessToken}`;
@@ -476,16 +466,6 @@ export class DocumentService {
       downloadClient.interceptors.request.use(
         async (config: any) => {
           // Get access token from cookies (same as apiClient)
-          const getCookieValue = (name: string): string | null => {
-            if (typeof document === 'undefined') return null;
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) {
-              return parts.pop()?.split(';').shift() || null;
-            }
-            return null;
-          };
-
           const accessToken = getCookieValue('access_token');
           if (accessToken) {
             config.headers.Authorization = `Bearer ${accessToken}`;

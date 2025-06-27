@@ -9,7 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
 import Input from "@/components/ui/Input";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { loginAction, LoginState } from "@/actions";
-import { toast } from "@/utils/toastUtils";
+import { toast, setAuthTokens } from "@/utils";
 
 const initialState: LoginState = {
   errors: [],
@@ -29,14 +29,9 @@ export function LoginForm() {
   // Handle successful login redirect
   useEffect(() => {
     if (state.success && state.credentials && state.user && state.tokens) {
-      // Set cookies client-side (only in browser environment)
-      if (typeof document !== 'undefined' && state.tokens) {
-        // Set access token cookie
-        document.cookie = `access_token=${state.tokens.accessToken}; path=/; max-age=${state.tokens.expiresIn}; secure=${location.protocol === 'https:'}; samesite=lax`;
-        
-        // Set refresh token cookie (7 days)
-        const refreshMaxAge = 7 * 24 * 60 * 60; // 7 days in seconds
-        document.cookie = `refresh_token=${state.tokens.refreshToken}; path=/; max-age=${refreshMaxAge}; secure=${location.protocol === 'https:'}; samesite=lax`;
+      // Set cookies client-side using utility function
+      if (state.tokens) {
+        setAuthTokens(state.tokens);
       }
 
       // Update NextAuth session with user credentials and info

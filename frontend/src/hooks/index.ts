@@ -3,6 +3,7 @@ export { useScrollLock } from './useScrollLock';
 export { useModalStack } from './useModalStack';
 export { useEscapeKey } from './useEscapeKey';
 export { useClickOutside } from './useClickOutside';
+export { useSessionValidator } from './useSessionValidator';
 
 // export types
 export type { UseClickOutsideOptions } from './useClickOutside';

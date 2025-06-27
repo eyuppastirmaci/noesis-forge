@@ -8,21 +8,13 @@ import {
   isSuccessResponse,
 } from "@/types";
 import { API_CONFIG } from "@/config/api";
+import { getCookieValue } from "@/utils";
 
 class ApiClient {
   private client: AxiosInstance;
   private baseURL: string;
 
-  private getCookieValue(name: string): string | null {
-    if (typeof document === 'undefined') return null;
-    
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      return parts.pop()?.split(';').shift() || null;
-    }
-    return null;
-  }
+
 
   constructor(baseURL: string = API_CONFIG.BASE_URL) {
     this.baseURL = baseURL;
@@ -41,7 +33,7 @@ class ApiClient {
     this.client.interceptors.request.use(
       async (config) => {
         // Get access token from cookies
-            const accessToken = this.getCookieValue('access_token');
+            const accessToken = getCookieValue('access_token');
     
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
@@ -155,7 +147,7 @@ class ApiClient {
 
   private async refreshToken(): Promise<void> {
     try {
-      const refreshToken = this.getCookieValue('refresh_token');
+      const refreshToken = getCookieValue('refresh_token');
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }

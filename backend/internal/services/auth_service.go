@@ -474,3 +474,22 @@ func (s *AuthService) IsTokenBlacklisted(ctx context.Context, token string) (boo
 
 	return exists > 0, nil
 }
+
+// IsRefreshTokenValid checks if a refresh token is valid without consuming it
+func (s *AuthService) IsRefreshTokenValid(ctx context.Context, refreshToken string) (bool, error) {
+	// Find refresh token in database
+	var token models.RefreshToken
+	if err := s.db.Where("token = ?", refreshToken).First(&token).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil // Token not found, but not an error
+		}
+		return false, fmt.Errorf("failed to query refresh token: %w", err)
+	}
+
+	// Check if token is expired
+	if token.IsExpired() {
+		return false, nil // Token expired, but not an error
+	}
+
+	return true, nil
+}
