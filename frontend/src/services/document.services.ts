@@ -95,7 +95,7 @@ export class DocumentService {
 
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Upload failed:", error);
+      console.error("[DOCUMENT_SERVICE] Upload operation failed with error:", error);
       throw error;
     }
   }
@@ -123,7 +123,7 @@ export class DocumentService {
       const response = await apiClient.get<DocumentListResponseData>(url);
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Failed to fetch documents:", error);
+      console.error("[DOCUMENT_SERVICE] Failed to retrieve document list:", error);
       throw error;
     }
   }
@@ -138,7 +138,7 @@ export class DocumentService {
       );
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Failed to fetch document:", error);
+      console.error("[DOCUMENT_SERVICE] Failed to retrieve document details:", error);
       throw error;
     }
   }
@@ -153,7 +153,7 @@ export class DocumentService {
       );
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Failed to delete document:", error);
+      console.error("[DOCUMENT_SERVICE] Document deletion operation failed:", error);
       throw error;
     }
   }
@@ -200,7 +200,7 @@ export class DocumentService {
       window.URL.revokeObjectURL(url);
 
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Download error:", error);
+      console.error("[DOCUMENT_SERVICE] Document download operation failed:", error);
       throw error;
     }
   }
@@ -215,7 +215,7 @@ export class DocumentService {
       );
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Failed to get preview URL:", error);
+      console.error("[DOCUMENT_SERVICE] Failed to generate document preview URL:", error);
       throw error;
     }
   }
@@ -426,7 +426,7 @@ export class DocumentService {
 
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Bulk upload failed:", error);
+      console.error("[DOCUMENT_SERVICE] Bulk upload operation failed:", error);
       throw error;
     }
   }
@@ -446,7 +446,7 @@ export class DocumentService {
 
       return response;
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Bulk delete failed:", error);
+      console.error("[DOCUMENT_SERVICE] Bulk deletion operation failed:", error);
       throw error;
     }
   }
@@ -499,7 +499,7 @@ export class DocumentService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("[DOCUMENT_SERVICE] ❌ Bulk download failed:", error);
+      console.error("[DOCUMENT_SERVICE] Bulk download operation failed:", error);
       throw error;
     }
   }
