@@ -149,6 +149,32 @@ export const getFileTypeDescription = (mimeType: string): string => {
 };
 
 /**
+ * Get file type icon based on extension or mime type
+ * @param fileType - File type/extension to get icon for
+ * @returns Emoji icon representing the file type
+ */
+export const getFileTypeIcon = (fileType: string): string => {
+  switch (fileType.toLowerCase()) {
+    case "pdf":
+      return "📄";
+    case "docx":
+    case "doc":
+      return "📝";
+    case "txt":
+    case "md":
+      return "📋";
+    case "xlsx":
+    case "xls":
+      return "📊";
+    case "pptx":
+    case "ppt":
+      return "📽️";
+    default:
+      return "📎";
+  }
+};
+
+/**
  * Validate file size against a maximum limit
  * @param fileSize - Size of the file in bytes
  * @param maxSize - Maximum allowed size in bytes
@@ -185,6 +211,45 @@ export const validateFileType = (
     };
   }
 
+  return { isValid: true };
+};
+
+/**
+ * Validate file size against maximum allowed size (File object version)
+ * @param file - File object to validate
+ * @param maxSize - Maximum allowed file size in bytes (default: 100MB)
+ * @returns Validation result with error message if invalid
+ */
+export const validateFileSizeFromFile = (
+  file: File,
+  maxSize: number = 100 * 1024 * 1024
+): { isValid: boolean; error?: string } => {
+  if (file.size > maxSize) {
+    return {
+      isValid: false,
+      error: `File size must be less than ${formatFileSize(maxSize)}`,
+    };
+  }
+  return { isValid: true };
+};
+
+/**
+ * Validate file type against allowed types (File object version)
+ * @param file - File object to validate
+ * @param allowedTypes - Array of allowed MIME types
+ * @returns Validation result with error message if invalid
+ */
+export const validateFileTypeFromFile = (
+  file: File,
+  allowedTypes: string[]
+): { isValid: boolean; error?: string } => {
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      isValid: false,
+      error:
+        "File type not supported. Supported types: PDF, DOCX, DOC, TXT, XLSX, XLS, PPTX, PPT, MD",
+    };
+  }
   return { isValid: true };
 };
 
