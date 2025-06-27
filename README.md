@@ -376,7 +376,7 @@ cd backend
 cp .env.example .env
 
 # Install Air for hot reload
-go install github.com/cosmtrek/air@latest
+go install github.com/air-verse/air@latest
 
 # Start backend with hot reload
 air
