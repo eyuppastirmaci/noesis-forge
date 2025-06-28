@@ -127,7 +127,7 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Version control (Track document changes and revisions)
 
 **Documents List**
-- ✅ Document grid/list view
+- ✅ Document grid view
 - ✅ Basic filtering & sorting
 - ✅ Pagination
 - ✅ Document actions (download, delete, preview)
@@ -140,9 +140,9 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Basic sharing (generate link)
 
 **Document Detail & Management**
-- ☐ Document detail page with full metadata
-- ☐ Document favoriting/bookmarking system
-- ☐ Favorites page (My Favorite Documents)
+- ✅ Document detail page with full metadata
+- ✅ Document favoriting system
+- ✅ Favorites page (My Favorite Documents)
 - ☐ Shared documents page (Documents Shared with Me)
 - ☐ Document comments and annotations
 - ☐ Document activity history
@@ -429,7 +429,10 @@ docker-compose logs -f frontend
 ```
 
 ##### 4. Access your application
-All services will be available at the same URLs as listed in Option B below.
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8080
+- **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
+- **Database**: PostgreSQL on port 5432 (you can use PgAdmin or any PostgreSQL client)
 
 ---
 

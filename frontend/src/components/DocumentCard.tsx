@@ -1,23 +1,30 @@
 "use client";
 
 import React, { useCallback, memo, useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Download, Trash2, ArrowDown, Check, FileText } from "lucide-react";
-import { Document, DocumentStatus, DocumentType, DOCUMENT_ENDPOINTS } from "@/types";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Download, Trash2, ArrowDown, Check, FileText, Eye, Heart } from "lucide-react";
+
+// Dynamically import Image to avoid SSR hydration issues
+const Image = dynamic(() => import("next/image"), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-16 h-16 bg-background-secondary rounded border border-border animate-pulse flex items-center justify-center">
+      <div className="w-4 h-4 bg-border rounded animate-pulse"></div>
+    </div>
+  )
+});
+import { Document, DocumentStatus, DocumentType, DOCUMENT_ENDPOINTS, FAVORITE_QUERY_KEYS, getErrorMessage } from "@/types";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import IconButton from "@/components/ui/IconButton";
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
-import PDFViewerSkeleton from "@/components/ui/PDFViewerSkeleton";
+import PDFViewerModal from "@/components/PDFViewerModal";
+import { favoriteQueries, favoriteMutations } from "@/services/favorite.service";
 import { toast, formatDate, formatFileSize } from "@/utils";
 import { API_CONFIG } from "@/config/api";
-
-// Dynamically import PDFViewer to avoid SSR issues
-const PDFViewer = dynamic(() => import("@/components/PDFViewer"), {
-  ssr: false,
-  loading: () => <PDFViewerSkeleton />
-});
 
 interface DocumentCardProps {
   document: Document;
@@ -46,6 +53,49 @@ const DocumentCard = memo(({
 }: DocumentCardProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Query for favorite status
+  const {
+    data: favoriteStatus,
+    isLoading: isLoadingFavorite,
+  } = useQuery(favoriteQueries.status(document.id));
+
+  // Add to favorites mutation
+  const addToFavoritesMutation = useMutation({
+    ...favoriteMutations.add(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: FAVORITE_QUERY_KEYS.FAVORITES.STATUS(document.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: FAVORITE_QUERY_KEYS.FAVORITES.LIST,
+      });
+      toast.success(`"${document.title}" added to favorites`);
+    },
+    onError: (error) => {
+      console.error("Add to favorites failed:", error);
+      toast.error(`Failed to add to favorites: ${getErrorMessage(error)}`);
+    },
+  });
+
+  // Remove from favorites mutation
+  const removeFromFavoritesMutation = useMutation({
+    ...favoriteMutations.remove(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: FAVORITE_QUERY_KEYS.FAVORITES.STATUS(document.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: FAVORITE_QUERY_KEYS.FAVORITES.LIST,
+      });
+      toast.success(`"${document.title}" removed from favorites`);
+    },
+    onError: (error) => {
+      console.error("Remove from favorites failed:", error);
+      toast.error(`Failed to remove from favorites: ${getErrorMessage(error)}`);
+    },
+  });
 
   const getStatusBadge = useCallback((status: DocumentStatus) => {
     const statusColors = {
@@ -114,6 +164,24 @@ const DocumentCard = memo(({
     }
   }, [isSelectionMode, onSelect, document.id, isSelected]);
 
+  const handleFavoriteToggle = useCallback(async () => {
+    if (isLoadingFavorite) return;
+
+    try {
+      if (favoriteStatus?.isFavorited) {
+        await removeFromFavoritesMutation.mutateAsync({ documentId: document.id });
+      } else {
+        await addToFavoritesMutation.mutateAsync({ documentId: document.id });
+      }
+    } catch (error) {
+      console.error("Favorite toggle failed:", error);
+    }
+  }, [favoriteStatus?.isFavorited, document.id, addToFavoritesMutation, removeFromFavoritesMutation, isLoadingFavorite]);
+
+  const handleViewDetailsClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <>
       <div 
@@ -159,11 +227,12 @@ const DocumentCard = memo(({
                   onClick={handlePDFViewerOpen}
                   title={`Open ${document.title} in PDF viewer`}
                 >
-                  <img
-                    src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}`}
+                  <Image
+                    src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${document.version}`}
                     alt={`${document.title} thumbnail`}
+                    width={64}
+                    height={64}
                     className="w-full h-full object-cover rounded border border-border shadow-sm"
-                    loading="lazy"
                     onError={(e) => {
                       // Fallback to placeholder if thumbnail fails to load
                       const target = e.target as HTMLImageElement;
@@ -200,6 +269,40 @@ const DocumentCard = memo(({
             </div>
             {!isSelectionMode && (
               <div className="flex space-x-1 flex-shrink-0">
+                <div data-tooltip-id={`view-${document.id}`}>
+                  <Link href={`/documents/${document.id}`} onClick={handleViewDetailsClick}>
+                    <IconButton
+                      Icon={Eye}
+                      onClick={() => {}}
+                      variant="default"
+                      size="sm"
+                      bordered={false}
+                    />
+                  </Link>
+                </div>
+                <CustomTooltip
+                  anchorSelect={`[data-tooltip-id='view-${document.id}']`}
+                >
+                  View details
+                </CustomTooltip>
+
+                <div data-tooltip-id={`favorite-${document.id}`}>
+                  <IconButton
+                    Icon={Heart}
+                    onClick={handleFavoriteToggle}
+                    variant="default"
+                    size="sm"
+                    bordered={false}
+                    disabled={isLoadingFavorite || addToFavoritesMutation.isPending || removeFromFavoritesMutation.isPending}
+                    className={favoriteStatus?.isFavorited ? "text-red-500 hover:text-red-600 [&>svg]:fill-current" : ""}
+                  />
+                </div>
+                <CustomTooltip
+                  anchorSelect={`[data-tooltip-id='favorite-${document.id}']`}
+                >
+                  {favoriteStatus?.isFavorited ? "Remove from favorites" : "Add to favorites"}
+                </CustomTooltip>
+
                 <div data-tooltip-id={`download-${document.id}`}>
                   <IconButton
                     Icon={Download}
@@ -327,27 +430,11 @@ const DocumentCard = memo(({
       </Modal>
 
       {/* PDF Viewer Modal */}
-      {document.fileType === DocumentType.PDF && (
-        <Modal
-          isOpen={showPDFViewer}
-          onClose={handlePDFViewerClose}
-          size="full"
-          closeOnOverlayClick={true}
-          closeOnEscape={true}
-        >
-          <Modal.Header className="!mb-2">
-            {document.title}
-          </Modal.Header>
-          
-          <Modal.Content className="!p-0 !mb-0 h-full">
-            <PDFViewer
-              documentId={document.id}
-              documentTitle={document.title}
-              className="h-full"
-            />
-          </Modal.Content>
-        </Modal>
-      )}
+      <PDFViewerModal
+        isOpen={showPDFViewer}
+        onClose={handlePDFViewerClose}
+        document={document}
+      />
     </>
   );
 });

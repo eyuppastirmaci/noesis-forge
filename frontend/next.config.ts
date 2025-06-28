@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { ENV } from "./src/config/env";
 
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker
@@ -17,6 +18,32 @@ const nextConfig: NextConfig = {
   // Image optimization for standalone mode
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: ENV.BACKEND_PORT,
+        pathname: '/api/v1/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+        port: ENV.BACKEND_PORT,
+        pathname: '/api/v1/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'backend',
+        port: ENV.BACKEND_PORT,
+        pathname: '/api/v1/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'backend',
+        port: ENV.BACKEND_PORT,
+        pathname: '/api/v1/**',
+      },
+    ],
   },
   
   // Configuration options can be added here as needed

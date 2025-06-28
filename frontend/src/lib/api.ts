@@ -14,8 +14,6 @@ class ApiClient {
   private client: AxiosInstance;
   private baseURL: string;
 
-
-
   constructor(baseURL: string = API_CONFIG.BASE_URL) {
     this.baseURL = baseURL;
     this.client = axios.create({

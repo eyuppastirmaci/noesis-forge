@@ -18,6 +18,7 @@ type Router struct {
 	authService     *services.AuthService
 	roleService     *services.RoleService
 	documentService *services.DocumentService
+	favoriteService *services.FavoriteService
 	minioService    *services.MinIOService
 	redisClient     *redis.Client
 }
@@ -63,12 +64,16 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 	// Initialize Document service
 	documentService := services.NewDocumentService(db, minioService)
 
+	// Initialize Favorite service
+	favoriteService := services.NewFavoriteService(db)
+
 	return &Router{
 		engine:          engine,
 		config:          cfg,
 		authService:     authService,
 		roleService:     roleService,
 		documentService: documentService,
+		favoriteService: favoriteService,
 		minioService:    minioService,
 		redisClient:     redisClient,
 	}
@@ -112,6 +117,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterAuthRoutes(api, r.authService)
 	RegisterRoleRoutes(api, r.roleService, r.authService)
 	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService)
+	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
 }
 
 func (r *Router) GetEngine() *gin.Engine {

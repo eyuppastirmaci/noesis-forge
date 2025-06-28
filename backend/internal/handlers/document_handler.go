@@ -80,6 +80,63 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, data, "Document uploaded successfully")
 }
 
+func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated document ID from context
+	documentID, ok := validations.GetValidatedDocumentID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
+		return
+	}
+
+	// Get validated request from context
+	req, ok := validations.GetValidatedDocumentUpdate(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
+		return
+	}
+
+	// Get file from form (optional for update)
+	var file *multipart.FileHeader
+	if req.HasNewFile {
+		file, err = c.FormFile("file")
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "FILE_REQUIRED", "File is required when hasNewFile is true")
+			return
+		}
+	}
+
+	// Update document
+	document, err := h.documentService.UpdateDocument(c.Request.Context(), userID, documentID, file, req)
+	if err != nil {
+		// Handle different types of errors
+		status := http.StatusInternalServerError
+		code := "UPDATE_FAILED"
+
+		if strings.Contains(err.Error(), "document not found or access denied") {
+			status = http.StatusNotFound
+			code = "DOCUMENT_NOT_FOUND"
+		} else if strings.Contains(err.Error(), "failed to upload") {
+			code = "STORAGE_ERROR"
+		} else if strings.Contains(err.Error(), "failed to update document record") {
+			code = "DATABASE_ERROR"
+		}
+
+		utils.ErrorResponse(c, status, code, err.Error())
+		return
+	}
+
+	data := gin.H{
+		"document": document,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Document updated successfully")
+}
+
 func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -131,6 +188,36 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 		"document": document,
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Document retrieved successfully")
+}
+
+func (h *DocumentHandler) GetDocumentTitle(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated document ID from context
+	documentID, ok := validations.GetValidatedDocumentID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
+		return
+	}
+
+	title, err := h.documentService.GetDocumentTitle(c.Request.Context(), userID, documentID)
+	if err != nil {
+		if err.Error() == "document not found" {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
+		return
+	}
+
+	data := gin.H{
+		"title": title,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Document title retrieved successfully")
 }
 
 func (h *DocumentHandler) DeleteDocument(c *gin.Context) {

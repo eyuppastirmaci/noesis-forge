@@ -34,17 +34,33 @@ export type {
 
 export { AuthErrorCode } from "./auth";
 
+// Favorite types
+export type {
+  Favorite,
+  FavoriteResponse,
+  IsFavoritedResponse,
+  FavoriteCountResponse,
+} from "./favorite";
+
+export {
+  FAVORITE_ENDPOINTS,
+  FAVORITE_QUERY_KEYS,
+  FAVORITE_MUTATION_KEYS,
+} from "./favorite";
+
 // Document types
 export type {
   Document,
   Collection,
   DocumentCollection,
   UploadDocumentRequest,
+  UpdateDocumentRequest,
   BulkUploadDocumentRequest,
   BulkUploadResponse,
   DocumentListRequest,
   DocumentListResponse,
   DocumentResponse,
+  DocumentTitleResponse,
   DocumentPreviewResponse,
   DocumentUploadProgress,
   FileValidationResult,

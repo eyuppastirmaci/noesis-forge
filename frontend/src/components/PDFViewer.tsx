@@ -1,11 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PDFViewerSkeleton from "@/components/ui/PDFViewerSkeleton";
-import { API_CONFIG } from "@/config/api";
-import { DOCUMENT_ENDPOINTS } from "@/types";
-import { getCookieValue } from '@/utils/cookieUtils';
+import { documentService } from "@/services/document.services";
 
 interface PDFViewerProps {
   documentId: string;
@@ -21,8 +18,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-
-  const pdfUrl = `${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.DOWNLOAD(documentId)}`;
   
   // Fetch PDF with authentication and create blob URL
   useEffect(() => {
@@ -31,32 +26,11 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         setLoading(true);
         setError(null);
         
-        const token = getCookieValue('access_token');
-        console.log("Fetching PDF with auth token:", !!token);
-        
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(pdfUrl, {
-          method: 'GET',
-          headers,
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
+        const blobUrl = await documentService.getPDFBlobUrl(documentId);
         setPdfBlobUrl(blobUrl);
         setLoading(false);
-        console.log("PDF blob created successfully");
 
       } catch (err) {
-        console.error("Failed to fetch PDF:", err);
         setError(err instanceof Error ? err.message : "Failed to load PDF");
         setLoading(false);
       }
@@ -70,12 +44,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         URL.revokeObjectURL(pdfBlobUrl);
       }
     };
-  }, [documentId, pdfUrl]);
-
-  useEffect(() => {
-    console.log("PDFViewer mounted for document:", documentId);
-    console.log("PDF URL:", pdfUrl);
-  }, [documentId, pdfUrl]);
+  }, [documentId]);
 
   if (loading) {
     return <PDFViewerSkeleton />;
@@ -87,24 +56,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         <div className="text-center mb-4">
           <p className="text-red-600 dark:text-red-400 mb-2">{error}</p>
           <p className="text-sm text-foreground-secondary mb-4">
-            PDF viewer failed to load. Trying alternative view...
+            PDF viewer failed to load.
           </p>
-        </div>
-        
-        {/* Fallback: Simple iframe viewer */}
-        <div className="w-full h-full border border-border rounded">
-          <iframe
-            src={`${pdfUrl}#view=FitH`}
-            className="w-full h-full"
-            title={documentTitle}
-            frameBorder="0"
-          />
         </div>
       </div>
     );
   }
 
-  // Use iframe approach for better authentication support
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Simple header */}
@@ -136,19 +94,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
             src={pdfBlobUrl}
             className="w-full h-full border-0"
             title={documentTitle}
-            onLoad={() => {
-              console.log("PDF iframe loaded successfully");
-            }}
           />
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <LoadingSpinner />
-              <p className="mt-2 text-sm text-foreground-secondary">
-                Preparing PDF...
-              </p>
-            </div>
-          </div>
+          <PDFViewerSkeleton />
         )}
       </div>
     </div>

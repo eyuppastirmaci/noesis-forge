@@ -3,7 +3,9 @@ import {
   Document,
   DocumentListRequest,
   DocumentListResponse,
+  DocumentTitleResponse,
   UploadDocumentRequest,
+  UpdateDocumentRequest,
   BulkUploadDocumentRequest,
   BulkUploadResponse,
   DOCUMENT_ENDPOINTS,
@@ -14,9 +16,14 @@ import {
   FileValidationResult,
 } from "@/types";
 import { formatFileSize, getCookieValue } from "@/utils";
+import { ENV } from "@/config/env";
 
 // Response type definitions for API calls
 export interface DocumentUploadResponseData {
+  document: Document;
+}
+
+export interface DocumentUpdateResponseData {
   document: Document;
 }
 
@@ -30,8 +37,6 @@ export interface DocumentPreviewResponseData {
   url: string;
 }
 
-
-
 export interface BulkDeleteResponseData {
   successful_deletes: number;
   failed_deletes: number;
@@ -39,11 +44,11 @@ export interface BulkDeleteResponseData {
   failures?: Array<{ id: string; error: string }>;
 }
 
-
-
 // API Response types
 export type DocumentUploadResponse =
   SuccessResponse<DocumentUploadResponseData>;
+export type DocumentUpdateResponse =
+  SuccessResponse<DocumentUpdateResponseData>;
 export type DocumentListApiResponse = SuccessResponse<DocumentListResponseData>;
 export type DocumentDetailResponse =
   SuccessResponse<DocumentDetailResponseData>;
@@ -51,7 +56,6 @@ export type DocumentPreviewApiResponse =
   SuccessResponse<DocumentPreviewResponseData>;
 export type DocumentDeleteResponse = SuccessResponse<null>;
 export type BulkDeleteResponse = SuccessResponse<BulkDeleteResponseData>;
-
 
 export class DocumentService {
   /**
@@ -103,6 +107,61 @@ export class DocumentService {
   }
 
   /**
+   * Update a document with optional file replacement
+   */
+  async updateDocument(
+    documentId: string,
+    request: UpdateDocumentRequest,
+    onProgress?: (progress: number) => void
+  ): Promise<DocumentUpdateResponse> {
+    const formData = new FormData();
+    
+    // Add metadata
+    formData.append("title", request.title);
+    
+    if (request.description) {
+      formData.append("description", request.description);
+    }
+    if (request.tags) {
+      formData.append("tags", request.tags);
+    }
+    if (request.isPublic !== undefined) {
+      formData.append("isPublic", request.isPublic.toString());
+    }
+
+    // Add file if provided
+    if (request.file) {
+      formData.append("file", request.file);
+    }
+
+    try {
+      const response = await apiClient.put<DocumentUpdateResponseData>(
+        DOCUMENT_ENDPOINTS.UPDATE(documentId),
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const progress = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              onProgress(progress);
+            }
+          },
+          timeout: 300000, // 5 minutes for large files
+        }
+      );
+
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] Update operation failed with error:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Get list of documents with filtering and pagination
    */
   async getDocuments(
@@ -141,6 +200,46 @@ export class DocumentService {
       return response;
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] Failed to retrieve document details:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get document title by ID (client-side)
+   */
+  async getDocumentTitle(id: string): Promise<SuccessResponse<DocumentTitleResponse>> {
+    try {
+      const response = await apiClient.get<DocumentTitleResponse>(
+        DOCUMENT_ENDPOINTS.TITLE(id)
+      );
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] Failed to retrieve document title:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get document title by ID for server-side (with cookie)
+   */
+  async getDocumentTitleServerSide(id: string, accessToken: string): Promise<string> {
+    try {
+      const response = await fetch(`${ENV.API_URL}${DOCUMENT_ENDPOINTS.TITLE(id)}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store', // Don't cache server-side requests
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data.title;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] Server-side title fetch failed:", error);
       throw error;
     }
   }
@@ -222,7 +321,46 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Get PDF blob URL for viewing
+   */
+  async getPDFBlobUrl(id: string): Promise<string> {
+    try {
+      // Create a new axios instance that bypasses apiClient interceptors
+      const downloadClient = (apiClient as any).client.create({
+        withCredentials: true,
+        timeout: 60000, // 1 minute timeout for PDF viewing
+      });
 
+      // Only add the request interceptor for auth (not response interceptor)
+      downloadClient.interceptors.request.use(
+        async (config: any) => {
+          // Get access token from cookies (same as apiClient)
+          const accessToken = getCookieValue('access_token');
+          if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`;
+          }
+          return config;
+        }
+      );
+
+      const response = await downloadClient.get(
+        DOCUMENT_ENDPOINTS.DOWNLOAD(id),
+        {
+          responseType: 'blob', // Important: get response as blob
+        }
+      );
+
+      // Response.data should be a blob
+      const blob = response.data;
+      const url = window.URL.createObjectURL(blob);
+      return url;
+
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] PDF blob URL generation failed:", error);
+      throw error;
+    }
+  }
 
   /**
    * Validate a file before upload
@@ -541,6 +679,19 @@ export const documentQueries = {
   }),
 
   /**
+   * Query for document title
+   */
+  title: (id: string) => ({
+    queryKey: ["documents", "title", id],
+    queryFn: async () => {
+      const response = await documentService.getDocumentTitle(id);
+      return response.data;
+    },
+    enabled: !!id,
+    staleTime: 15 * 60 * 1000, // 15 minutes - title rarely changes
+  }),
+
+  /**
    * Query for document preview
    */
   preview: (id: string) => ({
@@ -589,6 +740,28 @@ export const documentMutations = {
       onProgress?: (progress: number) => void;
     }) => {
       const response = await documentService.uploadDocument(
+        request,
+        onProgress
+      );
+      return response.data;
+    },
+  }),
+
+  /**
+   * Update document mutation
+   */
+  update: () => ({
+    mutationFn: async ({
+      documentId,
+      request,
+      onProgress,
+    }: {
+      documentId: string;
+      request: UpdateDocumentRequest;
+      onProgress?: (progress: number) => void;
+    }) => {
+      const response = await documentService.updateDocument(
+        documentId,
         request,
         onProgress
       );

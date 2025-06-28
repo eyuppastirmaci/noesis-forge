@@ -20,6 +20,8 @@ func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.Docume
 		documents.POST("/bulk-upload", validations.ValidateBulkDocumentUpload(), documentHandler.BulkUploadDocuments)
 		documents.GET("", validations.ValidateDocumentList(), documentHandler.GetDocuments)
 		documents.GET("/:id", validations.ValidateDocumentID(), documentHandler.GetDocument)
+		documents.GET("/:id/title", validations.ValidateDocumentID(), documentHandler.GetDocumentTitle)
+		documents.PUT("/:id", validations.ValidateDocumentID(), validations.ValidateDocumentUpdate(), documentHandler.UpdateDocument)
 		documents.DELETE("/:id", validations.ValidateDocumentID(), documentHandler.DeleteDocument)
 
 		// Bulk operations

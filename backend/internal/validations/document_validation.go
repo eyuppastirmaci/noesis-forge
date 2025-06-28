@@ -18,6 +18,7 @@ import (
 // Context keys for document validations
 const (
 	ValidatedDocumentUploadKey     = "validatedDocumentUpload"
+	ValidatedDocumentUpdateKey     = "validatedDocumentUpdate"
 	ValidatedBulkDocumentUploadKey = "validatedBulkDocumentUpload"
 	ValidatedDocumentListKey       = "validatedDocumentList"
 	ValidatedDocumentIDKey         = "validatedDocumentID"
@@ -128,6 +129,95 @@ func ValidateDocumentUpload() gin.HandlerFunc {
 
 		// Store validated request in context
 		c.Set(ValidatedDocumentUploadKey, req)
+		c.Next()
+	}
+}
+
+// ValidateDocumentUpdate validates document update requests (multipart form with optional file)
+func ValidateDocumentUpdate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse multipart form
+		err := c.Request.ParseMultipartForm(100 << 20) // 100MB max
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_FORM", "Failed to parse multipart form")
+			c.Abort()
+			return
+		}
+
+		fieldErrors := make(map[string]string)
+
+		// Get file (optional for update)
+		file, err := c.FormFile("file")
+		if err != nil && err != http.ErrMissingFile {
+			fieldErrors["file"] = "Invalid file"
+		} else if file != nil {
+			// Validate file if provided
+			if fileErrors := validateUploadedFile(file); len(fileErrors) > 0 {
+				for field, message := range fileErrors {
+					fieldErrors[field] = message
+				}
+			}
+		}
+
+		// Get and validate form data
+		title := strings.TrimSpace(c.PostForm("title"))
+		description := strings.TrimSpace(c.PostForm("description"))
+		tags := strings.TrimSpace(c.PostForm("tags"))
+		isPublicStr := c.PostForm("isPublic")
+
+		// For update, if no title provided and there's a new file, use new filename
+		if title == "" && file != nil {
+			title = getFilenameWithoutExtension(file.Filename)
+		}
+
+		// Validate title (required for update)
+		if title == "" {
+			fieldErrors["title"] = "Title is required"
+		} else if len(title) < 1 {
+			fieldErrors["title"] = "Title must be at least 1 character"
+		} else if len(title) > 255 {
+			fieldErrors["title"] = "Title must be at most 255 characters"
+		}
+
+		// Validate description
+		if len(description) > 1000 {
+			fieldErrors["description"] = "Description must be at most 1000 characters"
+		}
+
+		// Validate tags
+		if len(tags) > 500 {
+			fieldErrors["tags"] = "Tags must be at most 500 characters"
+		}
+		if tags != "" {
+			if valid, msg := validateTags(tags); !valid {
+				fieldErrors["tags"] = msg
+			}
+		}
+
+		// Validate isPublic
+		isPublic := false
+		if isPublicStr != "" {
+			isPublic = isPublicStr == "true" || isPublicStr == "1"
+		}
+
+		// If there are validation errors, return them
+		if len(fieldErrors) > 0 {
+			utils.FieldValidationErrorResponse(c, "Validation failed", fieldErrors)
+			c.Abort()
+			return
+		}
+
+		// Create validated request
+		req := &services.UpdateDocumentRequest{
+			Title:       title,
+			Description: description,
+			Tags:        tags,
+			IsPublic:    isPublic,
+			HasNewFile:  file != nil,
+		}
+
+		// Store validated request in context
+		c.Set(ValidatedDocumentUpdateKey, req)
 		c.Next()
 	}
 }
@@ -710,5 +800,16 @@ func GetValidatedBulkDownload(c *gin.Context) (*BulkOperationRequest, bool) {
 	}
 
 	req, ok := value.(*BulkOperationRequest)
+	return req, ok
+}
+
+// GetValidatedDocumentUpdate retrieves the validated document update request from context
+func GetValidatedDocumentUpdate(c *gin.Context) (*services.UpdateDocumentRequest, bool) {
+	value, exists := c.Get(ValidatedDocumentUpdateKey)
+	if !exists {
+		return nil, false
+	}
+
+	req, ok := value.(*services.UpdateDocumentRequest)
 	return req, ok
 }

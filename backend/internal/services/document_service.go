@@ -29,6 +29,14 @@ type UploadDocumentRequest struct {
 	IsPublic    bool   `json:"isPublic"`
 }
 
+type UpdateDocumentRequest struct {
+	Title       string `json:"title" validate:"required,min=1,max=255"`
+	Description string `json:"description" validate:"max=1000"`
+	Tags        string `json:"tags" validate:"max=500"`
+	IsPublic    bool   `json:"isPublic"`
+	HasNewFile  bool   `json:"hasNewFile"`
+}
+
 type DocumentResponse struct {
 	ID               uuid.UUID             `json:"id"`
 	Title            string                `json:"title"`
@@ -147,6 +155,141 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 	return s.toDocumentResponse(document), nil
 }
 
+func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID uuid.UUID, file *multipart.FileHeader, req *UpdateDocumentRequest) (*DocumentResponse, error) {
+	// First, get the existing document and verify ownership
+	var existingDocument models.Document
+	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&existingDocument).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("document not found or access denied")
+		}
+		return nil, fmt.Errorf("failed to fetch document: %w", err)
+	}
+
+	// Start a transaction for atomic updates
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Backup old storage paths for cleanup if update fails
+	oldStoragePath := existingDocument.StoragePath
+	oldThumbnailPath := existingDocument.ThumbnailPath
+
+	var newStoragePath, newThumbnailPath string
+
+	// Handle file update if provided
+	if req.HasNewFile && file != nil {
+		// Validate file
+		if err := s.validateFile(file); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+
+		// Upload new file to MinIO
+		uploadResult, err := s.minioService.UploadFile(ctx, userID, file)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to upload new file to storage: %w", err)
+		}
+
+		newStoragePath = uploadResult.ObjectName
+
+		// Determine file type
+		fileType := s.getDocumentType(file.Filename)
+
+		// Generate new thumbnail for PDF files
+		if fileType == models.DocumentTypePDF {
+			thumbnailPath, err := s.generatePDFThumbnail(ctx, file, uploadResult.ObjectName)
+			if err != nil {
+				logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
+				existingDocument.HasThumbnail = false
+				existingDocument.ThumbnailPath = ""
+			} else {
+				newThumbnailPath = thumbnailPath
+				existingDocument.ThumbnailPath = thumbnailPath
+				existingDocument.HasThumbnail = true
+			}
+		} else {
+			// Non-PDF files don't have thumbnails
+			existingDocument.HasThumbnail = false
+			existingDocument.ThumbnailPath = ""
+		}
+
+		// Update file-related fields
+		existingDocument.FileName = uploadResult.FileName
+		existingDocument.OriginalFileName = file.Filename
+		existingDocument.FileSize = file.Size
+		existingDocument.FileType = fileType
+		existingDocument.MimeType = file.Header.Get("Content-Type")
+		existingDocument.StoragePath = newStoragePath
+		existingDocument.StorageBucket = s.minioService.config.BucketName
+		existingDocument.Status = models.DocumentStatusProcessing
+
+		// Increment version number
+		existingDocument.Version = existingDocument.Version + 1
+	}
+
+	// Update metadata fields
+	existingDocument.Title = req.Title
+	existingDocument.Description = req.Description
+	existingDocument.Tags = req.Tags
+	existingDocument.IsPublic = req.IsPublic
+
+	// Update processing status
+	if req.HasNewFile {
+		existingDocument.Status = models.DocumentStatusReady
+		now := time.Now()
+		existingDocument.ProcessedAt = &now
+	}
+
+	// Save the updated document
+	if err := tx.Save(&existingDocument).Error; err != nil {
+		tx.Rollback()
+
+		// If database save fails and we uploaded new files, clean them up
+		if newStoragePath != "" {
+			if cleanupErr := s.minioService.DeleteFile(ctx, newStoragePath); cleanupErr != nil {
+				logrus.Errorf("Failed to cleanup new uploaded file after database error: %v", cleanupErr)
+			}
+		}
+		if newThumbnailPath != "" {
+			if cleanupErr := s.minioService.DeleteFile(ctx, newThumbnailPath); cleanupErr != nil {
+				logrus.Errorf("Failed to cleanup new thumbnail after database error: %v", cleanupErr)
+			}
+		}
+
+		return nil, fmt.Errorf("failed to update document record: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit document update: %w", err)
+	}
+
+	// Only delete old files AFTER successful database update
+	if req.HasNewFile && oldStoragePath != "" {
+		// Delete old file from storage
+		if err := s.minioService.DeleteFile(ctx, oldStoragePath); err != nil {
+			logrus.Errorf("Failed to delete old file from storage: %v", err)
+			// Don't fail the request - the update was successful
+		}
+
+		// Delete old thumbnail if it existed
+		if oldThumbnailPath != "" {
+			if err := s.minioService.DeleteFile(ctx, oldThumbnailPath); err != nil {
+				logrus.Errorf("Failed to delete old thumbnail from storage: %v", err)
+				// Don't fail the request - the update was successful
+			}
+		}
+	}
+
+	logrus.Infof("Document updated successfully: %s (ID: %s, Version: %d)", existingDocument.FileName, existingDocument.ID, existingDocument.Version)
+
+	return s.toDocumentResponse(&existingDocument), nil
+}
+
 func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, req *DocumentListRequest) (*DocumentListResponse, error) {
 	query := s.db.Where("user_id = ?", userID)
 
@@ -245,6 +388,18 @@ func (s *DocumentService) GetDocument(ctx context.Context, userID, documentID uu
 	}
 
 	return s.toDocumentResponse(&document), nil
+}
+
+func (s *DocumentService) GetDocumentTitle(ctx context.Context, userID, documentID uuid.UUID) (string, error) {
+	var document models.Document
+	if err := s.db.Select("title").Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", fmt.Errorf("document not found")
+		}
+		return "", fmt.Errorf("failed to fetch document title: %w", err)
+	}
+
+	return document.Title, nil
 }
 
 func (s *DocumentService) DeleteDocument(ctx context.Context, userID, documentID uuid.UUID) error {
