@@ -114,14 +114,13 @@ While the core document management features are functional, many advanced AI cap
 - ☐ Avatar upload
 - ☐ Password change
 - ✅ Theme preferences (light/dark)
-- ☐ Language preferences
 
 ### Phase 2: Document Management Core
 
 **Document Upload**
 - ✅ File upload component (drag & drop)
 - ✅ MinIO integration
-- ☐ Upload progress tracking
+- ✅ Upload progress tracking
 - ✅ Basic metadata form
 - ✅ Backend: Document service, MinIO setup
 - ✅ Batch processing (Handle multiple documents simultaneously)
@@ -135,7 +134,7 @@ While the core document management features are functional, many advanced AI cap
 - ✅ Backend: Document CRUD APIs
 
 **Document Viewer**
-- ☐ PDF viewer integration
+- ✅ PDF viewer integration
 - ✅ Document metadata display
 - ✅ Download functionality
 - ☐ Basic sharing (generate link)
