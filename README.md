@@ -8,11 +8,15 @@
 
 ### Upload Document
 
-![upload-documents](https://github.com/user-attachments/assets/5ad87723-ddea-4cc9-acdf-7bebcbf48de8)
+![upload](https://github.com/user-attachments/assets/135af54c-b317-4bd9-9692-72a1bcee8709)
 
 ### Documents
 
-![list-documents](https://github.com/user-attachments/assets/b7746b31-5a93-44ae-8ae1-877fb97f31fe)
+![list](https://github.com/user-attachments/assets/8ead7828-7e14-4d54-a350-c13dee878548)
+
+### Preview Document
+
+![preview](https://github.com/user-attachments/assets/fe037a2a-5ef8-42c4-b785-d1e524e12756)
 
 ## 🚧 Development Status
 
