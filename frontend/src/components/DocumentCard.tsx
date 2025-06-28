@@ -6,9 +6,9 @@ import { Document, DocumentStatus, DocumentType, DOCUMENT_ENDPOINTS } from "@/ty
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import IconButton from "@/components/ui/IconButton";
 import CustomTooltip from "@/components/ui/CustomTooltip";
-import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
 import { toast, formatDate, formatFileSize } from "@/utils";
-import { documentService } from "@/services/document.services";
 import { API_CONFIG } from "@/config/api";
 
 interface DocumentCardProps {
@@ -277,6 +277,45 @@ const DocumentCard = memo(({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        size="md"
+        closeOnOverlayClick={true}
+        closeOnEscape={true}
+      >
+        <Modal.Header>
+          Delete Document
+        </Modal.Header>
+        
+        <Modal.Content>
+          <p className="mb-4">
+            Are you sure you want to delete <strong>"{document.title}"</strong>?
+          </p>
+          <p className="text-sm text-foreground-secondary">
+            This action cannot be undone. The document will be permanently removed from your account.
+          </p>
+        </Modal.Content>
+        
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={handleDeleteCancel}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="error"
+            onClick={handleDeleteConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 });

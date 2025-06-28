@@ -2,21 +2,6 @@
 
 NoesisForge is a modern document processing and AI-powered search system built with Go. This backend provides RESTful APIs for document management, user authentication, role-based access control, and AI-powered document search capabilities.
 
-## 📋 Table of Contents
-
-- [Architecture](#architecture)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [API Endpoints](#api-endpoints)
-- [Project Structure](#project-structure)
-- [Development](#development)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-
 ## 🛠️ Tech Stack
 
 - **Language:** Go 1.24.2
@@ -165,12 +150,7 @@ The project includes a `.env.example` file with all required environment variabl
 2. **Update the configuration:**
    Edit the `.env` file with your own settings, secrets, and database credentials. Make sure to replace all placeholder values with your actual configuration.
 
-### Adding New Features
-1. Create models in `internal/models/`
-2. Implement business logic in `internal/services/`
-3. Create HTTP handlers in `internal/handlers/`
-4. Register routes in `internal/router/router.go`
-5. Add middleware if needed in `internal/middleware/`
+
 
 ## 🧪 Testing
 
@@ -230,14 +210,7 @@ export DB_HOST=your-db-host
 ./bin/api
 ```
 
-### Environment Variables for Production
-Make sure to set these environment variables:
-- `APP_ENV=production`
-- `APP_PORT=8080`
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
-- `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`
-- `JWT_SECRET` (use a strong random string)
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (optional)
+
 
 ## 📝 API Documentation
 
