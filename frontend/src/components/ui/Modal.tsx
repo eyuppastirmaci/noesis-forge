@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, ReactNode, useState, useId, useCallback, useEffect } from "react";
+import React, { useRef, ReactNode, useState, useId, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
@@ -50,7 +50,7 @@ const sizeClasses: Record<ModalSize, string> = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-xl",
-  full: "max-w-full mx-4 my-4 max-h-[calc(100vh-2rem)]"
+  full: "max-w-6xl mx-auto my-8 h-[calc(100vh-4rem)]"
 };
 
 // Animation variants with proper typing
@@ -135,7 +135,7 @@ const Modal = ({
     <AnimatePresence mode="wait">
       {isOpen && (
         <motion.div
-          className="fixed inset-0 flex items-center justify-center p-4"
+          className={`fixed inset-0 flex items-center justify-center ${size === 'full' ? 'p-4' : 'p-4'}`}
           style={{ zIndex }}
           initial="hidden"
           animate="visible"
@@ -162,8 +162,8 @@ const Modal = ({
             className={`
               relative w-full ${sizeClasses[size]} 
               bg-background border border-border rounded-lg shadow-xl 
-              overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/20
-              ${size === 'full' ? 'flex flex-col' : ''}
+              ${size === 'full' ? 'overflow-hidden flex flex-col' : 'overflow-hidden'}
+              focus:outline-none focus:ring-2 focus:ring-primary/20
               ${className}
             `}
             variants={animate ? modalVariants : undefined}
@@ -183,7 +183,7 @@ const Modal = ({
             </div>
             
             {/* Modal Content */}
-            <div className={`p-6 ${size === 'full' ? 'overflow-y-auto flex-1' : ''}`}>
+            <div className={`${size === 'full' ? 'p-4 flex-1 overflow-hidden' : 'p-6'}`}>
               {React.Children.map(children, (child) => {
                 if (React.isValidElement(child)) {
                   if (child.type === ModalHeader) {

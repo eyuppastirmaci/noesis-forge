@@ -1,15 +1,23 @@
 "use client";
 
 import React, { useCallback, memo, useState } from "react";
-import { Download, Trash2, Eye, ArrowDown, Check, FileText } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Download, Trash2, ArrowDown, Check, FileText } from "lucide-react";
 import { Document, DocumentStatus, DocumentType, DOCUMENT_ENDPOINTS } from "@/types";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import IconButton from "@/components/ui/IconButton";
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import PDFViewerSkeleton from "@/components/ui/PDFViewerSkeleton";
 import { toast, formatDate, formatFileSize } from "@/utils";
 import { API_CONFIG } from "@/config/api";
+
+// Dynamically import PDFViewer to avoid SSR issues
+const PDFViewer = dynamic(() => import("@/components/PDFViewer"), {
+  ssr: false,
+  loading: () => <PDFViewerSkeleton />
+});
 
 interface DocumentCardProps {
   document: Document;
@@ -37,9 +45,7 @@ const DocumentCard = memo(({
   className = ""
 }: DocumentCardProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  // No client-side thumbnail generation for DocumentCard
-  // Only show server thumbnails or gray placeholder
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
 
   const getStatusBadge = useCallback((status: DocumentStatus) => {
     const statusColors = {
@@ -85,6 +91,16 @@ const DocumentCard = memo(({
     onPreview(document);
   }, [document, onPreview]);
 
+  const handlePDFViewerOpen = useCallback(() => {
+    if (document.fileType === DocumentType.PDF) {
+      setShowPDFViewer(true);
+    }
+  }, [document.fileType]);
+
+  const handlePDFViewerClose = useCallback(() => {
+    setShowPDFViewer(false);
+  }, []);
+
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     if (onSelect) {
@@ -122,7 +138,7 @@ const DocumentCard = memo(({
                 <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${
                   isSelected 
                     ? 'bg-blue-600 border-blue-600' 
-                    : 'bg-white border-gray-300 hover:border-blue-400'
+                    : 'bg-background border-border hover:border-blue-400'
                 }`}>
                   {isSelected && <Check className="w-3 h-3 text-white" />}
                 </div>
@@ -137,12 +153,16 @@ const DocumentCard = memo(({
             {/* Document Type Icon or PDF Thumbnail */}
             <div className={`flex-shrink-0 ${isSelectionMode ? 'ml-8' : ''}`}>
               {document.fileType === DocumentType.PDF && document.hasThumbnail ? (
-                // Server-generated thumbnail (preferred)
-                <div className="relative w-16 h-16">
+                // Server-generated thumbnail (preferred) - clickable for PDF viewer
+                <div 
+                  className="relative w-16 h-16 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={handlePDFViewerOpen}
+                  title={`Open ${document.title} in PDF viewer`}
+                >
                   <img
                     src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}`}
                     alt={`${document.title} thumbnail`}
-                    className="w-full h-full object-cover rounded border border-gray-200 shadow-sm"
+                    className="w-full h-full object-cover rounded border border-border shadow-sm"
                     loading="lazy"
                     onError={(e) => {
                       // Fallback to placeholder if thumbnail fails to load
@@ -153,17 +173,21 @@ const DocumentCard = memo(({
                     }}
                   />
                   <div 
-                    className="w-full h-full bg-gray-200 rounded border border-gray-300 flex items-center justify-center absolute top-0 left-0"
+                    className="w-full h-full bg-background-secondary rounded border border-border flex items-center justify-center absolute top-0 left-0"
                     style={{ display: 'none' }}
                   >
-                    <FileText className="w-8 h-8 text-gray-600" />
+                    <FileText className="w-8 h-8 text-foreground-secondary" />
                   </div>
                 </div>
               ) : document.fileType === DocumentType.PDF ? (
-                // PDF placeholder when no thumbnail available
-                <div className="relative w-16 h-16">
-                  <div className="w-full h-full bg-gray-200 rounded border border-gray-300 flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-gray-600" />
+                // PDF placeholder when no thumbnail available - clickable for PDF viewer
+                <div 
+                  className="relative w-16 h-16 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={handlePDFViewerOpen}
+                  title={`Open ${document.title} in PDF viewer`}
+                >
+                  <div className="w-full h-full bg-background-secondary rounded border border-border flex items-center justify-center">
+                    <FileText className="w-8 h-8 text-foreground-secondary" />
                   </div>
                 </div>
               ) : (
@@ -176,21 +200,6 @@ const DocumentCard = memo(({
             </div>
             {!isSelectionMode && (
               <div className="flex space-x-1 flex-shrink-0">
-                <div data-tooltip-id={`preview-${document.id}`}>
-                  <IconButton
-                    Icon={Eye}
-                    onClick={handlePreviewClick}
-                    variant="default"
-                    size="sm"
-                    bordered={false}
-                  />
-                </div>
-                <CustomTooltip
-                  anchorSelect={`[data-tooltip-id='preview-${document.id}']`}
-                >
-                  Preview document
-                </CustomTooltip>
-
                 <div data-tooltip-id={`download-${document.id}`}>
                   <IconButton
                     Icon={Download}
@@ -247,7 +256,7 @@ const DocumentCard = memo(({
                   className="flex items-center space-x-1"
                   data-tooltip-id={`views-${document.id}`}
                 >
-                  <Eye className="w-3 h-3 flex-shrink-0" />
+                  <FileText className="w-3 h-3 flex-shrink-0" />
                   <span className="flex-shrink-0">
                     {document.viewCount}
                   </span>
@@ -316,6 +325,29 @@ const DocumentCard = memo(({
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* PDF Viewer Modal */}
+      {document.fileType === DocumentType.PDF && (
+        <Modal
+          isOpen={showPDFViewer}
+          onClose={handlePDFViewerClose}
+          size="full"
+          closeOnOverlayClick={true}
+          closeOnEscape={true}
+        >
+          <Modal.Header className="!mb-2">
+            {document.title}
+          </Modal.Header>
+          
+          <Modal.Content className="!p-0 !mb-0 h-full">
+            <PDFViewer
+              documentId={document.id}
+              documentTitle={document.title}
+              className="h-full"
+            />
+          </Modal.Content>
+        </Modal>
+      )}
     </>
   );
 });
