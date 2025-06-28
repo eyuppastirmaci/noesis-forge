@@ -391,8 +391,19 @@ func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multip
 	thumbnailFile := strings.TrimSuffix(tempFile, ".pdf") + ".jpg"
 
 	// ImageMagick command: convert first page to JPG thumbnail
+	// Use 'magick' command (works on both Windows and Linux containers)
+	var magickCmd string
+	if _, err := exec.LookPath("magick"); err == nil {
+		magickCmd = "magick"
+	} else if _, err := exec.LookPath("convert"); err == nil {
+		magickCmd = "convert"
+	} else {
+		// Fallback to Windows path if running on Windows
+		magickCmd = "C:\\ImageMagick\\magick.exe"
+	}
+
 	cmd := exec.Command(
-		"C:\\ImageMagick\\magick.exe",
+		magickCmd,
 		"-density", "150", // Set DPI for better quality
 		tempFile+"[0]",         // First page only
 		"-flatten",             // Flatten layers

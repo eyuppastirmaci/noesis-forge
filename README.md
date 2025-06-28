@@ -23,16 +23,16 @@ While the core document management features are functional, many advanced AI cap
 ## ✨ Key Features
 
 ### 📄 **Document Management**
-- **Multi-format Support**: PDF, DOCX, TXT, and more
-- **Intelligent Processing**: Automatic text extraction and metadata generation
-- **Version Control**: Track document changes and revisions
-- **Batch Processing**: Handle multiple documents simultaneously
+- **📁 Multi-format Support**: PDF, DOCX, TXT, and more
+- **🧠 Intelligent Processing**: Automatic text extraction and metadata generation
+- **📝 Version Control**: Track document changes and revisions
+- **⚡ Batch Processing**: Handle multiple documents simultaneously
 
 ### 🔍 **Advanced Search Capabilities**
-- **Semantic Search**: Find documents by meaning, not just keywords
-- **Vector Similarity**: Document similarity matching
-- **Full-text Search**: Traditional keyword-based search
-- **Context-aware Results**: Intelligent ranking and relevance scoring
+- **🎯 Semantic Search**: Find documents by meaning, not just keywords
+- **🔗 Vector Similarity**: Document similarity matching
+- **📝 Full-text Search**: Traditional keyword-based search
+- **🧩 Context-aware Results**: Intelligent ranking and relevance scoring
 
 ### 🧠 **Model Options & Testing**
 - **🔄 Pre-built Models**: BGE-M3 + SigLIP2 or ColPaLI v1.2-hf
@@ -43,24 +43,24 @@ While the core document management features are functional, many advanced AI cap
 - **🎯 Auto-Selection**: AI chooses the best model for each document
 
 ### 🤖 **Intelligent Processing**
-- **Document Classification**: Automatic categorization (16 types)
-- **Layout Analysis**: Form and structured document understanding
-- **Content Summarization**: Local LLM-powered summaries
-- **Question Answering**: Chat with your documents locally
-- **Multilingual Support**: 100+ languages supported
+- **🏷️ Document Classification**: Automatic categorization (16 types)
+- **📐 Layout Analysis**: Form and structured document understanding
+- **📝 Content Summarization**: Local LLM-powered summaries
+- **💬 Question Answering**: Chat with your documents locally
+- **🌍 Multilingual Support**: 100+ languages supported
 
 ### 🔐 **Security & Privacy**
-- **Self-hosted**: Complete data control
-- **Local Processing**: Privacy-first approach
-- **JWT Authentication**: Secure user access
-- **Role-based Access**: Granular permission management
-- **Audit Logging**: Track all system activities
+- **🏠 Self-hosted**: Complete data control
+- **🔒 Local Processing**: Privacy-first approach
+- **🔑 JWT Authentication**: Secure user access
+- **👥 Role-based Access**: Granular permission management
+- **📋 Audit Logging**: Track all system activities
 
 ### 📊 **Analytics & Monitoring**
-- **Usage Analytics**: Document access patterns
-- **Performance Metrics**: Real-time system monitoring
-- **Model Comparison**: Accuracy and latency dashboards
-- **Search Analytics**: Query effectiveness insights
+- **📈 Usage Analytics**: Document access patterns
+- **⚡ Performance Metrics**: Real-time system monitoring
+- **🔍 Model Comparison**: Accuracy and latency dashboards
+- **🎯 Search Analytics**: Query effectiveness insights
 
 ## 🎯 **Perfect For**
 
@@ -350,39 +350,153 @@ While the core document management features are functional, many advanced AI cap
 ## 🚀 Getting Started
 
 ### Prerequisites
+
+#### For Docker Installation (Recommended)
+- **Docker** & Docker Compose
+- At least 4GB RAM available for containers
+
+#### For Manual Installation
 - **Go** 1.24.2 or higher
 - **Node.js** 18+ (for frontend)
-- **Docker** & Docker Compose
+- **PostgreSQL** 13+
+- **ImageMagick** (for PDF thumbnail generation)
+
+##### Installing ImageMagick
+
+**Windows:**
+1. Download ImageMagick from: https://imagemagick.org/script/download.php#windows
+2. Choose the Q16-HDRI version for your architecture (x64 recommended)
+3. Run the installer and ensure "Install development headers and libraries for C and C++" is checked
+4. Add ImageMagick to your PATH during installation
+5. Verify installation: `magick --version`
+
+**macOS:**
+```bash
+# Using Homebrew
+brew install imagemagick
+
+# Using MacPorts
+sudo port install ImageMagick
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update
+sudo apt-get install imagemagick imagemagick-dev libmagickwand-dev
+```
+
+**Linux (CentOS/RHEL/Fedora):**
+```bash
+# CentOS/RHEL
+sudo yum install ImageMagick ImageMagick-devel
+
+# Fedora
+sudo dnf install ImageMagick ImageMagick-devel
+```
 
 ### Quick Setup
 
-#### 1. Clone the repository
+#### Option A: Docker Installation (Recommended) 🐳
+
+This is the easiest way to get started. Docker handles all dependencies including ImageMagick automatically.
+
+##### 1. Clone the repository
 ```bash
 git clone https://github.com/eyuppastirmaci/noesis-forge.git
 cd noesis-forge
 ```
 
-#### 2. Start database services
+##### 2. Start all services with Docker Compose
+```bash
+# Start all services (database, storage, backend, frontend)
+docker-compose up -d
+
+# Or start without detached mode to see logs
+docker-compose up
+```
+
+##### 3. Wait for services to be ready
+```bash
+# Check service status
+docker-compose ps
+
+# View logs if needed
+docker-compose logs -f backend
+docker-compose logs -f frontend
+```
+
+##### 4. Access your application
+All services will be available at the same URLs as listed in Option B below.
+
+---
+
+#### Option B: Manual Installation
+
+If you prefer to run services manually or need more control over the setup.
+
+##### 1. Clone the repository
+```bash
+git clone https://github.com/eyuppastirmaci/noesis-forge.git
+cd noesis-forge
+```
+
+##### 2. Install ImageMagick (Required for PDF thumbnails)
+
+**Windows:**
+1. Download ImageMagick from: https://imagemagick.org/script/download.php#windows
+2. Choose the Q16-HDRI version for your architecture (x64 recommended)
+3. Run the installer and ensure "Install development headers and libraries for C and C++" is checked
+4. Add ImageMagick to your PATH during installation
+5. Verify installation: `magick --version`
+
+**macOS:**
+```bash
+# Using Homebrew
+brew install imagemagick
+
+# Using MacPorts
+sudo port install ImageMagick
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update
+sudo apt-get install imagemagick imagemagick-dev libmagickwand-dev
+```
+
+**Linux (CentOS/RHEL/Fedora):**
+```bash
+# CentOS/RHEL
+sudo yum install ImageMagick ImageMagick-devel
+
+# Fedora
+sudo dnf install ImageMagick ImageMagick-devel
+```
+
+##### 3. Start database services
 ```bash
 # Start PostgreSQL and MinIO with Docker
 docker-compose up -d postgres minio minio-init
 ```
 
-#### 3. Setup Backend
+##### 4. Setup Backend
 ```bash
 cd backend
 
 # Copy environment file and configure your settings
 cp .env.example .env
 
-# Install Air for hot reload
+# Install Air for hot reload (optional)
 go install github.com/air-verse/air@latest
 
 # Start backend with hot reload
 air
+
+# Or run directly
+go run cmd/api/main.go
 ```
 
-#### 4. Setup Frontend
+##### 5. Setup Frontend
 ```bash
 cd frontend
 
@@ -396,10 +510,36 @@ cp .env.example .env.local
 npm run dev
 ```
 
-### Access Your Application
+##### 6. Access Your Application
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
+- **Database**: PostgreSQL on port 5432 (you can use PgAdmin or any PostgreSQL client)
+
+## 🔧 Troubleshooting
+
+### PDF Thumbnail Issues
+
+**Problem**: PDF thumbnails not generating
+**Solutions**:
+1. **Docker**: Restart the backend container: `docker-compose restart backend`
+2. **Manual**: Verify ImageMagick installation: `magick --version` or `convert --version`
+3. Check logs for ImageMagick errors: `docker-compose logs backend` or application logs
+
+**Problem**: ImageMagick not found on Windows
+**Solutions**:
+1. Ensure ImageMagick is added to your PATH environment variable
+2. Restart your terminal/IDE after installation
+3. Try running `magick --version` in a new Command Prompt
+
+**Problem**: Permission denied errors on Linux
+**Solutions**:
+```bash
+# Fix ImageMagick security policy for PDF processing
+sudo nano /etc/ImageMagick-6/policy.xml
+# Comment out or modify the PDF policy line:
+<!-- <policy domain="coder" rights="none" pattern="PDF" /> -->
+```
 
 ## 📄 License
 
