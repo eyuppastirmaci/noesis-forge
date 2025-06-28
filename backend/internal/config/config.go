@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -30,11 +31,22 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL             string        `envconfig:"DATABASE_URL" required:"true"`
+	Host            string        `envconfig:"POSTGRES_HOST" default:"localhost"`
+	Port            string        `envconfig:"POSTGRES_PORT" default:"5432"`
+	Database        string        `envconfig:"POSTGRES_DB" required:"true"`
+	User            string        `envconfig:"POSTGRES_USER" required:"true"`
+	Password        string        `envconfig:"POSTGRES_PASSWORD" required:"true"`
+	SSLMode         string        `envconfig:"POSTGRES_SSLMODE" default:"disable"`
 	MaxOpenConns    int           `envconfig:"DB_MAX_OPEN_CONNS" default:"100"`
 	MaxIdleConns    int           `envconfig:"DB_MAX_IDLE_CONNS" default:"10"`
 	ConnMaxLifetime time.Duration `envconfig:"DB_CONN_MAX_LIFETIME" default:"1h"`
 	LogLevel        string        `envconfig:"DB_LOG_LEVEL" default:"error"`
+}
+
+// DSN builds and returns the PostgreSQL connection string
+func (d DatabaseConfig) DSN() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		d.User, d.Password, d.Host, d.Port, d.Database, d.SSLMode)
 }
 
 type JWTConfig struct {
