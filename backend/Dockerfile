@@ -32,7 +32,10 @@ FROM alpine:latest
 RUN apk add --no-cache \
     ca-certificates \
     imagemagick \
-    tzdata
+    ghostscript \
+    tzdata && \
+    # Configure ImageMagick policy for PDF processing
+    sed -i 's|<policy domain="coder" rights="none" pattern="PDF" />|<policy domain="coder" rights="read\|write" pattern="PDF" />|g' /etc/ImageMagick-7/policy.xml || true
 
 # Create app directory and user
 RUN addgroup -g 1000 appgroup && \

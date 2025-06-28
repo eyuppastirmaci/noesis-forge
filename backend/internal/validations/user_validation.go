@@ -218,11 +218,8 @@ func ValidateLogin() gin.HandlerFunc {
 			}
 		}
 
-		if req.Username != "" {
-			if valid, _ := CheckUsername(req.Username); !valid {
-				hasError = true
-			}
-		}
+		// Note: We don't check reserved usernames during login
+		// because admin user is seeded and should be able to login
 
 		// If any validation fails, return generic error
 		if hasError {
