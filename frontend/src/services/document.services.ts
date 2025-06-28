@@ -30,6 +30,8 @@ export interface DocumentPreviewResponseData {
   url: string;
 }
 
+
+
 export interface BulkDeleteResponseData {
   successful_deletes: number;
   failed_deletes: number;
@@ -219,6 +221,8 @@ export class DocumentService {
       throw error;
     }
   }
+
+
 
   /**
    * Validate a file before upload
@@ -548,6 +552,8 @@ export const documentQueries = {
     enabled: !!id,
     staleTime: 30 * 60 * 1000, // 30 minutes
   }),
+
+
 
   /**
    * Infinite query for document list (for infinite scroll)

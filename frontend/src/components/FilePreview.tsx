@@ -11,7 +11,10 @@ import {
   Presentation,
   File,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { formatFileSize } from "@/utils";
+import { DocumentType } from "@/types";
+import { documentQueries, documentService } from "@/services/document.services";
 
 interface FilePreviewProps {
   file: File;
@@ -75,7 +78,95 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   showMetadataForm = false,
   disabled = false,
 }) => {
+  const [pdfThumbnail, setPdfThumbnail] = React.useState<string | null>(null);
+  const [thumbnailLoading, setThumbnailLoading] = React.useState(false);
+  const [thumbnailError, setThumbnailError] = React.useState(false);
+
+  // Generate PDF thumbnail on mount
+  React.useEffect(() => {
+    if (file.type === 'application/pdf' && status !== 'error' && !pdfThumbnail && !thumbnailError) {
+      generatePDFThumbnail();
+    }
+
+    return () => {
+      // Cleanup thumbnail URL
+      if (pdfThumbnail && pdfThumbnail.startsWith('data:')) {
+        // Data URLs don't need cleanup
+      } else if (pdfThumbnail) {
+        URL.revokeObjectURL(pdfThumbnail);
+      }
+    };
+  }, [file, status]);
+
+  const generatePDFThumbnail = async () => {
+    setThumbnailLoading(true);
+    try {
+      // Dynamically import PDF.js to avoid SSR issues
+      const pdfjsLib = await import('pdfjs-dist');
+      
+      // Set worker path
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+      // Read file as array buffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Load PDF document
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      // Get first page
+      const page = await pdf.getPage(1);
+      
+      // Set scale for thumbnail
+      const scale = 0.4;
+      const viewport = page.getViewport({ scale });
+      
+      // Create canvas
+      const canvas = window.document.createElement('canvas');
+      const context = canvas.getContext('2d')!;
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      // Render page to canvas
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+      
+      // Convert canvas to data URL
+      const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      setPdfThumbnail(thumbnailDataUrl);
+    } catch (error) {
+      console.error('Failed to generate PDF thumbnail:', error);
+      setThumbnailError(true);
+    } finally {
+      setThumbnailLoading(false);
+    }
+  };
+
   const getStatusIcon = () => {
+    // Show PDF thumbnail for PDF files (when available and not in error state)
+    if (file.type === 'application/pdf' && pdfThumbnail && !thumbnailError && status !== 'error') {
+      return (
+        <div className="w-16 h-16 bg-gray-100 rounded border overflow-hidden">
+          <img
+            src={pdfThumbnail}
+            alt="PDF thumbnail"
+            className="w-full h-full object-cover"
+            onError={() => setThumbnailError(true)}
+          />
+        </div>
+      );
+    } else if (file.type === 'application/pdf' && thumbnailLoading && status !== 'error') {
+      return (
+        <div className="w-16 h-16 bg-gray-100 rounded border overflow-hidden animate-pulse">
+          <div className="w-full h-full bg-red-100 flex items-center justify-center">
+            <FileText className="w-6 h-6 text-red-600" />
+          </div>
+        </div>
+      );
+    }
+
+    // Default status icons
     switch (status) {
       case "uploading":
         return <Clock className="w-8 h-8 text-blue-500" />;

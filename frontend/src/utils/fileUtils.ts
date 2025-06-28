@@ -321,54 +321,108 @@ const containsMaliciousCharacters = (filename: string): boolean => {
 };
 
 /**
- * Validate a file for upload
- * @param file - File to validate
- * @param maxSize - Maximum file size in bytes (default: 100MB)
- * @returns File validation result
+ * Validates a file for upload
  */
-export const validateFile = (file: File, maxSize: number = 100 * 1024 * 1024): FileValidationResult => {
-  // Check file size
-  if (file.size > maxSize) {
-    const error = `File size must be less than ${formatFileSize(maxSize)}`;
-    return { isValid: false, error };
+export const validateFile = (file: File, maxSize?: number): FileValidationResult => {
+  const maxFileSize = maxSize || 100 * 1024 * 1024; // 100MB default
+
+  if (file.size > maxFileSize) {
+    return {
+      isValid: false,
+      error: `File size must be less than ${formatFileSize(maxFileSize)}`,
+    };
   }
 
-  // Check if file is empty
   if (file.size === 0) {
-    const error = "File cannot be empty";
-    return { isValid: false, error };
+    return {
+      isValid: false,
+      error: "File cannot be empty",
+    };
   }
 
-  // Supported file types - these should match backend validations
   const supportedTypes = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel", 
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "text/plain",
-    "text/markdown",
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'text/plain',
+    'text/markdown',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-powerpoint',
   ];
 
-  // Check file type
   if (!supportedTypes.includes(file.type)) {
-    const error = "File type not supported. Supported types: PDF, DOCX, DOC, TXT, XLSX, XLS, PPTX, PPT, MD";
-    return { isValid: false, error };
-  }
-
-  // Check filename length
-  if (file.name.length > 255) {
-    const error = "Filename is too long (max 255 characters)";
-    return { isValid: false, error };
-  }
-
-  // Check for malicious filenames
-  if (containsMaliciousCharacters(file.name)) {
-    const error = "Filename contains invalid characters";
-    return { isValid: false, error };
+    return {
+      isValid: false,
+      error: "File type not supported. Supported types: PDF, DOCX, DOC, TXT, XLSX, XLS, PPTX, PPT, MD",
+    };
   }
 
   return { isValid: true };
+};
+
+/**
+ * Generates a thumbnail for PDF files using PDF.js
+ */
+export const generatePDFThumbnail = async (file: File): Promise<string | null> => {
+  if (file.type !== 'application/pdf') {
+    return null;
+  }
+
+  try {
+    // Dynamically import PDF.js to avoid SSR issues
+    const pdfjsLib = await import('pdfjs-dist');
+    
+    // Set worker path (you'll need to add this to your public folder)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+    // Read file as array buffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Load PDF document
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    // Get first page
+    const page = await pdf.getPage(1);
+    
+    // Set scale for thumbnail (smaller for performance)
+    const scale = 0.5;
+    const viewport = page.getViewport({ scale });
+    
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    
+    // Render page to canvas
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+    }).promise;
+    
+    // Convert canvas to data URL
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } catch (error) {
+    console.error('Failed to generate PDF thumbnail:', error);
+    return null;
+  }
+};
+
+/**
+ * Checks if a file is a PDF
+ */
+export const isPDF = (file: File): boolean => {
+  return file.type === 'application/pdf';
+};
+
+/**
+ * Creates a preview URL for images or returns null for other file types
+ */
+export const createFilePreviewURL = (file: File): string | null => {
+  if (file.type.startsWith('image/')) {
+    return URL.createObjectURL(file);
+  }
+  return null;
 }; 
