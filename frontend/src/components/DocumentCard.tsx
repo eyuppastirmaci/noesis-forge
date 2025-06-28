@@ -2,13 +2,14 @@
 
 import React, { useCallback, memo, useState } from "react";
 import { Download, Trash2, Eye, ArrowDown, Check, FileText } from "lucide-react";
-import { Document, DocumentStatus, DocumentType } from "@/types";
+import { Document, DocumentStatus, DocumentType, DOCUMENT_ENDPOINTS } from "@/types";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import IconButton from "@/components/ui/IconButton";
 import CustomTooltip from "@/components/ui/CustomTooltip";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { toast, formatDate, formatFileSize } from "@/utils";
 import { documentService } from "@/services/document.services";
+import { API_CONFIG } from "@/config/api";
 
 interface DocumentCardProps {
   document: Document;
@@ -36,71 +37,9 @@ const DocumentCard = memo(({
   className = ""
 }: DocumentCardProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [generatedThumbnail, setGeneratedThumbnail] = useState<string | null>(null);
-  const [thumbnailError, setThumbnailError] = useState(false);
-  const [thumbnailLoading, setThumbnailLoading] = useState(false);
 
-  // Generate PDF thumbnail client-side for PDF documents
-  React.useEffect(() => {
-    if (document.fileType === DocumentType.PDF && !generatedThumbnail && !thumbnailError) {
-      generatePDFThumbnailFromPreview();
-    }
-  }, [document.id, document.fileType, generatedThumbnail, thumbnailError]);
-
-  const generatePDFThumbnailFromPreview = async () => {
-    setThumbnailLoading(true);
-    try {
-      // Get preview URL first
-      const response = await documentService.getDocumentPreview(document.id);
-      const pdfUrl = response.data.url;
-      
-      // Dynamically import PDF.js to avoid SSR issues
-      const pdfjsLib = await import('pdfjs-dist');
-      
-      // Set worker path
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-
-      // Load PDF from URL
-      const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-      
-      // Get first page
-      const page = await pdf.getPage(1);
-      
-      // Set scale for thumbnail
-      const scale = 0.4; // Increased scale for better quality with larger thumbnails
-      const viewport = page.getViewport({ scale });
-      
-      // Create canvas
-      const canvas = window.document.createElement('canvas');
-      const context = canvas.getContext('2d')!;
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      
-      // Render page to canvas
-      await page.render({
-        canvasContext: context,
-        viewport: viewport,
-      }).promise;
-      
-      // Convert canvas to data URL
-      const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      setGeneratedThumbnail(thumbnailDataUrl);
-    } catch (error) {
-      console.error('Failed to generate PDF thumbnail:', error);
-      setThumbnailError(true);
-    } finally {
-      setThumbnailLoading(false);
-    }
-  };
-
-  // Cleanup generated thumbnail URL
-  React.useEffect(() => {
-    return () => {
-      if (generatedThumbnail && generatedThumbnail.startsWith('blob:')) {
-        URL.revokeObjectURL(generatedThumbnail);
-      }
-    };
-  }, [generatedThumbnail]);
+  // No client-side thumbnail generation for DocumentCard
+  // Only show server thumbnails or gray placeholder
 
   const getStatusBadge = useCallback((status: DocumentStatus) => {
     const statusColors = {
@@ -197,33 +136,38 @@ const DocumentCard = memo(({
           <div className="flex items-start justify-between mb-3">
             {/* Document Type Icon or PDF Thumbnail */}
             <div className={`flex-shrink-0 ${isSelectionMode ? 'ml-8' : ''}`}>
-              {document.fileType === DocumentType.PDF && generatedThumbnail ? (
+              {document.fileType === DocumentType.PDF && document.hasThumbnail ? (
+                // Server-generated thumbnail (preferred)
                 <div className="relative w-16 h-16">
                   <img
-                    src={generatedThumbnail}
+                    src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}`}
                     alt={`${document.title} thumbnail`}
                     className="w-full h-full object-cover rounded border border-gray-200 shadow-sm"
                     loading="lazy"
-                    onError={() => {
-                      setThumbnailError(true);
-                      setGeneratedThumbnail(null);
+                    onError={(e) => {
+                      // Fallback to placeholder if thumbnail fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const placeholder = target.nextElementSibling as HTMLElement;
+                      if (placeholder) placeholder.style.display = 'flex';
                     }}
                   />
-                </div>
-              ) : document.fileType === DocumentType.PDF && thumbnailLoading ? (
-                <div className="relative w-16 h-16">
-                  <div className="w-full h-full bg-gray-100 rounded border border-gray-200 animate-pulse flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-gray-500" />
+                  <div 
+                    className="w-full h-full bg-gray-200 rounded border border-gray-300 flex items-center justify-center absolute top-0 left-0"
+                    style={{ display: 'none' }}
+                  >
+                    <FileText className="w-8 h-8 text-gray-600" />
                   </div>
                 </div>
               ) : document.fileType === DocumentType.PDF ? (
-                // PDF placeholder when no thumbnail
+                // PDF placeholder when no thumbnail available
                 <div className="relative w-16 h-16">
                   <div className="w-full h-full bg-gray-200 rounded border border-gray-300 flex items-center justify-center">
                     <FileText className="w-8 h-8 text-gray-600" />
                   </div>
                 </div>
               ) : (
+                // Non-PDF documents
                 <DocumentTypeIndicator
                   fileType={document.fileType}
                   size="md"

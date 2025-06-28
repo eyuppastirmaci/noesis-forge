@@ -273,6 +273,64 @@ func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Preview URL generated successfully")
 }
 
+// GetDocumentThumbnail serves the thumbnail image for a document
+func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated document ID from context
+	documentID, ok := validations.GetValidatedDocumentID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
+		return
+	}
+
+	// Get document to check if it exists and has thumbnail
+	var document models.Document
+	if err := h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document); err != nil {
+		if err.Error() == "document not found" {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
+		return
+	}
+
+	// Check if document has thumbnail
+	if !document.HasThumbnail || document.ThumbnailPath == "" {
+		utils.NotFoundResponse(c, "THUMBNAIL_NOT_FOUND", "Thumbnail not available for this document")
+		return
+	}
+
+	// Get thumbnail from MinIO
+	thumbnailReader, err := h.minioService.DownloadFile(c.Request.Context(), document.ThumbnailPath)
+	if err != nil {
+		logrus.Errorf("Failed to download thumbnail from storage: %v", err)
+		utils.ErrorResponse(c, http.StatusInternalServerError, "THUMBNAIL_DOWNLOAD_FAILED", "Failed to download thumbnail")
+		return
+	}
+	defer thumbnailReader.Close()
+
+	// Read thumbnail data
+	thumbnailData, err := io.ReadAll(thumbnailReader)
+	if err != nil {
+		logrus.Errorf("Failed to read thumbnail data: %v", err)
+		utils.ErrorResponse(c, http.StatusInternalServerError, "THUMBNAIL_READ_FAILED", "Failed to read thumbnail data")
+		return
+	}
+
+	// Set appropriate headers for image
+	c.Header("Content-Type", "image/jpeg")
+	c.Header("Content-Length", fmt.Sprintf("%d", len(thumbnailData)))
+	c.Header("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+
+	// Serve thumbnail data
+	c.Data(http.StatusOK, "image/jpeg", thumbnailData)
+}
+
 // BulkUploadDocuments uploads multiple documents concurrently
 func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)

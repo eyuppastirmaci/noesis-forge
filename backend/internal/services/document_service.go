@@ -3,7 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -45,6 +48,7 @@ type DocumentResponse struct {
 	ProcessedAt      *time.Time            `json:"processedAt,omitempty"`
 	CreatedAt        time.Time             `json:"createdAt"`
 	UpdatedAt        time.Time             `json:"updatedAt"`
+	HasThumbnail     bool                  `json:"hasThumbnail"`
 }
 
 type DocumentListRequest struct {
@@ -104,6 +108,19 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 		IsPublic:         req.IsPublic,
 		UserID:           userID,
 		Version:          1,
+	}
+
+	// Generate thumbnail for PDF files
+	if fileType == models.DocumentTypePDF {
+		thumbnailPath, err := s.generatePDFThumbnail(ctx, file, uploadResult.ObjectName)
+		if err != nil {
+			logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
+			// Continue without thumbnail - don't fail the upload
+			document.HasThumbnail = false
+		} else {
+			document.ThumbnailPath = thumbnailPath
+			document.HasThumbnail = true
+		}
 	}
 
 	if err := s.db.Create(document).Error; err != nil {
@@ -338,5 +355,86 @@ func (s *DocumentService) toDocumentResponse(doc *models.Document) *DocumentResp
 		ProcessedAt:      doc.ProcessedAt,
 		CreatedAt:        doc.CreatedAt,
 		UpdatedAt:        doc.UpdatedAt,
+		HasThumbnail:     doc.HasThumbnail,
 	}
+}
+
+// generatePDFThumbnail creates a JPG thumbnail from PDF's first page using ImageMagick
+func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multipart.FileHeader, pdfObjectName string) (string, error) {
+	logrus.Infof("Generating PDF thumbnail using ImageMagick for: %s", file.Filename)
+
+	// Create temp directory if it doesn't exist
+	os.MkdirAll("temp", 0755)
+
+	// Save uploaded file temporarily
+	tempFile := filepath.Join("temp", fmt.Sprintf("%s.pdf", uuid.New().String()))
+	src, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open uploaded file: %w", err)
+	}
+	defer src.Close()
+
+	// Create temp file and copy content
+	dst, err := os.Create(tempFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy file content: %w", err)
+	}
+	dst.Close() // Close before ImageMagick uses it
+
+	// Generate thumbnail using ImageMagick
+	thumbnailFile := strings.TrimSuffix(tempFile, ".pdf") + ".jpg"
+
+	// ImageMagick command: convert first page to JPG thumbnail
+	cmd := exec.Command(
+		"C:\\ImageMagick\\magick.exe",
+		"-density", "150", // Set DPI for better quality
+		tempFile+"[0]",         // First page only
+		"-flatten",             // Flatten layers
+		"-background", "white", // White background
+		"-alpha", "remove", // Remove transparency
+		"-resize", "300x400^", // Resize to thumbnail
+		"-quality", "85", // JPEG quality
+		thumbnailFile,
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Cleanup temp file
+		os.Remove(tempFile)
+		return "", fmt.Errorf("ImageMagick failed: %s, error: %w", string(output), err)
+	}
+
+	// Read generated thumbnail
+	thumbnailBytes, err := os.ReadFile(thumbnailFile)
+	if err != nil {
+		// Cleanup temp files
+		os.Remove(tempFile)
+		os.Remove(thumbnailFile)
+		return "", fmt.Errorf("failed to read thumbnail: %w", err)
+	}
+
+	// Upload thumbnail to MinIO - use same path structure as documents
+	thumbnailName := fmt.Sprintf("thumbnails/%s.jpg", strings.TrimSuffix(pdfObjectName, filepath.Ext(pdfObjectName)))
+	_, err = s.minioService.UploadThumbnail(ctx, thumbnailName, thumbnailBytes, "image/jpeg")
+	if err != nil {
+		// Cleanup temp files
+		os.Remove(tempFile)
+		os.Remove(thumbnailFile)
+		return "", fmt.Errorf("failed to upload thumbnail to MinIO: %w", err)
+	}
+
+	// Cleanup temp files
+	os.Remove(tempFile)
+	os.Remove(thumbnailFile)
+
+	logrus.Infof("Successfully generated PDF thumbnail: %s", thumbnailName)
+
+	// Return only the thumbnail path, not the full URL
+	return thumbnailName, nil
 }

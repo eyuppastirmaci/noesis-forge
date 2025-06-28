@@ -36,6 +36,7 @@ export enum DocumentStatus {
     processedAt?: string;
     createdAt: string;
     updatedAt: string;
+    hasThumbnail: boolean; // Whether server-generated thumbnail exists
   }
   
   // Collection Interface (for future use)
@@ -123,6 +124,7 @@ export enum DocumentStatus {
     DOWNLOAD: (id: string) => `/documents/${id}/download`,
     BULK_DOWNLOAD: "/documents/bulk-download",
     PREVIEW: (id: string) => `/documents/${id}/preview`,
+    THUMBNAIL: (id: string) => `/documents/${id}/thumbnail`,
     
     // Collections (for future)
     COLLECTIONS: "/collections",

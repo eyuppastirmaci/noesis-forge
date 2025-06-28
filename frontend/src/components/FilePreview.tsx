@@ -171,6 +171,10 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
       case "uploading":
         return <Clock className="w-8 h-8 text-blue-500" />;
       case "completed":
+        // For non-PDF files, show checkmark. For PDF files, show file icon if thumbnail failed
+        if (file.type === 'application/pdf') {
+          return getFileTypeIcon(file);
+        }
         return <CheckCircle2 className="w-8 h-8 text-green-500" />;
       case "error":
         return <XCircle className="w-8 h-8 text-red-500" />;

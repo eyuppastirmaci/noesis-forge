@@ -29,5 +29,6 @@ func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.Docume
 		// File operations with validation middleware
 		documents.GET("/:id/download", validations.ValidateDocumentID(), documentHandler.DownloadDocument)
 		documents.GET("/:id/preview", validations.ValidateDocumentID(), documentHandler.GetDocumentPreview)
+		documents.GET("/:id/thumbnail", validations.ValidateDocumentID(), documentHandler.GetDocumentThumbnail)
 	}
 }

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -214,4 +215,39 @@ func (s *MinIOService) getContentType(filename string) string {
 
 	// If the extension is not found, return the default MIME type.
 	return MIMEApplicationOctetStream
+}
+
+// UploadThumbnail uploads thumbnail image data directly to MinIO
+func (s *MinIOService) UploadThumbnail(ctx context.Context, objectName string, data []byte, contentType string) (*UploadResult, error) {
+	reader := bytes.NewReader(data)
+
+	// Upload to MinIO
+	uploadInfo, err := s.client.PutObject(ctx, s.config.BucketName, objectName, reader, int64(len(data)), minio.PutObjectOptions{
+		ContentType: contentType,
+		UserMetadata: map[string]string{
+			"file-type":   "thumbnail",
+			"uploaded-at": time.Now().UTC().Format(time.RFC3339),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload thumbnail to MinIO: %w", err)
+	}
+
+	logrus.Infof("Uploaded thumbnail %s to MinIO, size: %d bytes", objectName, uploadInfo.Size)
+
+	// Generate presigned URL for thumbnail access (7 days)
+	var presignedURL string
+	url, err := s.client.PresignedGetObject(ctx, s.config.BucketName, objectName, 7*24*time.Hour, nil)
+	if err != nil {
+		logrus.Warnf("Failed to generate presigned URL for thumbnail %s: %v", objectName, err)
+	} else {
+		presignedURL = url.String()
+	}
+
+	return &UploadResult{
+		ObjectName: objectName,
+		FileName:   filepath.Base(objectName),
+		Size:       uploadInfo.Size,
+		URL:        presignedURL,
+	}, nil
 }

@@ -41,6 +41,10 @@ type Document struct {
 	StoragePath   string `json:"-" gorm:"not null"` // MinIO object path
 	StorageBucket string `json:"-" gorm:"not null"` // MinIO bucket name
 
+	// Thumbnail info (server-generated thumbnails)
+	ThumbnailPath string `json:"-" gorm:""`                         // Path to thumbnail file in storage (e.g., "uuid.jpg")
+	HasThumbnail  bool   `json:"hasThumbnail" gorm:"default:false"` // Whether thumbnail exists
+
 	// Processing info
 	ExtractedText string     `json:"-" gorm:"type:text"` // Extracted text content
 	ProcessedAt   *time.Time `json:"processedAt,omitempty"`
