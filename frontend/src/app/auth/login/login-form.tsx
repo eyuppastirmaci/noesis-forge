@@ -47,11 +47,11 @@ export function LoginForm() {
         const userName = state.user?.name || state.user?.username || "User";
         if (result?.ok) {
           toast.info(`Welcome ${userName}`);
-          router.push(state.redirectTo || "/");
+          router.push(state.redirectTo || "/dashboard");
         } else {
           // Even if NextAuth fails, we have cookies, so just redirect
           toast.info(`Welcome ${userName}`);
-          router.push(state.redirectTo || "/");
+          router.push(state.redirectTo || "/dashboard");
         }
       });
     }

@@ -418,6 +418,23 @@ func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
 	c.Data(http.StatusOK, "image/jpeg", thumbnailData)
 }
 
+// GetUserStats retrieves user document statistics
+func (h *DocumentHandler) GetUserStats(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	stats, err := h.documentService.GetUserStats(c.Request.Context(), userID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "STATS_FETCH_FAILED", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, stats, "User stats retrieved successfully")
+}
+
 // BulkUploadDocuments uploads multiple documents concurrently
 func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)

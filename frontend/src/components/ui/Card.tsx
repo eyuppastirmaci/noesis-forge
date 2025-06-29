@@ -18,6 +18,11 @@ export interface CardContentProps {
   className?: string;
 }
 
+export interface CardTitleProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
 const CardHeader: React.FC<CardHeaderProps> = ({ children, className = "" }) => {
   return (
     <div className={cn("px-6 py-4 border-b border-border", className)}>
@@ -34,9 +39,23 @@ const CardContent: React.FC<CardContentProps> = ({ children, className = "" }) =
   );
 };
 
+const CardTitle: React.FC<CardTitleProps> = ({
+  children,
+  className = "",
+}) => {
+  return (
+    <h3
+      className={cn("font-semibold leading-none tracking-tight", className)}
+    >
+      {children}
+    </h3>
+  );
+};
+
 const Card: React.FC<CardProps> & {
   Header: typeof CardHeader;
   Content: typeof CardContent;
+  Title: typeof CardTitle;
 } = ({ children, className = "" }) => {
   return (
     <div className={cn(
@@ -50,5 +69,6 @@ const Card: React.FC<CardProps> & {
 
 Card.Header = CardHeader;
 Card.Content = CardContent;
+Card.Title = CardTitle;
 
 export default Card;

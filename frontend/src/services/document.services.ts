@@ -44,6 +44,11 @@ export interface BulkDeleteResponseData {
   failures?: Array<{ id: string; error: string }>;
 }
 
+export interface UserStatsResponseData {
+  documentsThisMonth: number;
+  totalStorageUsage: number;
+}
+
 // API Response types
 export type DocumentUploadResponse =
   SuccessResponse<DocumentUploadResponseData>;
@@ -56,6 +61,7 @@ export type DocumentPreviewApiResponse =
   SuccessResponse<DocumentPreviewResponseData>;
 export type DocumentDeleteResponse = SuccessResponse<null>;
 export type BulkDeleteResponse = SuccessResponse<BulkDeleteResponseData>;
+export type UserStatsResponse = SuccessResponse<UserStatsResponseData>;
 
 export class DocumentService {
   /**
@@ -635,6 +641,21 @@ export class DocumentService {
       throw error;
     }
   }
+
+  /**
+   * Get user document statistics
+   */
+  async getUserStats(): Promise<UserStatsResponse> {
+    try {
+      const response = await apiClient.get<UserStatsResponseData>(
+        DOCUMENT_ENDPOINTS.STATS
+      );
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] Failed to retrieve user stats:", error);
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance
@@ -694,7 +715,17 @@ export const documentQueries = {
     staleTime: 30 * 60 * 1000, // 30 minutes
   }),
 
-
+  /**
+   * Query for user stats
+   */
+  stats: () => ({
+    queryKey: ["documents", "stats"],
+    queryFn: async () => {
+      const response = await documentService.getUserStats();
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  }),
 
   /**
    * Infinite query for document list (for infinite scroll)

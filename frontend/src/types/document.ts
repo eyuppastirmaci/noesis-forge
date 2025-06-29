@@ -130,6 +130,7 @@ export const DOCUMENT_ENDPOINTS = {
   UPLOAD: "/documents/upload",
   BULK_UPLOAD: "/documents/bulk-upload",
   LIST: "/documents",
+  STATS: "/documents/stats",
   GET: (id: string) => `/documents/${id}`,
   TITLE: (id: string) => `/documents/${id}/title`,
   UPDATE: (id: string) => `/documents/${id}`,

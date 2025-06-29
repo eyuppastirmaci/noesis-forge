@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 interface LinkButtonProps {
   href: string;
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   disabled?: boolean;
@@ -25,6 +25,7 @@ const LinkButton: React.FC<LinkButtonProps> = ({
     primary: 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
     secondary: 'text-foreground bg-background-secondary border border-border hover:bg-background-tertiary focus:ring-blue-500',
     outline: 'text-blue-600 border border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:ring-blue-500',
+    ghost: 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground active:bg-border',
   };
 
   const sizeClasses = {

@@ -87,7 +87,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
         email: response.data.user.email,
       },
       tokens: response.data.tokens, // Include tokens for client-side cookie setting
-      redirectTo: '/'
+      redirectTo: '/dashboard'
     }
   } catch (error: unknown) {
     console.error('Login error:', error)

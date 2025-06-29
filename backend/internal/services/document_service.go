@@ -78,6 +78,11 @@ type DocumentListResponse struct {
 	TotalPages int                `json:"totalPages"`
 }
 
+type UserStatsResponse struct {
+	DocumentsThisMonth int64 `json:"documentsThisMonth"`
+	TotalStorageUsage  int64 `json:"totalStorageUsage"`
+}
+
 func NewDocumentService(db *gorm.DB, minioService *MinIOService) *DocumentService {
 	return &DocumentService{
 		db:           db,
@@ -603,4 +608,34 @@ func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multip
 
 	// Return only the thumbnail path, not the full URL
 	return thumbnailName, nil
+}
+
+func (s *DocumentService) GetUserStats(ctx context.Context, userID uuid.UUID) (*UserStatsResponse, error) {
+	var stats UserStatsResponse
+
+	// Get the start and end of the current month
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
+
+	// Calculate documents uploaded this month
+	err := s.db.Model(&models.Document{}).
+		Where("user_id = ? AND created_at BETWEEN ? AND ?", userID, startOfMonth, endOfMonth).
+		Count(&stats.DocumentsThisMonth).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to count documents for current month: %w", err)
+	}
+
+	// Calculate total storage usage
+	// Using COALESCE to ensure 0 is returned if there are no documents
+	err = s.db.Model(&models.Document{}).
+		Where("user_id = ?", userID).
+		Select("COALESCE(SUM(file_size), 0)").
+		Row().Scan(&stats.TotalStorageUsage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate total storage usage: %w", err)
+	}
+
+	logrus.Infof("Fetched user stats for user %s", userID)
+	return &stats, nil
 }
