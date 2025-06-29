@@ -21,8 +21,6 @@ export function useSessionValidator() {
         return false
       }
 
-      console.log('Validating refresh token:', refreshToken.substring(0, 8) + '...')
-      
       const response = await fetch(`${ENV.API_URL}/auth/validate`, {
         method: 'POST',
         headers: {

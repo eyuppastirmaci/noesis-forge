@@ -3,7 +3,12 @@
 import { cn } from "@/lib/cn";
 import { LucideIcon } from "lucide-react";
 
-type IconButtonVariant = "default" | "primary" | "danger" | "success" | "warning";
+type IconButtonVariant =
+  | "default"
+  | "primary"
+  | "danger"
+  | "success"
+  | "warning";
 type IconButtonSize = "sm" | "md" | "lg";
 
 interface IconButtonProps {
@@ -14,6 +19,7 @@ interface IconButtonProps {
   size?: IconButtonSize;
   bordered?: boolean;
   disabled?: boolean;
+  filled?: boolean;
 }
 
 const variantStyles = {
@@ -62,31 +68,31 @@ export default function IconButton({
   size = "md",
   bordered = true,
   disabled = false,
+  filled = false,
 }: IconButtonProps) {
   const variantStyle = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
 
   const baseClasses = cn(
-    // Base styles
     "inline-flex items-center justify-center cursor-pointer transition-all duration-200",
-    // Size
     sizeStyle.container,
-    // Border and background
     bordered
       ? "rounded-full border bg-background border-icon-button-border hover:border-icon-button-border-hover active:border-icon-button-border-active"
       : "rounded bg-transparent border-none",
-    // Variant styles
     variantStyle.base,
     !bordered ? variantStyle.hover : "",
-    // Disabled state
     disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : "",
-    // Custom classes
     className
+  );
+
+  const iconClasses = cn(
+    "flex-shrink-0 transition-all duration-200",
+    sizeStyle.icon
   );
 
   return (
     <button onClick={onClick} className={baseClasses} disabled={disabled}>
-      <Icon className={cn("flex-shrink-0", sizeStyle.icon)} />
+      <Icon className={iconClasses} fill={filled ? "currentColor" : "none"} />
     </button>
   );
 }

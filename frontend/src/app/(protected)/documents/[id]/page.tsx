@@ -41,7 +41,6 @@ import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import DocumentUpdateModal from "@/components/DocumentUpdateModal";
-import PDFViewerModal from "@/components/PDFViewerModal";
 import { 
   documentQueries, 
   documentMutations, 
@@ -59,6 +58,7 @@ import {
 } from "@/types";
 import { toast, formatDate, formatFileSize } from "@/utils";
 import { API_CONFIG } from "@/config/api";
+import PDFViewerModal from "@/components/PDFViewerModal";
 
 const DocumentDetailPage: React.FC = () => {
   const params = useParams();

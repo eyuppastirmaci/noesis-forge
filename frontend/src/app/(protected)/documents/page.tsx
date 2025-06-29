@@ -45,9 +45,10 @@ import {
 
 import { Select, SelectOption } from "@/components/ui/Select";
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
-import { debounce } from "@/utils";
+import { debounce, toast } from "@/utils";
 import SearchInput from "@/components/SearchInput";
 import DocumentCard from "@/components/DocumentCard";
+import Modal from "@/components/ui/Modal";
 
 const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -324,34 +325,47 @@ const DocumentsPage: React.FC = () => {
     }
   }, [selectedDocuments, bulkDownloadMutation]);
 
-  const handleBulkDelete = useCallback(async () => {
+  // Bulk delete modal state
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
+  const handleBulkDeleteOpen = useCallback(() => {
     if (selectedDocuments.size === 0) return;
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedDocuments.size} selected documents? This action cannot be undone.`
-    );
-    
-    if (!confirmed) return;
-    
+    setShowBulkDeleteModal(true);
+  }, [selectedDocuments]);
+
+  const handleBulkDeleteCancel = useCallback(() => {
+    if (bulkDeleteMutation.isPending) return;
+    setShowBulkDeleteModal(false);
+  }, [bulkDeleteMutation]);
+
+  const handleBulkDeleteConfirm = useCallback(async () => {
+    if (selectedDocuments.size === 0) return;
     try {
       const documentIds = Array.from(selectedDocuments);
       await bulkDeleteMutation.mutateAsync({ documentIds });
+      toast.success(`${selectedDocuments.size} document${selectedDocuments.size > 1 ? 's' : ''} deleted successfully.`);
+      setShowBulkDeleteModal(false);
     } catch (error) {
       console.error("Bulk delete failed:", error);
-      alert(`Failed to delete documents: ${getErrorMessage(error)}`);
+      toast.error(`Failed to delete documents: ${getErrorMessage(error)}`);
     }
-  }, [selectedDocuments, bulkDeleteMutation]);
-
-  const toggleSelectionMode = useCallback(() => {
-    setIsSelectionMode(!isSelectionMode);
-    if (isSelectionMode) {
-      setSelectedDocuments(new Set());
-    }
-  }, [isSelectionMode]);
+  }, [selectedDocuments, bulkDeleteMutation, toast]);
 
   // Check if all documents are selected
   const allSelected = documents.length > 0 && documents.every(doc => selectedDocuments.has(doc.id));
   const someSelected = selectedDocuments.size > 0 && !allSelected;
+
+  // Toggle selection mode handler
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        // Clear selection when exiting selection mode
+        setSelectedDocuments(new Set());
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <div className="flex-1 max-h-[calc(100vh-102px)] overflow-y-scroll bg-background">
@@ -451,7 +465,7 @@ const DocumentsPage: React.FC = () => {
                  {bulkDownloadMutation.isPending ? "Downloading..." : "Download Selected"}
                </Button>
                <Button
-                 onClick={handleBulkDelete}
+                 onClick={handleBulkDeleteOpen}
                  disabled={bulkDeleteMutation.isPending}
                  size="sm"
                  variant="error"
@@ -633,6 +647,43 @@ const DocumentsPage: React.FC = () => {
             </nav>
           </div>
         )}
+
+        {/* Bulk Delete Confirmation Modal */}
+        <Modal
+          isOpen={showBulkDeleteModal}
+          onClose={handleBulkDeleteCancel}
+          size="md"
+          closeOnOverlayClick={!bulkDeleteMutation.isPending}
+          closeOnEscape={!bulkDeleteMutation.isPending}
+        >
+          <Modal.Header>
+            Delete Documents
+          </Modal.Header>
+          <Modal.Content>
+            <p className="mb-4">
+              Are you sure you want to delete <strong>{selectedDocuments.size}</strong> selected document{selectedDocuments.size > 1 ? 's' : ''}?
+            </p>
+            <p className="text-sm text-foreground-secondary">
+              This action cannot be undone. The documents will be permanently removed from your account.
+            </p>
+          </Modal.Content>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={handleBulkDeleteCancel}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="error"
+              onClick={handleBulkDeleteConfirm}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </Modal.Footer>
+        </Modal>
       </div>
     </div>
   );
