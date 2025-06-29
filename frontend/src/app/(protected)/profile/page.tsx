@@ -50,6 +50,12 @@ export default function ProfilePage() {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
 
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const {
     update: updateSession,
     data: sessionData,
@@ -134,6 +140,49 @@ export default function ProfilePage() {
       toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  /** Change password */
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await fetch(`${ENV.API_URL}/auth/change-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          oldPassword: currentPassword,
+          newPassword: newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Password update failed");
+      }
+
+      toast.success("Password updated successfully");
+      // Clear fields
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to update password");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -311,10 +360,26 @@ export default function ProfilePage() {
               autoComplete="new-password"
               spellCheck={false}
               name="current-password-field"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
             />
-            <Input label="New Password" type="password" fullWidth />
-            <Input label="Confirm Password" type="password" fullWidth />
-            <Button size="sm">Update Password</Button>
+            <Input 
+              label="New Password" 
+              type="password" 
+              fullWidth 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <Input 
+              label="Confirm Password" 
+              type="password" 
+              fullWidth 
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <Button size="sm" onClick={handleChangePassword} loading={isChangingPassword} disabled={isChangingPassword}>
+              Update Password
+            </Button>
           </div>
 
           {/* Two-factor authentication */}
