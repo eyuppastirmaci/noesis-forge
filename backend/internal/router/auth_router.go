@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Temp in-memory rate limiter; will switch to Redis.
+
 func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 	// Initialize handler
 	authHandler := handlers.NewAuthHandler(authService)

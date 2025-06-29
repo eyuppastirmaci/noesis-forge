@@ -95,7 +95,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	}
 	r.engine.Use(middleware.CORS(r.config.Environment, allowedOrigins))
 
-	// Global rate limiting
+	// Temp in-memory rate limiter; will switch to Redis.
 	r.engine.Use(middleware.RateLimit(100)) // 100 requests per minute per IP
 
 	// Root endpoint

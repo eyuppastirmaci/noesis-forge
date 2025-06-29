@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Temp in-memory rate limiter; will switch to Redis.
+
 type RateLimiter struct {
 	visitors map[string]*Visitor
 	mu       sync.RWMutex
