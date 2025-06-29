@@ -5,6 +5,22 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Trash2, ArrowDown, Check, FileText, Eye, Heart } from "lucide-react";
+import { Document, DocumentType, DOCUMENT_ENDPOINTS, FAVORITE_QUERY_KEYS, getErrorMessage } from "@/types";
+import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
+import IconButton from "@/components/ui/IconButton";
+import CustomTooltip from "@/components/ui/CustomTooltip";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import PDFViewerModal from "@/components/PDFViewerModal";
+import { favoriteQueries, favoriteMutations } from "@/services/favorite.service";
+import { 
+  toast, 
+  formatDate, 
+  formatFileSize,
+  getDocumentTypeInfo,
+  getDocumentStatusInfo
+} from "@/utils";
+import { API_CONFIG } from "@/config/api";
 
 // Dynamically import Image to avoid SSR hydration issues
 const Image = dynamic(() => import("next/image"), { 
@@ -15,16 +31,6 @@ const Image = dynamic(() => import("next/image"), {
     </div>
   )
 });
-import { Document, DocumentStatus, DocumentType, DOCUMENT_ENDPOINTS, FAVORITE_QUERY_KEYS, getErrorMessage } from "@/types";
-import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
-import IconButton from "@/components/ui/IconButton";
-import CustomTooltip from "@/components/ui/CustomTooltip";
-import Modal from "@/components/ui/Modal";
-import Button from "@/components/ui/Button";
-import PDFViewerModal from "@/components/PDFViewerModal";
-import { favoriteQueries, favoriteMutations } from "@/services/favorite.service";
-import { toast, formatDate, formatFileSize } from "@/utils";
-import { API_CONFIG } from "@/config/api";
 
 interface DocumentCardProps {
   document: Document;
@@ -97,27 +103,6 @@ const DocumentCard = memo(({
     },
   });
 
-  const getStatusBadge = useCallback((status: DocumentStatus) => {
-    const statusColors = {
-      ready:
-        "bg-green-600 dark:bg-green-600 text-white dark:text-white",
-      processing:
-        "bg-amber-500 dark:bg-amber-500 text-white dark:text-white",
-      failed: 
-        "bg-red-600 dark:bg-red-600 text-white dark:text-white",
-      deleted: 
-        "bg-gray-500 dark:bg-gray-500 text-white dark:text-white",
-    };
-
-    return (
-      <span
-        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${statusColors[status]}`}
-      >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  }, []);
-
   const handleDeleteClick = useCallback(() => {
     setShowDeleteModal(true);
   }, []);
@@ -182,13 +167,16 @@ const DocumentCard = memo(({
     e.stopPropagation();
   }, []);
 
+  const typeInfo = getDocumentTypeInfo(document.fileType);
+  const statusInfo = getDocumentStatusInfo(document.status);
+
   return (
     <>
       <div 
         className={`rounded-lg shadow-sm hover:shadow-md transition-all min-h-[180px] flex flex-col bg-background-secondary border border-border relative ${
           isSelectionMode ? 'cursor-pointer' : ''
         } ${
-          isSelected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
+          isSelected ? 'ring-2 ring-info bg-info/10 dark:bg-info/20' : ''
         } ${className}`}
         onClick={handleCardClick}
       >
@@ -205,8 +193,8 @@ const DocumentCard = memo(({
                 />
                 <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${
                   isSelected 
-                    ? 'bg-blue-600 border-blue-600' 
-                    : 'bg-background border-border hover:border-blue-400'
+                    ? 'bg-info border-info' 
+                    : 'bg-background border-border hover:border-info'
                 }`}>
                   {isSelected && <Check className="w-3 h-3 text-white" />}
                 </div>
@@ -292,7 +280,7 @@ const DocumentCard = memo(({
                     size="sm"
                     bordered={false}
                     disabled={isLoadingFavorite || addToFavoritesMutation.isPending || removeFromFavoritesMutation.isPending}
-                    className={favoriteStatus?.isFavorited ? "text-red-500 hover:text-red-600 [&>svg]:fill-current" : ""}
+                    className={favoriteStatus?.isFavorited ? "text-danger hover:text-danger-dark [&>svg]:fill-current" : ""}
                   />
                 </div>
                 <CustomTooltip
@@ -349,8 +337,17 @@ const DocumentCard = memo(({
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex-shrink-0">
-                {getStatusBadge(document.status)}
+              <div className="flex-shrink-0 flex space-x-2">
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${typeInfo.className}`}
+                >
+                  {typeInfo.label}
+                </span>
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${statusInfo.className}`}
+                >
+                  {statusInfo.label}
+                </span>
               </div>
               <div className="flex space-x-3 flex-shrink-0">
                 <span

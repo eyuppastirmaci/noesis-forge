@@ -2,7 +2,7 @@
 
 import React from "react";
 import { DocumentType } from "@/types";
-const { FileText, FileWord, FileSpreadsheet, FilePresentation, File } = require("lucide-react");
+import { FileText, FileSpreadsheet, File, Presentation } from "lucide-react";
 
 interface DocumentTypeIndicatorProps {
   fileType: DocumentType;
@@ -36,11 +36,11 @@ const DocumentTypeIndicator: React.FC<DocumentTypeIndicatorProps> = ({
         case DocumentType.PDF:
           return FileText;
         case DocumentType.DOCX:
-          return FileWord;
+          return FileText;
         case DocumentType.XLSX:
           return FileSpreadsheet;
         case DocumentType.PPTX:
-          return FilePresentation;
+          return Presentation;
         case DocumentType.TXT:
           return FileText;
         case DocumentType.OTHER:

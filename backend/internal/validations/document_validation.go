@@ -608,8 +608,9 @@ func validateUploadedFile(file *multipart.FileHeader) map[string]string {
 		return errors
 	}
 
-	// Detect content type
-	contentType := http.DetectContentType(buffer)
+	// Detect content type and ignore parameters (e.g., charset)
+	detectedContentType := http.DetectContentType(buffer)
+	contentType := strings.Split(detectedContentType, ";")[0]
 
 	// Allowed MIME types
 	allowedMIMETypes := map[string]bool{
@@ -625,11 +626,12 @@ func validateUploadedFile(file *multipart.FileHeader) map[string]string {
 		"application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
 		"application/vnd.oasis.opendocument.presentation":                           true,
 		"application/vnd.oasis.opendocument.spreadsheet":                            true,
-		"application/octet-stream":                                                  true, // Fallback for some office documents
+		"application/zip":          true,
+		"application/octet-stream": true, // Fallback for some office documents
 	}
 
 	if !allowedMIMETypes[contentType] {
-		errors["file"] = fmt.Sprintf("File content type not allowed: %s", contentType)
+		errors["file"] = fmt.Sprintf("File content type not allowed: %s", detectedContentType)
 		return errors
 	}
 

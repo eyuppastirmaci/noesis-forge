@@ -344,4 +344,42 @@ export const createFilePreviewURL = (file: File): string | null => {
     return URL.createObjectURL(file);
   }
   return null;
+};
+
+import { DocumentType, DocumentStatus } from "@/types";
+
+/**
+ * Gets styling and label information for a given document type.
+ * @param fileType - The type of the document.
+ * @returns An object with the label and className for the badge.
+ */
+export const getDocumentTypeInfo = (fileType: DocumentType): { label: string; className: string } => {
+    const typeInfo: Record<DocumentType, { label: string; className: string }> = {
+      [DocumentType.PDF]: { label: "PDF", className: "bg-danger text-white" },
+      [DocumentType.DOCX]: { label: "DOCX", className: "bg-info text-white" },
+      [DocumentType.TXT]: { label: "TXT", className: "bg-gray-600 text-white" },
+      [DocumentType.XLSX]: { label: "XLSX", className: "bg-success text-white" },
+      [DocumentType.PPTX]: { label: "PPTX", className: "bg-warning text-white" },
+      [DocumentType.OTHER]: { label: "OTHER", className: "bg-purple-600 text-white" },
+    };
+    return typeInfo[fileType] || typeInfo[DocumentType.OTHER];
+};
+
+/**
+ * Gets styling and label information for a given document status.
+ * @param status - The status of the document.
+ * @returns An object with the label and className for the badge.
+ */
+export const getDocumentStatusInfo = (status: DocumentStatus): { label: string; className: string } => {
+  const statusColors: Record<DocumentStatus, string> = {
+      [DocumentStatus.READY]: "bg-success text-white",
+      [DocumentStatus.PROCESSING]: "bg-warning text-white",
+      [DocumentStatus.FAILED]: "bg-danger text-white",
+      [DocumentStatus.DELETED]: "bg-gray-500 text-white",
+  };
+  
+  return {
+    label: status.charAt(0).toUpperCase() + status.slice(1),
+    className: statusColors[status] || "bg-gray-500 text-white",
+  };
 }; 
