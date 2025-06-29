@@ -9,12 +9,9 @@ import {
   FileText,
   FileSpreadsheet,
   Presentation,
-  File,
+  File as FileIcon,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { formatFileSize } from "@/utils";
-import { DocumentType } from "@/types";
-import { documentQueries, documentService } from "@/services/document.services";
 
 interface FilePreviewProps {
   file: File;
@@ -36,30 +33,6 @@ interface FilePreviewProps {
   disabled?: boolean;
 }
 
-// Helper function to get file type icon
-const getFileTypeIcon = (file: File) => {
-  const extension = file.name.split(".").pop()?.toLowerCase();
-
-  switch (extension) {
-    case "pdf":
-      return <FileText className="w-8 h-8 text-purple-600" />;
-    case "docx":
-    case "doc":
-      return <FileText className="w-8 h-8 text-blue-500" />;
-    case "xlsx":
-    case "xls":
-      return <FileSpreadsheet className="w-8 h-8 text-green-500" />;
-    case "pptx":
-    case "ppt":
-      return <Presentation className="w-8 h-8 text-orange-500" />;
-    case "txt":
-    case "md":
-      return <FileText className="w-8 h-8 text-gray-500" />;
-    default:
-      return <File className="w-8 h-8 text-gray-400" />;
-  }
-};
-
 export const FilePreview: React.FC<FilePreviewProps> = ({
   file,
   onRemove,
@@ -78,108 +51,78 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   showMetadataForm = false,
   disabled = false,
 }) => {
-  const [pdfThumbnail, setPdfThumbnail] = React.useState<string | null>(null);
-  const [thumbnailLoading, setThumbnailLoading] = React.useState(false);
-  const [thumbnailError, setThumbnailError] = React.useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = React.useState<string | null>(null);
 
-  // Generate PDF thumbnail on mount
+  // Generate PDF blob URL for preview
   React.useEffect(() => {
-    if (file.type === 'application/pdf' && status !== 'error' && !pdfThumbnail && !thumbnailError) {
-      generatePDFThumbnail();
+    if (file.type === 'application/pdf' && status !== 'error') {
+      const url = URL.createObjectURL(file);
+      setPdfPreviewUrl(url);
+      
+      return () => {
+        URL.revokeObjectURL(url);
+        setPdfPreviewUrl(null);
+      };
     }
-
-    return () => {
-      // Cleanup thumbnail URL
-      if (pdfThumbnail && pdfThumbnail.startsWith('data:')) {
-        // Data URLs don't need cleanup
-      } else if (pdfThumbnail) {
-        URL.revokeObjectURL(pdfThumbnail);
-      }
-    };
   }, [file, status]);
 
-  const generatePDFThumbnail = async () => {
-    setThumbnailLoading(true);
-    try {
-      // Dynamically import PDF.js to avoid SSR issues
-      const pdfjsLib = await import('pdfjs-dist');
-      
-      // Set worker path
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-
-      // Read file as array buffer
-      const arrayBuffer = await file.arrayBuffer();
-      
-      // Load PDF document
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
-      // Get first page
-      const page = await pdf.getPage(1);
-      
-      // Set scale for thumbnail
-      const scale = 0.4;
-      const viewport = page.getViewport({ scale });
-      
-      // Create canvas
-      const canvas = window.document.createElement('canvas');
-      const context = canvas.getContext('2d')!;
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      
-      // Render page to canvas
-      await page.render({
-        canvasContext: context,
-        viewport: viewport,
-      }).promise;
-      
-      // Convert canvas to data URL
-      const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-      setPdfThumbnail(thumbnailDataUrl);
-    } catch (error) {
-      console.error('Failed to generate PDF thumbnail:', error);
-      setThumbnailError(true);
-    } finally {
-      setThumbnailLoading(false);
-    }
-  };
-
   const getStatusIcon = () => {
-    // Show PDF thumbnail for PDF files (when available and not in error state)
-    if (file.type === 'application/pdf' && pdfThumbnail && !thumbnailError && status !== 'error') {
+    // Show PDF mini preview for PDF files (when available and not in error state)
+    if (file.type === "application/pdf" && pdfPreviewUrl && status !== "error") {
       return (
-        <div className="w-16 h-16 bg-gray-100 rounded border overflow-hidden">
-          <img
-            src={pdfThumbnail}
-            alt="PDF thumbnail"
-            className="w-full h-full object-cover"
-            onError={() => setThumbnailError(true)}
+        <div className="w-16 h-20 bg-white rounded border overflow-hidden shadow-sm">
+          <iframe
+            src={pdfPreviewUrl}
+            className="w-full h-full border-0 pointer-events-none"
+            style={{
+              width: "200%",
+              height: "200%",
+              transform: "scale(0.5)",
+              transformOrigin: "top left",
+            }}
+            title="PDF Preview"
           />
         </div>
       );
-    } else if (file.type === 'application/pdf' && thumbnailLoading && status !== 'error') {
-      return (
-        <div className="w-16 h-16 bg-gray-100 rounded border overflow-hidden animate-pulse">
-          <div className="w-full h-full bg-red-100 flex items-center justify-center">
-            <FileText className="w-6 h-6 text-red-600" />
-          </div>
-        </div>
-      );
     }
+
+    const getIconByMimeType = () => {
+      const mimeType = file.type;
+      const className = "w-8 h-8";
+
+      switch (mimeType) {
+        case "application/pdf":
+          return <FileText className={`${className} text-danger`} />;
+        case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        case "application/msword":
+        case "text/plain":
+        case "text/markdown":
+          return <FileText className={`${className} text-info`} />;
+        case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        case "application/vnd.ms-excel":
+          return <FileSpreadsheet className={`${className} text-success`} />;
+        case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        case "application/vnd.ms-powerpoint":
+          return <Presentation className={`${className} text-warning`} />;
+        default:
+          return <FileIcon className={`${className} text-foreground-secondary`} />;
+      }
+    };
 
     // Default status icons
     switch (status) {
       case "uploading":
-        return <Clock className="w-8 h-8 text-blue-500" />;
+        return <Clock className="w-8 h-8 text-info" />;
       case "completed":
         // For non-PDF files, show checkmark. For PDF files, show file icon if thumbnail failed
-        if (file.type === 'application/pdf') {
-          return getFileTypeIcon(file);
+        if (file.type !== "application/pdf") {
+          return <CheckCircle2 className="w-8 h-8 text-success" />;
         }
-        return <CheckCircle2 className="w-8 h-8 text-green-500" />;
+        return getIconByMimeType();
       case "error":
-        return <XCircle className="w-8 h-8 text-red-500" />;
+        return <XCircle className="w-8 h-8 text-danger" />;
       default:
-        return getFileTypeIcon(file);
+        return getIconByMimeType();
     }
   };
 
@@ -188,13 +131,13 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
 
     switch (status) {
       case "uploading":
-        return `${baseClasses} border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30`;
+        return `${baseClasses} border-info bg-blue-50 dark:border-info dark:bg-blue-950/30`;
       case "completed":
-        return `${baseClasses} border-green-400 bg-green-50 dark:border-green-500 dark:bg-green-950/30`;
+        return `${baseClasses} border-success bg-green-50 dark:border-success dark:bg-green-950/30`;
       case "error":
-        return `${baseClasses} border-red-400 bg-red-50 dark:border-red-500 dark:bg-red-950/30`;
+        return `${baseClasses} border-danger bg-red-50 dark:border-danger dark:bg-red-950/30`;
       default:
-        return `${baseClasses} border-[var(--border)] bg-[var(--background)] hover:border-[var(--border-hover)]`;
+        return `${baseClasses} border-border bg-background hover:border-border-hover`;
     }
   };
 
@@ -204,10 +147,10 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
         <div className="flex items-center flex-1 min-w-0">
           <div className="mr-3">{getStatusIcon()}</div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-[var(--foreground)]">
+            <p className="text-sm font-medium truncate text-foreground">
               {file.name}
             </p>
-            <div className="flex items-center space-x-2 text-xs text-[var(--foreground-secondary)]">
+            <div className="flex items-center space-x-2 text-xs text-foreground-secondary">
               <span>{formatFileSize(file.size)}</span>
               {status === "uploading" && showProgress && (
                 <span>• {progress}%</span>
@@ -225,14 +168,14 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
               </div>
             )}
 
-            {error && <p className="text-xs mt-1 text-red-500 dark:text-red-400">{error}</p>}
+            {error && <p className="text-xs mt-1 text-danger">{error}</p>}
           </div>
         </div>
 
         {onRemove && status !== "uploading" && (
           <button
             onClick={onRemove}
-            className="ml-3 p-1 text-[var(--foreground-secondary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors duration-200"
+            className="ml-3 p-1 text-foreground-secondary hover:text-danger hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors duration-200"
             type="button"
           >
             <X className="w-4 h-4" />
@@ -242,18 +185,18 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
 
       {/* Individual Metadata Form */}
       {showMetadataForm && (
-        <div className="border-t border-[var(--border)] p-4 bg-[var(--background-secondary)] space-y-4">
+        <div className="border-t border-border p-4 bg-background-secondary space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium mb-2 text-[var(--foreground)]">
-                Title <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Title <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 value={title || ""}
                 onChange={(e) => onTitleChange?.(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--foreground-secondary)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 py-2.5 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-info focus:border-transparent transition-all duration-200"
                 placeholder="Document title"
                 disabled={disabled}
                 maxLength={255}
@@ -262,14 +205,14 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
 
             {/* Tags */}
             <div>
-              <label className="block text-sm font-medium mb-2 text-[var(--foreground)]">
+              <label className="block text-sm font-medium mb-2 text-foreground">
                 Tags
               </label>
               <input
                 type="text"
                 value={tags || ""}
                 onChange={(e) => onTagsChange?.(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--foreground-secondary)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 py-2.5 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-info focus:border-transparent transition-all duration-200"
                 placeholder="tag1, tag2, tag3"
                 disabled={disabled}
                 maxLength={500}
@@ -279,14 +222,14 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-2 text-[var(--foreground)]">
+            <label className="block text-sm font-medium mb-2 text-foreground">
               Description
             </label>
             <textarea
               value={description || ""}
               onChange={(e) => onDescriptionChange?.(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--foreground-secondary)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+              className="w-full px-3 py-2.5 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-info focus:border-transparent transition-all duration-200 resize-none"
               placeholder="Document description (optional)"
               disabled={disabled}
               maxLength={1000}
@@ -300,14 +243,14 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
                 type="checkbox"
                 checked={isPublic || false}
                 onChange={(e) => onIsPublicChange?.(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-[var(--border)] text-blue-600 focus:ring-blue-500 focus:ring-2 bg-[var(--background)]"
+                className="mt-0.5 h-4 w-4 rounded border-border text-info-dark focus:ring-info focus:ring-2 bg-background"
                 disabled={disabled}
               />
               <div>
-                <span className="text-sm font-medium text-[var(--foreground)]">
+                <span className="text-sm font-medium text-foreground">
                   Make this document public
                 </span>
-                <p className="text-xs text-[var(--foreground-secondary)] mt-1">
+                <p className="text-xs text-foreground-secondary mt-1">
                   Public documents can be viewed by anyone with the link
                 </p>
               </div>

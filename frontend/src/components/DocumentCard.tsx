@@ -241,12 +241,6 @@ const DocumentCard = memo(({
                       if (placeholder) placeholder.style.display = 'flex';
                     }}
                   />
-                  <div 
-                    className="w-full h-full bg-background-secondary rounded border border-border flex items-center justify-center absolute top-0 left-0"
-                    style={{ display: 'none' }}
-                  >
-                    <FileText className="w-8 h-8 text-foreground-secondary" />
-                  </div>
                 </div>
               ) : document.fileType === DocumentType.PDF ? (
                 // PDF placeholder when no thumbnail available - clickable for PDF viewer
@@ -256,7 +250,11 @@ const DocumentCard = memo(({
                   title={`Open ${document.title} in PDF viewer`}
                 >
                   <div className="w-full h-full bg-background-secondary rounded border border-border flex items-center justify-center">
-                    <FileText className="w-8 h-8 text-foreground-secondary" />
+                    <DocumentTypeIndicator
+                      fileType={document.fileType}
+                      size="lg"
+                      className="opacity-80"
+                    />
                   </div>
                 </div>
               ) : (

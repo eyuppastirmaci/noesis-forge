@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { FileText, File, FileSpreadsheet, Presentation } from "lucide-react";
 import { DocumentType } from "@/types";
+const { FileText, FileWord, FileSpreadsheet, FilePresentation, File } = require("lucide-react");
 
 interface DocumentTypeIndicatorProps {
   fileType: DocumentType;
@@ -15,7 +15,6 @@ const DocumentTypeIndicator: React.FC<DocumentTypeIndicatorProps> = ({
   size = "md",
   className = "",
 }) => {
-  // Icon configurations
   const getFileIcon = (fileType: DocumentType) => {
     const iconSizes = {
       sm: "w-7 h-7",
@@ -23,26 +22,34 @@ const DocumentTypeIndicator: React.FC<DocumentTypeIndicatorProps> = ({
       lg: "w-10 h-10",
     };
 
-    const iconClass = `${iconSizes[size]}`;
+    const colorMap = {
+      [DocumentType.PDF]: "text-red-600",
+      [DocumentType.DOCX]: "text-blue-500", 
+      [DocumentType.XLSX]: "text-green-500",
+      [DocumentType.PPTX]: "text-orange-500",
+      [DocumentType.TXT]: "text-gray-500",
+      [DocumentType.OTHER]: "text-gray-500",
+    };
 
-    switch (fileType) {
-      case DocumentType.PDF:
-        return <FileText className={iconClass} style={{ color: "#DC2626" }} />; // Red for PDF
-      case DocumentType.DOCX:
-        return <FileText className={iconClass} style={{ color: "#2563EB" }} />; // Blue for Word
-      case DocumentType.XLSX:
-        return (
-          <FileSpreadsheet className={iconClass} style={{ color: "#16A34A" }} />
-        ); // Green for Excel
-      case DocumentType.PPTX:
-        return (
-          <Presentation className={iconClass} style={{ color: "#EA580C" }} />
-        ); // Orange for PowerPoint
-      case DocumentType.TXT:
-        return <FileText className={iconClass} style={{ color: "#6B7280" }} />; // Gray for text
-      default:
-        return <File className={iconClass} style={{ color: "#6B7280" }} />; // Gray for other files
-    }
+    const IconComponent = (() => {
+      switch (fileType) {
+        case DocumentType.PDF:
+          return FileText;
+        case DocumentType.DOCX:
+          return FileWord;
+        case DocumentType.XLSX:
+          return FileSpreadsheet;
+        case DocumentType.PPTX:
+          return FilePresentation;
+        case DocumentType.TXT:
+          return FileText;
+        case DocumentType.OTHER:
+        default:
+          return File;
+      }
+    })();
+    
+    return <IconComponent className={`${iconSizes[size]} ${colorMap[fileType]}`} />;
   };
 
   // Badge configurations

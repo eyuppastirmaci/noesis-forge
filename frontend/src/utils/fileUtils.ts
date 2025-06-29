@@ -149,32 +149,6 @@ export const getFileTypeDescription = (mimeType: string): string => {
 };
 
 /**
- * Get file type icon based on extension or mime type
- * @param fileType - File type/extension to get icon for
- * @returns Emoji icon representing the file type
- */
-export const getFileTypeIcon = (fileType: string): string => {
-  switch (fileType.toLowerCase()) {
-    case "pdf":
-      return "📄";
-    case "docx":
-    case "doc":
-      return "📝";
-    case "txt":
-    case "md":
-      return "📋";
-    case "xlsx":
-    case "xls":
-      return "📊";
-    case "pptx":
-    case "ppt":
-      return "📽️";
-    default:
-      return "📎";
-  }
-};
-
-/**
  * Validate file size against a maximum limit
  * @param fileSize - Size of the file in bytes
  * @param maxSize - Maximum allowed size in bytes
@@ -360,61 +334,6 @@ export const validateFile = (file: File, maxSize?: number): FileValidationResult
   }
 
   return { isValid: true };
-};
-
-/**
- * Generates a thumbnail for PDF files using PDF.js
- */
-export const generatePDFThumbnail = async (file: File): Promise<string | null> => {
-  if (file.type !== 'application/pdf') {
-    return null;
-  }
-
-  try {
-    // Dynamically import PDF.js to avoid SSR issues
-    const pdfjsLib = await import('pdfjs-dist');
-    
-    // Set worker path (you'll need to add this to your public folder)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-
-    // Read file as array buffer
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Load PDF document
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    
-    // Get first page
-    const page = await pdf.getPage(1);
-    
-    // Set scale for thumbnail (smaller for performance)
-    const scale = 0.5;
-    const viewport = page.getViewport({ scale });
-    
-    // Create canvas
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d')!;
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    
-    // Render page to canvas
-    await page.render({
-      canvasContext: context,
-      viewport: viewport,
-    }).promise;
-    
-    // Convert canvas to data URL
-    return canvas.toDataURL('image/jpeg', 0.8);
-  } catch (error) {
-    console.error('Failed to generate PDF thumbnail:', error);
-    return null;
-  }
-};
-
-/**
- * Checks if a file is a PDF
- */
-export const isPDF = (file: File): boolean => {
-  return file.type === 'application/pdf';
 };
 
 /**

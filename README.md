@@ -2,7 +2,7 @@
 
 ## 🌟 Overview
 
-**NoesisForge** is a self-hosted, privacy-first document management platform designed for performance. Upload documents, extract insights, and discover information through intelligent search, semantic understanding, and similarity matching - all while keeping your data completely under your control.
+**NoesisForge** is a local RAG platform that transforms how you interact with documents. Search intelligently, match similar documents, auto-categorize your files, generate summaries, and chat with your content - all through a self-hosted solution that ensures complete privacy and control over your data.
 
 ## 📸 Screenshots
 
@@ -22,7 +22,7 @@
 
 **This is a learning-oriented project currently under active development. Not recommended for production use.**
 
-While the core document management features are functional, many advanced AI capabilities are still being implemented. The project serves as a practical exploration of modern web development, AI integration, and scalable architecture patterns. There's still a long road ahead, but contributions, feedback, and suggestions are welcome as we continue to build and improve the platform.
+Core document features work, but many AI capabilities are still being built. Contributions and feedback are welcome as we continue developing the platform.
 
 ## ✨ Key Features
 
@@ -356,46 +356,12 @@ While the core document management features are functional, many advanced AI cap
 
 #### For Docker Installation (Recommended)
 - **Docker** & Docker Compose
-- At least 4GB RAM available for containers
 
 #### For Manual Installation
 - **Go** 1.24.2 or higher
 - **Node.js** 18+ (for frontend)
 - **PostgreSQL** 13+
 - **ImageMagick** (for PDF thumbnail generation)
-
-##### Installing ImageMagick
-
-**Windows:**
-1. Download ImageMagick from: https://imagemagick.org/script/download.php#windows
-2. Choose the Q16-HDRI version for your architecture (x64 recommended)
-3. Run the installer and ensure "Install development headers and libraries for C and C++" is checked
-4. Add ImageMagick to your PATH during installation
-5. Verify installation: `magick --version`
-
-**macOS:**
-```bash
-# Using Homebrew
-brew install imagemagick
-
-# Using MacPorts
-sudo port install ImageMagick
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt-get update
-sudo apt-get install imagemagick imagemagick-dev libmagickwand-dev
-```
-
-**Linux (CentOS/RHEL/Fedora):**
-```bash
-# CentOS/RHEL
-sudo yum install ImageMagick ImageMagick-devel
-
-# Fedora
-sudo dnf install ImageMagick ImageMagick-devel
-```
 
 ### Quick Setup
 
@@ -409,23 +375,26 @@ git clone https://github.com/eyuppastirmaci/noesis-forge.git
 cd noesis-forge
 ```
 
-##### 2. Start all services with Docker Compose
+##### 2. Build and start all services with Docker Compose
 ```bash
-# Start all services (database, storage, backend, frontend)
-docker-compose up -d
+# Build the images first (recommended for first-time setup)
+docker compose build
 
-# Or start without detached mode to see logs
-docker-compose up
+# Start all services (database, storage, backend, frontend)
+docker compose up -d
+
+# Or build and start in one command
+docker compose up -d --build
 ```
 
 ##### 3. Wait for services to be ready
 ```bash
 # Check service status
-docker-compose ps
+docker compose ps
 
 # View logs if needed
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
 ##### 4. Access your application

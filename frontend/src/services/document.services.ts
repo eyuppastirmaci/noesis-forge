@@ -414,16 +414,6 @@ export class DocumentService {
   }
 
   /**
-   * Get file type icon
-   */
-  getFileTypeIcon(fileType: string): string {
-    const typeInfo = Object.values(SUPPORTED_FILE_TYPES).find(
-      (info) => info.type === fileType
-    );
-    return typeInfo?.icon || "📎";
-  }
-
-  /**
    * Get document type from file
    */
   getDocumentTypeFromFile(file: File): DocumentType {

@@ -199,34 +199,29 @@ export interface FileValidationResult {
 
 // Supported File Types
 export const SUPPORTED_FILE_TYPES = {
-  "application/pdf": { ext: ".pdf", type: DocumentType.PDF, icon: "📄" },
+  "application/pdf": { ext: ".pdf", type: DocumentType.PDF },
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
     ext: ".docx",
     type: DocumentType.DOCX,
-    icon: "📝",
   },
-  "application/msword": { ext: ".doc", type: DocumentType.DOCX, icon: "📝" },
-  "text/plain": { ext: ".txt", type: DocumentType.TXT, icon: "📋" },
-  "text/markdown": { ext: ".md", type: DocumentType.TXT, icon: "📋" },
+  "application/msword": { ext: ".doc", type: DocumentType.DOCX },
+  "text/plain": { ext: ".txt", type: DocumentType.TXT },
+  "text/markdown": { ext: ".md", type: DocumentType.TXT },
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
     ext: ".xlsx",
     type: DocumentType.XLSX,
-    icon: "📊",
   },
   "application/vnd.ms-excel": {
     ext: ".xls",
     type: DocumentType.XLSX,
-    icon: "📊",
   },
   "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
     ext: ".pptx",
     type: DocumentType.PPTX,
-    icon: "📽️",
   },
   "application/vnd.ms-powerpoint": {
     ext: ".ppt",
     type: DocumentType.PPTX,
-    icon: "📽️",
   },
 } as const;
 
