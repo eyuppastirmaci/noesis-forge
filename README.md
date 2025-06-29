@@ -104,15 +104,15 @@ Core document features work, but many AI capabilities are still being built. Con
 - ✅ Navigation state management
 
 **Dashboard**
-- ☐ Basic dashboard layout
-- ☐ Stats cards (mock data initially)
-- ☐ Recent documents widget
-- ☐ Quick actions section
+- ✅ Basic dashboard layout
+- ✅ Stats cards (mock data initially)
+- ✅ Recent documents widget
+- ✅ Quick actions section
 
 **Profile & Settings**
-- ☐ Profile update form
-- ☐ Avatar upload
-- ☐ Password change
+- ✅ Profile update form
+- ✅ Avatar upload
+- ✅ Password change
 - ✅ Theme preferences (light/dark)
 
 ### Phase 2: Document Management Core
