@@ -127,6 +127,8 @@ export const API_ENDPOINTS = {
     LOGOUT: "/auth/logout",
     PROFILE: "/auth/profile",
     CHANGE_PASSWORD: "/auth/change-password",
+    FULL_NAME: "/auth/profile/full-name",
+    FULL_NAME_BY_ID: (id: string) => `/auth/users/${id}/full-name`,
   },
 
   // Role endpoints

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import PDFViewerSkeleton from "@/components/ui/PDFViewerSkeleton";
-import { documentService } from "@/services/document.services";
+import { documentService } from "@/services/document.service";
 
 interface PDFViewerProps {
   documentId: string;

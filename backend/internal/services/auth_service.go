@@ -569,6 +569,15 @@ func (s *AuthService) UploadAvatar(ctx context.Context, userID uuid.UUID, file m
 	return objectName, url, nil
 }
 
+// GetFullNameByID retrieves only the user's full name by their ID. This is a lightweight query used primarily for metadata.
+func (s *AuthService) GetFullNameByID(ctx context.Context, userID uuid.UUID) (string, error) {
+	var user models.User
+	if err := s.db.Select("name").Where("id = ?", userID).First(&user).Error; err != nil {
+		return "", fmt.Errorf("user not found")
+	}
+	return user.Name, nil
+}
+
 // GetAvatarURL returns a presigned URL for the stored avatar path.
 func (s *AuthService) GetAvatarURL(ctx context.Context, avatarPath string) (string, error) {
 	if avatarPath == "" {

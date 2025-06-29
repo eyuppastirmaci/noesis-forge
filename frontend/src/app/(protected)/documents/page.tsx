@@ -41,7 +41,7 @@ import {
   documentQueries,
   documentMutations,
   documentService,
-} from "@/services/document.services";
+} from "@/services/document.service";
 
 import { Select, SelectOption } from "@/components/ui/Select";
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";

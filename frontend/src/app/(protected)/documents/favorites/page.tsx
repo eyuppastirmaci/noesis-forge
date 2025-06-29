@@ -16,7 +16,7 @@ import {
 import {
   documentMutations,
   documentService,
-} from "@/services/document.services";
+} from "@/services/document.service";
 
 import { DocumentCardSkeleton, TextSkeleton } from "@/components/ui/Skeleton";
 import DocumentCard from "@/components/DocumentCard";

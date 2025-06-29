@@ -1,4 +1,3 @@
-import { AxiosInstance } from "axios";
 import {
   User,
   PublicUser,
@@ -6,19 +5,20 @@ import {
   ChangePasswordRequest,
   UserProfileResponse,
 } from "@/types/user";
+import { apiClient } from "@/lib/api";
 
 export class UserService {
-  constructor(private api: AxiosInstance) {}
+  constructor() {}
 
   // Get the current user's profile
   async getProfile(): Promise<User> {
-    const response = await this.api.get<UserProfileResponse>("/user/profile");
+    const response = await apiClient.get<UserProfileResponse>("/user/profile");
     return response.data.user;
   }
 
   // Get the public profile of another user
   async getPublicProfile(userId: string): Promise<PublicUser> {
-    const response = await this.api.get<{ user: PublicUser }>(
+    const response = await apiClient.get<{ user: PublicUser }>(
       `/users/${userId}`
     );
     return response.data.user;
@@ -26,18 +26,20 @@ export class UserService {
 
   // Update the current user's profile
   async updateProfile(data: UpdateUserRequest): Promise<User> {
-    const response = await this.api.put<{ user: User }>("/user/profile", data);
+    const response = await apiClient.put<{ user: User }>("/user/profile", data);
     return response.data.user;
   }
 
   // Change the current user's password
   async changePassword(data: ChangePasswordRequest): Promise<void> {
-    await this.api.post("/user/change-password", data);
+    await apiClient.post("/user/change-password", data);
   }
 
   // List all users (admin only)
   async getAllUsers(): Promise<User[]> {
-    const response = await this.api.get<{ users: User[] }>("/admin/users");
+    const response = await apiClient.get<{ users: User[] }>("/admin/users");
     return response.data.users;
   }
 }
+
+export const userService = new UserService();

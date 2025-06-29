@@ -45,7 +45,7 @@ import {
   documentQueries, 
   documentMutations, 
   documentService 
-} from "@/services/document.services";
+} from "@/services/document.service";
 import { favoriteQueries, favoriteMutations } from "@/services/favorite.service";
 import { 
   DocumentType, 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { CheckCircle, UploadCloud } from "lucide-react";
+import { CheckCircle, UploadCloud, Eye, EyeOff } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -55,6 +55,11 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Toggle visibility states for password fields
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     update: updateSession,
@@ -355,27 +360,54 @@ export default function ProfilePage() {
             <h4 className="font-medium text-foreground">Change Password</h4>
             <Input
               label="Current Password"
-              type="password"
+              type={showCurrentPassword ? "text" : "password"}
               fullWidth
               autoComplete="new-password"
               spellCheck={false}
               name="current-password-field"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="text-muted-foreground hover:text-foreground flex items-center justify-center p-0 border-0 bg-transparent"
+                >
+                  {showCurrentPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                </button>
+              }
             />
             <Input 
               label="New Password" 
-              type="password" 
+              type={showNewPassword ? "text" : "password"}
               fullWidth 
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="text-muted-foreground hover:text-foreground flex items-center justify-center p-0 border-0 bg-transparent"
+                >
+                  {showNewPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                </button>
+              }
             />
             <Input 
               label="Confirm Password" 
-              type="password" 
+              type={showConfirmPassword ? "text" : "password"}
               fullWidth 
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-muted-foreground hover:text-foreground flex items-center justify-center p-0 border-0 bg-transparent"
+                >
+                  {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                </button>
+              }
             />
             <Button size="sm" onClick={handleChangePassword} loading={isChangingPassword} disabled={isChangingPassword}>
               Update Password

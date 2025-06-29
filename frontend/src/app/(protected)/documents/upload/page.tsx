@@ -15,7 +15,7 @@ import {
 import {
   documentMutations,
   documentService,
-} from "@/services/document.services";
+} from "@/services/document.service";
 import FileUploadZone from "@/components/FileUploadZone";
 import FilePreview from "@/components/FilePreview";
 

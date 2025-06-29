@@ -46,6 +46,8 @@ func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 		protected.Use(middleware.AuthMiddleware(authService))
 		{
 			protected.GET("/profile", authHandler.GetProfile)
+			protected.GET("/profile/full-name", authHandler.GetMyFullName)
+			protected.GET("/users/:id/full-name", authHandler.GetFullNameByID)
 			protected.POST("/profile/avatar", authHandler.UploadAvatar)
 			protected.DELETE("/profile/avatar", authHandler.DeleteAvatar)
 			protected.PUT("/profile",

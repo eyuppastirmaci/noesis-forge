@@ -9,6 +9,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -348,4 +349,39 @@ func (h *AuthHandler) DeleteAvatar(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"avatar": ""}, "Avatar removed successfully")
+}
+
+// GetFullNameByID returns only the full name of a user by their ID.
+func (h *AuthHandler) GetFullNameByID(c *gin.Context) {
+	idParam := c.Param("id")
+	userID, err := uuid.Parse(idParam)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid user ID")
+		return
+	}
+
+	name, err := h.authService.GetFullNameByID(c.Request.Context(), userID)
+	if err != nil {
+		utils.NotFoundResponse(c, "USER_NOT_FOUND", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, gin.H{"fullName": name}, "User full name retrieved successfully")
+}
+
+// GetMyFullName returns the full name of the currently authenticated user.
+func (h *AuthHandler) GetMyFullName(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	name, err := h.authService.GetFullNameByID(c.Request.Context(), userID)
+	if err != nil {
+		utils.NotFoundResponse(c, "USER_NOT_FOUND", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, gin.H{"fullName": name}, "User full name retrieved successfully")
 }

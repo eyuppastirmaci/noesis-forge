@@ -6,7 +6,7 @@ import Skeleton from "@/components/ui/Skeleton";
 import {
   documentQueries,
   documentMutations,
-} from "@/services/document.services";
+} from "@/services/document.service";
 import { favoriteQueries } from "@/services/favorite.service";
 import { formatDate, formatFileSize } from "@/utils";
 import Button from "@/components/ui/Button";

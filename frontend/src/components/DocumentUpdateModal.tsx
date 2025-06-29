@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { Document, UpdateDocumentRequest } from "@/types";
-import { documentService } from "@/services/document.services";
+import { documentService } from "@/services/document.service";
 import { toast } from "@/utils";
 
 interface DocumentUpdateModalProps {

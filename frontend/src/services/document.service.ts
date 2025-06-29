@@ -16,7 +16,6 @@ import {
   FileValidationResult,
 } from "@/types";
 import { formatFileSize, getCookieValue } from "@/utils";
-import { ENV } from "@/config/env";
 
 // Response type definitions for API calls
 export interface DocumentUploadResponseData {
@@ -221,31 +220,6 @@ export class DocumentService {
       return response;
     } catch (error) {
       console.error("[DOCUMENT_SERVICE] Failed to retrieve document title:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get document title by ID for server-side (with cookie)
-   */
-  async getDocumentTitleServerSide(id: string, accessToken: string): Promise<string> {
-    try {
-      const response = await fetch(`${ENV.API_URL}${DOCUMENT_ENDPOINTS.TITLE(id)}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store', // Don't cache server-side requests
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.data.title;
-    } catch (error) {
-      console.error("[DOCUMENT_SERVICE] Server-side title fetch failed:", error);
       throw error;
     }
   }

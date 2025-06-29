@@ -30,12 +30,10 @@ class ApiClient {
     // Request interceptor - add Authorization header from cookies
     this.client.interceptors.request.use(
       async (config) => {
-        // Get access token from cookies
-            const accessToken = getCookieValue('access_token');
-    
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
+        const token = getCookieValue('access_token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
       },
       (error) => {
