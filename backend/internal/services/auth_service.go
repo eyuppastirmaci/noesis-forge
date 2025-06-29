@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
@@ -18,19 +21,30 @@ import (
 	"gorm.io/gorm"
 )
 
-type AuthService struct {
-	db     *gorm.DB
-	config *config.Config
-	redis  *redis.Client
-	logger *logrus.Entry
+// Uploader defines the interface for file storage operations.
+// This decouples AuthService from a specific implementation like Minio.
+type Uploader interface {
+	UploadFile(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, contentType string) error
+	GetFileUrl(bucketName, objectName string) string
+	DeleteFile(ctx context.Context, objectName string) error
+	GeneratePresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
 }
 
-func NewAuthService(db *gorm.DB, cfg *config.Config, redisClient *redis.Client) *AuthService {
+type AuthService struct {
+	db       *gorm.DB
+	config   *config.Config
+	redis    *redis.Client
+	uploader Uploader
+	logger   *logrus.Entry
+}
+
+func NewAuthService(db *gorm.DB, cfg *config.Config, redisClient *redis.Client, uploader Uploader) *AuthService {
 	return &AuthService{
-		db:     db,
-		config: cfg,
-		redis:  redisClient,
-		logger: logrus.WithField("service", "auth"),
+		db:       db,
+		config:   cfg,
+		redis:    redisClient,
+		uploader: uploader,
+		logger:   logrus.WithField("service", "auth"),
 	}
 }
 
@@ -60,10 +74,13 @@ type ChangePasswordRequest struct {
 }
 
 type UpdateProfileRequest struct {
-	Name     *string `json:"name,omitempty"`
-	Username *string `json:"username,omitempty"`
-	Bio      *string `json:"bio,omitempty"`
-	Avatar   *string `json:"avatar,omitempty"`
+	Name           *string `json:"name,omitempty"`
+	Username       *string `json:"username,omitempty"`
+	Bio            *string `json:"bio,omitempty"`
+	Avatar         *string `json:"avatar,omitempty"`
+	AlternateEmail *string `json:"alternateEmail,omitempty"`
+	Phone          *string `json:"phone,omitempty"`
+	Department     *string `json:"department,omitempty"`
 }
 
 // Auth methods
@@ -261,6 +278,15 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, req *
 	}
 	if req.Avatar != nil {
 		updates["avatar"] = *req.Avatar
+	}
+	if req.AlternateEmail != nil {
+		updates["alternate_email"] = *req.AlternateEmail
+	}
+	if req.Phone != nil {
+		updates["phone"] = *req.Phone
+	}
+	if req.Department != nil {
+		updates["department"] = *req.Department
 	}
 
 	if len(updates) > 0 {
@@ -492,4 +518,46 @@ func (s *AuthService) IsRefreshTokenValid(ctx context.Context, refreshToken stri
 	}
 
 	return true, nil
+}
+
+func (s *AuthService) UploadAvatar(ctx context.Context, userID uuid.UUID, file multipart.File, header *multipart.FileHeader) (string, string, error) {
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return "", "", fmt.Errorf("user not found")
+	}
+
+	// Sanitize filename and create a unique object name
+	extension := filepath.Ext(header.Filename)
+	objectName := fmt.Sprintf("avatars/%s%s", userID.String(), extension)
+
+	// Upload to MinIO via the uploader interface
+	bucketName := s.config.MinIO.BucketName
+	err := s.uploader.UploadFile(ctx, bucketName, objectName, file, header.Size, header.Header.Get("Content-Type"))
+	if err != nil {
+		return "", "", fmt.Errorf("failed to upload avatar: %w", err)
+	}
+
+	// Update user's avatar field with the object name, not the full URL
+	if err := s.db.Model(&user).Update("avatar", objectName).Error; err != nil {
+		// Attempt to delete the uploaded file if DB update fails
+		_ = s.uploader.DeleteFile(ctx, objectName)
+		return "", "", fmt.Errorf("failed to update user avatar in database: %w", err)
+	}
+
+	// Generate presigned URL (7 days)
+	url, err := s.uploader.GeneratePresignedURL(ctx, objectName, 7*24*time.Hour)
+	if err != nil {
+		s.logger.Warnf("Failed to generate presigned URL for avatar: %v", err)
+	}
+
+	s.logger.Infof("User %s uploaded new avatar: %s", userID, objectName)
+	return objectName, url, nil
+}
+
+// GetAvatarURL returns a presigned URL for the stored avatar path.
+func (s *AuthService) GetAvatarURL(ctx context.Context, avatarPath string) (string, error) {
+	if avatarPath == "" {
+		return "", nil
+	}
+	return s.uploader.GeneratePresignedURL(ctx, avatarPath, 7*24*time.Hour)
 }

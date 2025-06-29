@@ -24,6 +24,9 @@ type User struct {
 	Password        string         `json:"-" gorm:"not null"`
 	Avatar          string         `json:"avatar,omitempty"`
 	Bio             string         `json:"bio,omitempty"`
+	AlternateEmail  string         `json:"alternateEmail,omitempty"`
+	Phone           string         `json:"phone,omitempty"`
+	Department      string         `json:"department,omitempty"`
 	Status          UserStatus     `json:"status" gorm:"default:'pending'"`
 	EmailVerified   bool           `json:"emailVerified" gorm:"default:false"`
 	EmailVerifiedAt *time.Time     `json:"emailVerifiedAt,omitempty"`

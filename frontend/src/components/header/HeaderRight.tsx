@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import IconLinkButton from "../ui/IconLinkButton";
 import IconDropdownButton from "../ui/IconDropdownButton";
 import CustomTooltip from "../ui/CustomTooltip";
@@ -313,17 +314,27 @@ export default function HeaderRight() {
             className="flex items-center cursor-pointer p-1 rounded-lg hover:bg-background-secondary transition-colors"
             onClick={toggleDropdown}
           >
-            <div className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
+            <div className="relative w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
               backgroundColor: 'var(--avatar-background)',
               borderWidth: '1px',
               borderStyle: 'solid',
               borderColor: 'var(--avatar-border)'
             }}>
-              <span className="text-xs font-medium select-none" style={{
-                color: 'var(--avatar-text)'
-              }}>
-                {avatarLetter}
-              </span>
+              {session?.user.avatar ? (
+                <Image
+                  src={session.user.avatar}
+                  alt={session.user.name || "User avatar"}
+                  fill
+                  sizes="32px"
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-medium select-none" style={{
+                  color: 'var(--avatar-text)'
+                }}>
+                  {avatarLetter}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -387,7 +398,7 @@ export default function HeaderRight() {
             className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-background-secondary transition-colors"
             onClick={toggleDropdown}
           >
-            <div className="group w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
+            <div className="relative group w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
               backgroundColor: 'var(--avatar-background)',
               borderWidth: '1px',
               borderStyle: 'solid',
@@ -397,11 +408,21 @@ export default function HeaderRight() {
             }} onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = 'var(--avatar-border)';
             }}>
-              <span className="text-sm font-medium select-none" style={{
-                color: 'var(--avatar-text)'
-              }}>
-                {avatarLetter}
-              </span>
+              {session?.user.avatar ? (
+                <Image
+                  src={session.user.avatar}
+                  alt={session.user.name || "User avatar"}
+                  fill
+                  sizes="36px"
+                  className="rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-medium select-none" style={{
+                  color: 'var(--avatar-text)'
+                }}>
+                  {avatarLetter}
+                </span>
+              )}
             </div>
             <span className="text-sm font-medium text-foreground select-none">
               {session?.user?.name || session?.user?.username || "User"}

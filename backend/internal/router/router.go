@@ -50,16 +50,16 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 		}
 	}
 
-	// Initialize services
-	authService := services.NewAuthService(db, cfg, redisClient)
-	roleService := services.NewRoleService(db)
-
-	// Initialize MinIO service
+	// Initialize MinIO service first as AuthService depends on it
 	minioService, err := services.NewMinIOService(&cfg.MinIO)
 	if err != nil {
 		// Handle MinIO initialization error
 		panic("Failed to initialize MinIO service: " + err.Error())
 	}
+
+	// Initialize services
+	authService := services.NewAuthService(db, cfg, redisClient, minioService)
+	roleService := services.NewRoleService(db)
 
 	// Initialize Document service
 	documentService := services.NewDocumentService(db, minioService)

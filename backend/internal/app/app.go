@@ -73,15 +73,15 @@ func New() (*App, error) {
 		}
 	}
 
-	// Initialize services
-	authService := services.NewAuthService(db, cfg, redisClient)
-
 	// Initialize MinIO service
 	minioService, err := services.NewMinIOService(&cfg.MinIO)
 	if err != nil {
 		logrus.Errorf("Failed to initialize MinIO service: %v", err)
 		return nil, err
 	}
+
+	// Initialize services
+	authService := services.NewAuthService(db, cfg, redisClient, minioService)
 
 	// Initialize Document service
 	documentService := services.NewDocumentService(db, minioService)

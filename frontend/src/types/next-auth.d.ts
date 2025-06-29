@@ -10,6 +10,7 @@ declare module "next-auth" {
       name: string
       username: string
       roleID: string
+      avatar?: string
     }
   }
 
@@ -21,6 +22,7 @@ declare module "next-auth" {
     roleID: string
     accessToken: string
     refreshToken: string
+    avatar?: string
   }
 }
 
@@ -33,5 +35,6 @@ declare module "next-auth/jwt" {
     roleID?: string
     accessToken?: string
     refreshToken?: string
+    avatar?: string
   }
 }

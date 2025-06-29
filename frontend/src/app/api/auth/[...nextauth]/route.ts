@@ -11,7 +11,8 @@ const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
         name: { label: "Name", type: "text" },
         username: { label: "Username", type: "text" },
-        email: { label: "Email", type: "email" }
+        email: { label: "Email", type: "email" },
+        avatar: { label: "Avatar", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.identifier || !credentials?.password) {
@@ -30,6 +31,7 @@ const authOptions: NextAuthOptions = {
             roleID: "user",
             accessToken: "cookie-based", // Placeholder - actual auth via cookies
             refreshToken: "cookie-based", // Placeholder - actual auth via cookies
+            avatar: credentials.avatar, // Pass avatar if it exists
           }
         } catch (error) {
           console.error("Auth error:", error)
@@ -39,7 +41,7 @@ const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
         token.email = user.email
@@ -48,7 +50,21 @@ const authOptions: NextAuthOptions = {
         token.roleID = user.roleID
         token.accessToken = user.accessToken
         token.refreshToken = user.refreshToken
+        token.avatar = user.avatar
       }
+
+      if (trigger === "update" && session) {
+        if (session.name !== undefined) {
+          token.name = session.name
+        }
+        if (session.username !== undefined) {
+          token.username = session.username
+        }
+        if (session.avatar !== undefined) {
+          token.avatar = session.avatar
+        }
+      }
+
       return token
     },
     async session({ session, token }) {
@@ -58,6 +74,7 @@ const authOptions: NextAuthOptions = {
         session.user.name = token.name as string
         session.user.username = token.username as string
         session.user.roleID = token.roleID as string
+        session.user.avatar = token.avatar as string
         session.accessToken = token.accessToken as string
         session.refreshToken = token.refreshToken as string
       }

@@ -96,9 +96,25 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 		return nil, err
 	}
 
-	// Upload to MinIO
-	uploadResult, err := s.minioService.UploadFile(ctx, userID, file)
+	// Open the uploaded file.
+	src, err := file.Open()
 	if err != nil {
+		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
+	}
+	defer src.Close()
+
+	// Generate unique object name and UUID filename.
+	fileUUID := uuid.New()
+	ext := filepath.Ext(file.Filename)
+	uuidFileName := fileUUID.String() + ext
+	objectName := fmt.Sprintf("users/%s/documents/%s", userID.String(), uuidFileName)
+
+	// Get file content type.
+	contentType := file.Header.Get("Content-Type")
+
+	// Upload to MinIO
+	bucketName := s.minioService.config.BucketName
+	if err := s.minioService.UploadFile(ctx, bucketName, objectName, src, file.Size, contentType); err != nil {
 		return nil, fmt.Errorf("failed to upload file to storage: %w", err)
 	}
 
@@ -109,14 +125,14 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 	document := &models.Document{
 		Title:            req.Title,
 		Description:      req.Description,
-		FileName:         uploadResult.FileName, // UUID-based filename
-		OriginalFileName: file.Filename,         // Original filename from user
+		FileName:         uuidFileName,  // UUID-based filename
+		OriginalFileName: file.Filename, // Original filename from user
 		FileSize:         file.Size,
 		FileType:         fileType,
-		MimeType:         file.Header.Get("Content-Type"),
+		MimeType:         contentType,
 		Status:           models.DocumentStatusProcessing,
-		StoragePath:      uploadResult.ObjectName,
-		StorageBucket:    s.minioService.config.BucketName,
+		StoragePath:      objectName,
+		StorageBucket:    bucketName,
 		Tags:             req.Tags,
 		IsPublic:         req.IsPublic,
 		UserID:           userID,
@@ -125,7 +141,7 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 
 	// Generate thumbnail for PDF files
 	if fileType == models.DocumentTypePDF {
-		thumbnailPath, err := s.generatePDFThumbnail(ctx, file, uploadResult.ObjectName)
+		thumbnailPath, err := s.generatePDFThumbnail(ctx, file, objectName)
 		if err != nil {
 			logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
 			// Continue without thumbnail - don't fail the upload
@@ -138,7 +154,7 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 
 	if err := s.db.Create(document).Error; err != nil {
 		// If database save fails, clean up uploaded file
-		if cleanupErr := s.minioService.DeleteFile(ctx, uploadResult.ObjectName); cleanupErr != nil {
+		if cleanupErr := s.minioService.DeleteFile(ctx, objectName); cleanupErr != nil {
 			logrus.Errorf("Failed to cleanup uploaded file after database error: %v", cleanupErr)
 		}
 		return nil, fmt.Errorf("failed to save document record: %w", err)
@@ -192,21 +208,38 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 			return nil, err
 		}
 
-		// Upload new file to MinIO
-		uploadResult, err := s.minioService.UploadFile(ctx, userID, file)
+		// Open the uploaded file.
+		src, err := file.Open()
 		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to open new file: %w", err)
+		}
+		defer src.Close()
+
+		// Generate unique object name and UUID filename.
+		fileUUID := uuid.New()
+		ext := filepath.Ext(file.Filename)
+		uuidFileName := fileUUID.String() + ext
+		objectName := fmt.Sprintf("users/%s/documents/%s", userID.String(), uuidFileName)
+
+		// Get file content type.
+		contentType := file.Header.Get("Content-Type")
+
+		// Upload new file to MinIO
+		bucketName := s.minioService.config.BucketName
+		if err := s.minioService.UploadFile(ctx, bucketName, objectName, src, file.Size, contentType); err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to upload new file to storage: %w", err)
 		}
 
-		newStoragePath = uploadResult.ObjectName
+		newStoragePath = objectName
 
 		// Determine file type
 		fileType := s.getDocumentType(file.Filename)
 
 		// Generate new thumbnail for PDF files
 		if fileType == models.DocumentTypePDF {
-			thumbnailPath, err := s.generatePDFThumbnail(ctx, file, uploadResult.ObjectName)
+			thumbnailPath, err := s.generatePDFThumbnail(ctx, file, objectName)
 			if err != nil {
 				logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
 				existingDocument.HasThumbnail = false
@@ -223,13 +256,13 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		}
 
 		// Update file-related fields
-		existingDocument.FileName = uploadResult.FileName
+		existingDocument.FileName = uuidFileName
 		existingDocument.OriginalFileName = file.Filename
 		existingDocument.FileSize = file.Size
 		existingDocument.FileType = fileType
-		existingDocument.MimeType = file.Header.Get("Content-Type")
+		existingDocument.MimeType = contentType
 		existingDocument.StoragePath = newStoragePath
-		existingDocument.StorageBucket = s.minioService.config.BucketName
+		existingDocument.StorageBucket = bucketName
 		existingDocument.Status = models.DocumentStatusProcessing
 
 		// Increment version number

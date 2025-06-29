@@ -95,6 +95,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"email":         user.Email,
 			"username":      user.Username,
 			"name":          user.Name,
+			"avatar":        user.Avatar,
 			"emailVerified": user.EmailVerified,
 			"status":        user.Status,
 			"role": gin.H{
@@ -172,8 +173,35 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
+	// Generate avatar URL if avatar path exists
+	avatarURL, _ := h.authService.GetAvatarURL(c.Request.Context(), user.Avatar)
+
+	// Attach avatarUrl to response without modifying original user struct
+	userMap := gin.H{
+		"id":             user.ID,
+		"email":          user.Email,
+		"username":       user.Username,
+		"name":           user.Name,
+		"avatar":         user.Avatar,
+		"avatarUrl":      avatarURL,
+		"bio":            user.Bio,
+		"alternateEmail": user.AlternateEmail,
+		"phone":          user.Phone,
+		"department":     user.Department,
+		"status":         user.Status,
+		"emailVerified":  user.EmailVerified,
+		"role": gin.H{
+			"id":          user.Role.ID,
+			"name":        user.Role.Name,
+			"displayName": user.Role.DisplayName,
+			"permissions": user.Role.Permissions,
+		},
+		"createdAt": user.CreatedAt,
+		"updatedAt": user.UpdatedAt,
+	}
+
 	data := gin.H{
-		"user": user,
+		"user": userMap,
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Profile retrieved successfully")
 }
@@ -214,6 +242,33 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		"user": user,
 	}
 	utils.SuccessResponse(c, http.StatusOK, data, "Profile updated successfully")
+}
+
+func (h *AuthHandler) UploadAvatar(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	file, header, err := c.Request.FormFile("avatar")
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_FILE", "Could not get avatar file from request")
+		return
+	}
+	defer file.Close()
+
+	avatarPath, avatarURL, err := h.authService.UploadAvatar(c.Request.Context(), userID, file, header)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "UPLOAD_FAILED", err.Error())
+		return
+	}
+
+	data := gin.H{
+		"avatar":    avatarPath,
+		"avatarUrl": avatarURL,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Avatar updated successfully")
 }
 
 func (h *AuthHandler) ChangePassword(c *gin.Context) {

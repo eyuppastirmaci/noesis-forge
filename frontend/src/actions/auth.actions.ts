@@ -51,6 +51,7 @@ export interface LoginState {
     name: string
     username: string
     email: string
+    avatar?: string
   }
   tokens?: {
     accessToken: string
@@ -85,6 +86,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
         name: response.data.user.name,
         username: response.data.user.username,
         email: response.data.user.email,
+        avatar: response.data.user.avatar,
       },
       tokens: response.data.tokens, // Include tokens for client-side cookie setting
       redirectTo: '/dashboard'

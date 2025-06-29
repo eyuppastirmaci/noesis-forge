@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"path/filepath"
 	"strings"
 	"time"
@@ -108,53 +107,21 @@ func (s *MinIOService) ensureBucket(ctx context.Context) error {
 	return nil
 }
 
-func (s *MinIOService) UploadFile(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader) (*UploadResult, error) {
-	// Open the uploaded file.
-	src, err := file.Open()
-	if err != nil {
-		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
-	}
-	defer src.Close()
-
-	// Generate unique object name and UUID fileanme.
-	objectName, uuidFileName := s.generateObjectName(userID, file.Filename)
-
-	// Get file content type.
-	contentType := file.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = s.getContentType(file.Filename)
-	}
-
-	// Upload to MinIO.
-	uploadInfo, err := s.client.PutObject(ctx, s.config.BucketName, objectName, src, file.Size, minio.PutObjectOptions{
+func (s *MinIOService) UploadFile(ctx context.Context, bucketName, objectName string, reader io.Reader, size int64, contentType string) error {
+	_, err := s.client.PutObject(ctx, bucketName, objectName, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
-		UserMetadata: map[string]string{
-			"user-id":       userID.String(),
-			"original-name": file.Filename,
-			"uploaded-at":   time.Now().UTC().Format(time.RFC3339),
-		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload file to MinIO: %w", err)
+		return fmt.Errorf("failed to upload file to MinIO: %w", err)
 	}
+	logrus.Infof("Uploaded file %s to bucket %s", objectName, bucketName)
+	return nil
+}
 
-	logrus.Infof("Uploaded file %s to MinIO, size: %d bytes", objectName, uploadInfo.Size)
-
-	// Generate presigned URL for temporary access.
-	var presignedURL string
-	url, err := s.client.PresignedGetObject(ctx, s.config.BucketName, objectName, 7*24*time.Hour, nil)
-	if err != nil {
-		logrus.Warnf("Failed to generate presigned URL for %s: %v", objectName, err)
-	} else {
-		presignedURL = url.String()
-	}
-
-	return &UploadResult{
-		ObjectName: objectName,
-		FileName:   uuidFileName,
-		Size:       uploadInfo.Size,
-		URL:        presignedURL,
-	}, nil
+func (s *MinIOService) GetFileUrl(bucketName, objectName string) string {
+	// Note: This constructs a URL. For private buckets, you'd generate a presigned URL.
+	// This assumes the bucket is configured for public read access for these URLs to work.
+	return fmt.Sprintf("%s/%s/%s", s.client.EndpointURL(), bucketName, objectName)
 }
 
 func (s *MinIOService) DownloadFile(ctx context.Context, objectName string) (io.ReadCloser, error) {

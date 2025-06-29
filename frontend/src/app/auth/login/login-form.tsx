@@ -42,6 +42,7 @@ export function LoginForm() {
         name: state.user.name,
         username: state.user.username,
         email: state.user.email,
+        avatar: state.user.avatar,
         redirect: false,
       }).then((result) => {
         const userName = state.user?.name || state.user?.username || "User";
