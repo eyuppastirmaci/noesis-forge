@@ -330,6 +330,21 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, req 
 	return nil
 }
 
+func (s *AuthService) DeleteAvatar(ctx context.Context, userID uuid.UUID) error {
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return fmt.Errorf("user not found")
+	}
+
+	// Remove file if exists
+	if user.Avatar != "" {
+		_ = s.uploader.DeleteFile(ctx, user.Avatar)
+	}
+
+	// Clear DB field
+	return s.db.Model(&user).Update("avatar", "").Error
+}
+
 func (s *AuthService) ValidateToken(tokenString string) (*models.TokenClaims, error) {
 	// Check if token is blacklisted
 	if s.redis != nil {

@@ -222,7 +222,7 @@ export function Select({
             text-foreground text-sm cursor-pointer
             transition-all duration-150
             ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-background hover:border-border-hover"}
-            ${isOpen ? "outline outline-2 outline-foreground outline-offset-2" : ""}
+            ${isOpen ? "ring-2 ring-blue ring-offset-2 ring-offset-background" : ""}
           `}
         >
           <div className="flex items-center gap-2">

@@ -89,6 +89,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Generate avatar URL
+	avatarURL, _ := h.authService.GetAvatarURL(c.Request.Context(), user.Avatar)
+
 	data := gin.H{
 		"user": gin.H{
 			"id":            user.ID,
@@ -96,6 +99,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"username":      user.Username,
 			"name":          user.Name,
 			"avatar":        user.Avatar,
+			"avatarUrl":     avatarURL,
 			"emailVerified": user.EmailVerified,
 			"status":        user.Status,
 			"role": gin.H{
@@ -329,4 +333,19 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"valid": true}, "Token is valid")
+}
+
+func (h *AuthHandler) DeleteAvatar(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	if err := h.authService.DeleteAvatar(c.Request.Context(), userID); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "DELETE_FAILED", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, gin.H{"avatar": ""}, "Avatar removed successfully")
 }

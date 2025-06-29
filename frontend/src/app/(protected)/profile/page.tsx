@@ -11,6 +11,7 @@ import SwitchButton from "@/components/ui/SwitchButton";
 import { toast } from "@/utils/toastUtils";
 import { useSession } from "next-auth/react";
 import { ENV } from "@/config/env";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   title,
@@ -46,6 +47,8 @@ export default function ProfilePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const {
     update: updateSession,
@@ -214,6 +217,15 @@ export default function ProfilePage() {
                 )}
               </div>
             </label>
+            {avatar && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowRemoveModal(true)}
+              >
+                Remove Avatar
+              </Button>
+            )}
           </div>
 
           {/* Editable fields */}
@@ -430,6 +442,36 @@ export default function ProfilePage() {
           />
         </div>
       </Section>
+
+      {/* Remove avatar confirmation */}
+      <ConfirmationModal
+        isOpen={showRemoveModal}
+        onClose={() => showRemoveModal && !isRemoving && setShowRemoveModal(false)}
+        onConfirm={async () => {
+          setIsRemoving(true);
+          try {
+            const res = await fetch(`${ENV.API_URL}/auth/profile/avatar`, {
+              method: "DELETE",
+              credentials: "include",
+            });
+            if (!res.ok) throw new Error("Failed to delete avatar");
+            setAvatar(null);
+            await updateSession({ avatar: null });
+            toast.success("Avatar removed");
+            setShowRemoveModal(false);
+          } catch (err) {
+            console.error(err);
+            toast.error("Failed to remove avatar");
+          } finally {
+            setIsRemoving(false);
+          }
+        }}
+        title="Remove Avatar"
+        description="Are you sure you want to remove your avatar? This action cannot be undone."
+        confirmText="Remove"
+        confirmVariant="error"
+        isLoading={isRemoving}
+      />
     </div>
   );
 }

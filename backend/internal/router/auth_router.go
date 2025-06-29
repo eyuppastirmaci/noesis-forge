@@ -47,6 +47,7 @@ func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 		{
 			protected.GET("/profile", authHandler.GetProfile)
 			protected.POST("/profile/avatar", authHandler.UploadAvatar)
+			protected.DELETE("/profile/avatar", authHandler.DeleteAvatar)
 			protected.PUT("/profile",
 				middleware.RateLimit(30),
 				validations.ValidateUpdateProfile(),

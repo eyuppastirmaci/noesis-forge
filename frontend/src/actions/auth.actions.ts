@@ -86,7 +86,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
         name: response.data.user.name,
         username: response.data.user.username,
         email: response.data.user.email,
-        avatar: response.data.user.avatar,
+        avatar: (response.data.user as any)?.avatarUrl ?? (response.data.user as any)?.avatar ?? "",
       },
       tokens: response.data.tokens, // Include tokens for client-side cookie setting
       redirectTo: '/dashboard'
