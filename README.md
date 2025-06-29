@@ -348,7 +348,7 @@ Core document features work, but many AI capabilities are still being built. Con
 
 ## 🏗️ Architecture
 
-![noesis-forge-architecture](https://github.com/user-attachments/assets/095af638-e9dd-4012-b65f-a0ea592f0ba2)
+![noesis-forge-architecture](https://github.com/user-attachments/assets/b401c60f-32aa-4f03-9c6c-5bc3b131b6ed)
 
 ## 🚀 Getting Started
 
