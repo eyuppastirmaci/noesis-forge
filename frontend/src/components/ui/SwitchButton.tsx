@@ -2,6 +2,7 @@
 
 import React from "react";
 import Switch from "react-switch";
+import { cn } from "@/lib/cn";
 
 interface SwitchButtonProps {
   checked: boolean;
@@ -10,6 +11,7 @@ interface SwitchButtonProps {
   disabled?: boolean;
   onColor?: string;
   offColor?: string;
+  className?: string;
 }
 
 const SwitchButton: React.FC<SwitchButtonProps> = ({
@@ -18,10 +20,11 @@ const SwitchButton: React.FC<SwitchButtonProps> = ({
   title,
   disabled = false,
   onColor = "#3b82f6",
-  offColor = "#6b7280", 
+  offColor = "#6b7280",
+  className,
 }) => {
   return (
-    <div className="flex items-center gap-3">
+    <div className={cn("flex items-center gap-3", className)}>
       {title && (
         <span className="text-sm text-foreground-secondary select-none">
           {title}

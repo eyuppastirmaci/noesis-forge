@@ -103,9 +103,20 @@ services:
       echo 'MinIO bucket setup complete';
       "
 
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
 volumes:
   postgres_data:
   minio_data:
+  redis_data:
 
 networks:
   noesis-network:

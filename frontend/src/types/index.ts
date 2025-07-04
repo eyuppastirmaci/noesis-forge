@@ -81,6 +81,10 @@ export {
   FILE_SIZE_LIMITS,
 } from "./document";
 
+// Share types
+export type { CreateShareRequest, CreateShareResponse, ShareItem, GetSharesResponse } from "./share";
+export { SHARE_ENDPOINTS } from "./share";
+
 // API types
 export type {
   ApiResponse,
@@ -223,7 +227,7 @@ export const MUTATION_KEYS = {
     ASSIGN: "roles.assign",
   },
 
-  // Document mutations (imported from document types)
+  // Document mutations
   DOCUMENTS: {
     UPLOAD: "documents.upload",
     DELETE: "documents.delete",

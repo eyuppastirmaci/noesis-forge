@@ -137,13 +137,13 @@ Core document features work, but many AI capabilities are still being built. Con
 - ✅ PDF viewer integration
 - ✅ Document metadata display
 - ✅ Download functionality
-- ☐ Basic sharing (generate link)
+- ✅ Basic sharing (generate link)
 
 **Document Detail & Management**
 - ✅ Document detail page with full metadata
 - ✅ Document favoriting system
 - ✅ Favorites page (My Favorite Documents)
-- ☐ Shared documents page (Documents Shared with Me)
+- ✅ Shared documents page (Documents Shared with Me)
 - ☐ Document comments and annotations
 - ☐ Document activity history
 

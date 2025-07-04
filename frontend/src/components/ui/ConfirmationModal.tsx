@@ -3,42 +3,80 @@
 import React from "react";
 import Modal from "./Modal";
 import Button from "./Button";
+import { AlertTriangle } from "lucide-react";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  description: string;
+  message: string;
   confirmText?: string;
   cancelText?: string;
-  confirmVariant?: "primary" | "secondary" | "ghost" | "error";
+  variant?: "danger" | "warning" | "info";
   isLoading?: boolean;
 }
 
-const ConfirmationModal = ({
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
   title,
-  description,
+  message,
   confirmText = "Confirm",
   cancelText = "Cancel",
-  confirmVariant = "error",
+  variant = "danger",
   isLoading = false,
-}: ConfirmationModalProps) => {
+}) => {
   const handleConfirm = () => {
     onConfirm();
+    onClose();
   };
 
+  const getVariantStyles = () => {
+    switch (variant) {
+      case "danger":
+        return {
+          icon: "text-red-500",
+          confirmButton: "error" as const,
+        };
+      case "warning":
+        return {
+          icon: "text-yellow-500",
+          confirmButton: "primary" as const,
+        };
+      case "info":
+        return {
+          icon: "text-blue-500",
+          confirmButton: "primary" as const,
+        };
+      default:
+        return {
+          icon: "text-red-500",
+          confirmButton: "error" as const,
+        };
+    }
+  };
+
+  const styles = getVariantStyles();
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <Modal.Header>
-        {title}
-      </Modal.Header>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="sm"
+      closeOnOverlayClick={!isLoading}
+      closeOnEscape={!isLoading}
+    >
+      <Modal.Header>{title}</Modal.Header>
       
       <Modal.Content>
-        {description}
+        <div className="flex items-start gap-3">
+          <div className={`flex-shrink-0 ${styles.icon}`}>
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <p className="text-sm text-foreground">{message}</p>
+        </div>
       </Modal.Content>
       
       <Modal.Footer>
@@ -50,12 +88,11 @@ const ConfirmationModal = ({
           {cancelText}
         </Button>
         <Button
-          variant={confirmVariant}
+          variant={styles.confirmButton}
           onClick={handleConfirm}
           disabled={isLoading}
-          loading={isLoading}
         >
-          {confirmText}
+          {isLoading ? "Processing..." : confirmText}
         </Button>
       </Modal.Footer>
     </Modal>

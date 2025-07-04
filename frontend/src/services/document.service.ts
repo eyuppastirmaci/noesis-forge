@@ -14,6 +14,10 @@ import {
   SUPPORTED_FILE_TYPES,
   FILE_SIZE_LIMITS,
   FileValidationResult,
+  CreateShareRequest,
+  CreateShareResponse,
+  GetSharesResponse,
+  SHARE_ENDPOINTS,
 } from "@/types";
 import { formatFileSize, getCookieValue } from "@/utils";
 
@@ -652,6 +656,41 @@ export class DocumentService {
       throw error;
     }
   }
+
+  /**
+   * Create public share link
+   */
+  async createShare(documentId: string, request: CreateShareRequest): Promise<SuccessResponse<CreateShareResponse>> {
+    try {
+      const response = await apiClient.post<CreateShareResponse>(
+        SHARE_ENDPOINTS.CREATE(documentId),
+        request,
+        {
+          headers: {
+            "X-CSRF-Token": "1",
+          },
+        }
+      );
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] Share creation failed:", error);
+      throw error;
+    }
+  }
+
+  async getDocumentShares(documentId: string): Promise<GetSharesResponse> {
+    const response = await apiClient.get<GetSharesResponse>(
+      SHARE_ENDPOINTS.GET_SHARES(documentId)
+    );
+    return response.data;
+  }
+
+  async revokeShare(documentId: string, shareId: string): Promise<SuccessResponse<null>> {
+    const response = await apiClient.delete<SuccessResponse<null>>(
+      SHARE_ENDPOINTS.REVOKE(documentId, shareId)
+    );
+    return response.data;
+  }
 }
 
 // Create singleton instance
@@ -753,6 +792,21 @@ export const documentQueries = {
       return response.data;
     },
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  }),
+
+  shares: (documentId: string) => ({
+    queryKey: ["documents", "shares", documentId],
+    queryFn: async () => {
+      try {
+        const result = await documentService.getDocumentShares(documentId);
+        return result || { shares: [] };
+      } catch (error) {
+        console.error("[DOCUMENT_SERVICE] Failed to fetch shares:", error);
+        return { shares: [] };
+      }
+    },
+    enabled: !!documentId,
     staleTime: 5 * 60 * 1000,
   }),
 };
@@ -859,6 +913,34 @@ export const documentMutations = {
   bulkDownload: () => ({
     mutationFn: async ({ documentIds }: { documentIds: string[] }) => {
       await documentService.bulkDownloadDocuments(documentIds);
+    },
+  }),
+
+  /**
+   * Share document mutation
+   */
+  share: () => ({
+    mutationFn: async ({
+      documentId,
+      request,
+    }: {
+      documentId: string;
+      request: CreateShareRequest;
+    }) => {
+      const response = await documentService.createShare(documentId, request);
+      return response.data;
+    },
+  }),
+
+  revokeShare: () => ({
+    mutationFn: async ({
+      documentId,
+      shareId,
+    }: {
+      documentId: string;
+      shareId: string;
+    }) => {
+      return await documentService.revokeShare(documentId, shareId);
     },
   }),
 };

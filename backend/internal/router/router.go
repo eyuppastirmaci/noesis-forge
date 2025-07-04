@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
+	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ type Router struct {
 	favoriteService *services.FavoriteService
 	minioService    *services.MinIOService
 	redisClient     *redis.Client
+	shareService    *services.ShareService
 }
 
 func New(cfg *config.Config, db *gorm.DB) *Router {
@@ -67,6 +69,9 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 	// Initialize Favorite service
 	favoriteService := services.NewFavoriteService(db)
 
+	// Initialize Share service
+	shareService := services.NewShareService(db, redisClient)
+
 	return &Router{
 		engine:          engine,
 		config:          cfg,
@@ -76,6 +81,7 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 		favoriteService: favoriteService,
 		minioService:    minioService,
 		redisClient:     redisClient,
+		shareService:    shareService,
 	}
 }
 
@@ -118,6 +124,13 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterRoleRoutes(api, r.roleService, r.authService)
 	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
+
+	// Share routes
+	shareHandler := handlers.NewShareHandler(r.shareService, r.minioService)
+	// public download
+	r.engine.GET("/share/:token", shareHandler.DownloadShared)
+	// creation under api group (requires auth)
+	RegisterShareRoutes(api, r.shareService, r.minioService, r.authService)
 }
 
 func (r *Router) GetEngine() *gin.Engine {

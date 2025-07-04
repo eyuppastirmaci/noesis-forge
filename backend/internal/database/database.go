@@ -63,6 +63,8 @@ func RunMigrations(db *gorm.DB) error {
 		&models.Document{},
 		&models.Favorite{},
 		&models.DocumentRevision{},
+		&models.SharedLink{},
+		&models.ShareAuditLog{},
 	)
 
 	if err != nil {

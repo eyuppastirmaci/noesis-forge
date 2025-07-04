@@ -20,6 +20,7 @@
     "pdfjs-dist": "^5.3.31",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-number-format": "^5.4.4",
     "react-redux": "^9.2.0",
     "react-switch": "^7.1.0",
     "react-tooltip": "^5.29.1"

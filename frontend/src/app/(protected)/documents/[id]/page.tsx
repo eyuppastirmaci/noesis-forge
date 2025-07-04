@@ -17,13 +17,19 @@ import {
   Edit,
   RefreshCw,
   Heart,
-  } from "lucide-react";
-  import Link from "next/link";
-  import dynamic from "next/dynamic";
-  import { Accordion } from "@/components/ui/Accordion";
+  Share as ShareIcon,
+  Link2,
+  Clock,
+  Download as DownloadIcon,
+  Copy,
+  ExternalLink,
+} from "lucide-react";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { Accordion } from "@/components/ui/Accordion";
 
 // Dynamically import Image to avoid SSR hydration issues
-const Image = dynamic(() => import("next/image"), { 
+const Image = dynamic(() => import("next/image"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center w-full h-full">
@@ -31,7 +37,7 @@ const Image = dynamic(() => import("next/image"), {
         <div className="w-12 h-12 bg-border rounded animate-pulse"></div>
       </div>
     </div>
-  )
+  ),
 });
 
 import Button from "@/components/ui/Button";
@@ -39,18 +45,22 @@ import IconButton from "@/components/ui/IconButton";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import DocumentTypeIndicator from "@/components/DocumentTypeIndicator";
 import DocumentUpdateModal from "@/components/DocumentUpdateModal";
-import { 
-  documentQueries, 
-  documentMutations, 
-  documentService 
+import {
+  documentQueries,
+  documentMutations,
+  documentService,
 } from "@/services/document.service";
-import { favoriteQueries, favoriteMutations } from "@/services/favorite.service";
-import { 
-  DocumentType, 
-  DocumentStatus, 
+import {
+  favoriteQueries,
+  favoriteMutations,
+} from "@/services/favorite.service";
+import {
+  DocumentType,
+  DocumentStatus,
   UpdateDocumentRequest,
   DOCUMENT_ENDPOINTS,
   DOCUMENT_QUERY_KEYS,
@@ -61,7 +71,10 @@ import { toast, formatDate, formatFileSize } from "@/utils";
 import { API_CONFIG } from "@/config/api";
 import PDFViewerModal from "@/components/PDFViewerModal";
 import type { DocumentRevision } from "@/types/document";
+import type { ShareItem } from "@/types/share";
 import { createCustomDateFormatter } from "@/utils/dateUtils";
+import ShareModal from "@/components/ShareModal";
+import CustomTooltip from "@/components/ui/CustomTooltip";
 
 const DocumentDetailPage: React.FC = () => {
   const params = useParams();
@@ -72,6 +85,9 @@ const DocumentDetailPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
 
   // Fetch document details
   const {
@@ -127,10 +143,9 @@ const DocumentDetailPage: React.FC = () => {
   });
 
   // Query for favorite status
-  const {
-    data: favoriteStatus,
-    isLoading: isLoadingFavorite,
-  } = useQuery(favoriteQueries.status(documentId));
+  const { data: favoriteStatus, isLoading: isLoadingFavorite } = useQuery(
+    favoriteQueries.status(documentId)
+  );
 
   // Add to favorites mutation
   const addToFavoritesMutation = useMutation({
@@ -166,6 +181,20 @@ const DocumentDetailPage: React.FC = () => {
     },
   });
 
+  // Revoke share mutation
+  const revokeShareMutation = useMutation({
+    ...documentMutations.revokeShare(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["documents", "shares", documentId],
+      });
+      toast.success("Share revoked successfully");
+    },
+    onError: (error) => {
+      toast.error(`Failed to revoke share: ${getErrorMessage(error)}`);
+    },
+  });
+
   // Query for revision history
   const {
     data: revisionsData,
@@ -173,11 +202,18 @@ const DocumentDetailPage: React.FC = () => {
     error: revisionsError,
   } = useQuery(documentQueries.revisions(documentId));
 
+  // Query for document shares
+  const {
+    data: sharesData,
+    isLoading: isLoadingShares,
+    error: sharesError,
+  } = useQuery(documentQueries.shares(documentId));
+
   const document = documentData?.document;
 
   const handleDownload = useCallback(async () => {
     if (!document) return;
-    
+
     try {
       await downloadMutation.mutateAsync({
         id: document.id,
@@ -190,7 +226,7 @@ const DocumentDetailPage: React.FC = () => {
 
   const handleDelete = useCallback(async () => {
     if (!document) return;
-    
+
     try {
       await deleteMutation.mutateAsync(document.id);
     } catch (error) {
@@ -200,29 +236,32 @@ const DocumentDetailPage: React.FC = () => {
 
   const handlePreview = useCallback(async () => {
     if (!document) return;
-    
+
     try {
       const response = await documentService.getDocumentPreview(document.id);
       const previewUrl = response.data.url;
-      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      window.open(previewUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error("Preview failed:", error);
       toast.error(`Failed to preview document: ${getErrorMessage(error)}`);
     }
   }, [document]);
 
-  const handleUpdate = useCallback(async (updateRequest: UpdateDocumentRequest) => {
-    if (!document) return;
-    
-    try {
-      await updateMutation.mutateAsync({
-        documentId: document.id,
-        request: updateRequest,
-      });
-    } catch (error) {
-      console.error("Update failed:", error);
-    }
-  }, [document, updateMutation]);
+  const handleUpdate = useCallback(
+    async (updateRequest: UpdateDocumentRequest) => {
+      if (!document) return;
+
+      try {
+        await updateMutation.mutateAsync({
+          documentId: document.id,
+          request: updateRequest,
+        });
+      } catch (error) {
+        console.error("Update failed:", error);
+      }
+    },
+    [document, updateMutation]
+  );
 
   const handlePDFViewerOpen = useCallback(() => {
     if (!document) return;
@@ -240,14 +279,57 @@ const DocumentDetailPage: React.FC = () => {
 
     try {
       if (favoriteStatus?.isFavorited) {
-        await removeFromFavoritesMutation.mutateAsync({ documentId: document.id });
+        await removeFromFavoritesMutation.mutateAsync({
+          documentId: document.id,
+        });
       } else {
         await addToFavoritesMutation.mutateAsync({ documentId: document.id });
       }
     } catch (error) {
       console.error("Favorite toggle failed:", error);
     }
-  }, [favoriteStatus?.isFavorited, document, addToFavoritesMutation, removeFromFavoritesMutation, isLoadingFavorite]);
+  }, [
+    favoriteStatus?.isFavorited,
+    document,
+    addToFavoritesMutation,
+    removeFromFavoritesMutation,
+    isLoadingFavorite,
+  ]);
+
+  const handleRevokeShare = useCallback(
+    async (shareId: string) => {
+      if (!document) return;
+
+      setSelectedShareId(shareId);
+      setShowRevokeModal(true);
+    },
+    [document]
+  );
+
+  const confirmRevokeShare = useCallback(async () => {
+    if (!document || !selectedShareId) return;
+
+    try {
+      await revokeShareMutation.mutateAsync({
+        documentId: document.id,
+        shareId: selectedShareId,
+      });
+      setSelectedShareId(null);
+    } catch (error) {
+      console.error("Revoke share failed:", error);
+    }
+  }, [document, selectedShareId, revokeShareMutation]);
+
+  const handleCopyShareLink = useCallback((shareToken: string) => {
+    const shareUrl = `http://localhost:8000/share/${shareToken}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Share link copied to clipboard");
+  }, []);
+
+  const handleOpenShareInNewTab = useCallback((shareToken: string) => {
+    const shareUrl = `http://localhost:8000/share/${shareToken}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer");
+  }, []);
 
   const getStatusBadge = useCallback((status: DocumentStatus) => {
     const statusConfig = {
@@ -284,7 +366,7 @@ const DocumentDetailPage: React.FC = () => {
       <div className="flex-1 max-h-[calc(100vh-102px)] overflow-y-scroll bg-background">
         <div className="max-w-6xl mx-auto p-6">
           <div className="flex items-center justify-center h-64">
-            <LoadingSpinner />
+            <LoadingSpinner size="2xl" variant="primary" />
           </div>
         </div>
       </div>
@@ -297,7 +379,9 @@ const DocumentDetailPage: React.FC = () => {
         <div className="max-w-6xl mx-auto p-6">
           <div className="text-center py-12">
             <div className="text-red-600 dark:text-red-400 mb-4">
-              {error ? `Error: ${getErrorMessage(error)}` : "Document not found"}
+              {error
+                ? `Error: ${getErrorMessage(error)}`
+                : "Document not found"}
             </div>
             <div className="space-x-4">
               <Button onClick={() => refetch()} variant="primary">
@@ -360,9 +444,14 @@ const DocumentDetailPage: React.FC = () => {
                 </Card.Header>
                 <Card.Content>
                   <div className="flex items-center justify-center h-64 bg-background-secondary rounded-lg border-2 border-dashed border-border">
-                    {document.fileType === DocumentType.PDF && document.hasThumbnail ? (
+                    {document.fileType === DocumentType.PDF &&
+                    document.hasThumbnail ? (
                       <Image
-                        src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${document.version}`}
+                        src={`${
+                          API_CONFIG.BASE_URL
+                        }${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${
+                          document.version
+                        }`}
                         alt={`${document.title} thumbnail`}
                         width={300}
                         height={400}
@@ -371,7 +460,7 @@ const DocumentDetailPage: React.FC = () => {
                         title={`Open ${document.title} in PDF viewer`}
                       />
                     ) : document.fileType === DocumentType.PDF ? (
-                      <div 
+                      <div
                         className="text-center cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={handlePDFViewerOpen}
                         title={`Open ${document.title} in PDF viewer`}
@@ -402,32 +491,46 @@ const DocumentDetailPage: React.FC = () => {
               {/* Document Information */}
               <Card>
                 <Card.Header>
-                  <h2 className="text-lg font-semibold">Document Information</h2>
+                  <h2 className="text-lg font-semibold">
+                    Document Information
+                  </h2>
                 </Card.Header>
                 <Card.Content>
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-medium text-foreground-secondary mb-2">Title</h3>
+                      <h3 className="text-sm font-medium text-foreground-secondary mb-2">
+                        Title
+                      </h3>
                       <p className="text-foreground">{document.title}</p>
                     </div>
-                    
+
                     {document.description && (
                       <div>
-                        <h3 className="text-sm font-medium text-foreground-secondary mb-2">Description</h3>
-                        <p className="text-foreground">{document.description}</p>
+                        <h3 className="text-sm font-medium text-foreground-secondary mb-2">
+                          Description
+                        </h3>
+                        <p className="text-foreground">
+                          {document.description}
+                        </p>
                       </div>
                     )}
-                    
+
                     <div>
-                      <h3 className="text-sm font-medium text-foreground-secondary mb-2">Original Filename</h3>
-                      <p className="text-foreground font-mono text-sm">{document.originalFileName}</p>
+                      <h3 className="text-sm font-medium text-foreground-secondary mb-2">
+                        Original Filename
+                      </h3>
+                      <p className="text-foreground font-mono text-sm">
+                        {document.originalFileName}
+                      </p>
                     </div>
-                    
+
                     {document.tags && (
                       <div>
-                        <h3 className="text-sm font-medium text-foreground-secondary mb-2">Tags</h3>
+                        <h3 className="text-sm font-medium text-foreground-secondary mb-2">
+                          Tags
+                        </h3>
                         <div className="flex flex-wrap gap-2">
-                          {document.tags.split(',').map((tag, index) => (
+                          {document.tags.split(",").map((tag, index) => (
                             <Badge key={index} color="blue" size="sm">
                               <Tag className="w-3 h-3 mr-1" />
                               {tag.trim()}
@@ -448,70 +551,251 @@ const DocumentDetailPage: React.FC = () => {
                 <Card.Content>
                   {isLoadingRevisions ? (
                     <div className="flex items-center justify-center py-4">
-                      <LoadingSpinner />
+                      <LoadingSpinner size="lg" variant="default" />
                     </div>
                   ) : revisionsError ? (
-                    <p className="text-sm text-red-500">Failed to load revisions.</p>
+                    <p className="text-sm text-red-500">
+                      Failed to load revisions.
+                    </p>
                   ) : (
                     <div className="space-y-3">
                       {revisionsData?.revisions.length ? (
                         <Accordion>
-                          {revisionsData.revisions.map((rev: DocumentRevision) => {
-                            let changesEntries: Array<{ field: string; old?: any; new?: any }> = [];
-                            let hasFileChange = false;
-                            try {
-                              const parsed = JSON.parse(rev.changeSummary);
-                              for (const key in parsed) {
-                                const val = parsed[key];
-                                if (key === "file") {
-                                  hasFileChange = true;
-                                  continue;
+                          {revisionsData.revisions.map(
+                            (rev: DocumentRevision) => {
+                              let changesEntries: Array<{
+                                field: string;
+                                old?: any;
+                                new?: any;
+                              }> = [];
+                              let hasFileChange = false;
+                              try {
+                                const parsed = JSON.parse(rev.changeSummary);
+                                for (const key in parsed) {
+                                  const val = parsed[key];
+                                  if (key === "file") {
+                                    hasFileChange = true;
+                                    continue;
+                                  }
+                                  if (
+                                    typeof val === "object" &&
+                                    val.old !== undefined
+                                  ) {
+                                    changesEntries.push({
+                                      field: key,
+                                      old: val.old,
+                                      new: val.new,
+                                    });
+                                  }
                                 }
-                                if (typeof val === "object" && val.old !== undefined) {
-                                  changesEntries.push({ field: key, old: val.old, new: val.new });
-                                }
-                              }
-                            } catch {}
+                              } catch {}
 
-                            return (
-                              <Accordion.Item key={rev.id} id={rev.id}>
-                                <Accordion.Title>
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium">Version v{rev.version}</p>
-                                    <p className="text-xs text-foreground-secondary">
-                                      {createCustomDateFormatter({ year: "numeric", month: "long", day: "numeric", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit" })(rev.createdAt)}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {changesEntries.map((chg) => (
-                                      <Badge key={chg.field} color="blue" size="sm">
-                                        {chg.field}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </Accordion.Title>
+                              return (
+                                <Accordion.Item key={rev.id} id={rev.id}>
+                                  <Accordion.Title>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">
+                                        Version v{rev.version}
+                                      </p>
+                                      <p className="text-xs text-foreground-secondary">
+                                        {createCustomDateFormatter({
+                                          year: "numeric",
+                                          month: "long",
+                                          day: "numeric",
+                                          weekday: "long",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          second: "2-digit",
+                                        })(rev.createdAt)}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {changesEntries.map((chg) => (
+                                        <Badge
+                                          key={chg.field}
+                                          color="blue"
+                                          size="sm"
+                                        >
+                                          {chg.field}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </Accordion.Title>
 
-                                <Accordion.Content>
-                                  <div className="space-y-2 text-xs">
-                                    {changesEntries.map((chg) => (
-                                      <div key={chg.field} className="flex flex-wrap items-center gap-1">
-                                        <span className="font-medium text-foreground">{chg.field}:</span>
-                                        <span className="line-through text-red-500 truncate max-w-full">{String(chg.old)}</span>
-                                        <span className="mx-1 text-foreground-secondary">→</span>
-                                        <span className="text-green-600 truncate max-w-full">{String(chg.new)}</span>
-                                      </div>
-                                    ))}
-                                    {hasFileChange && (
-                                      <div className="text-foreground-secondary">File replaced.</div>
-                                    )}
-                                  </div>
-                                </Accordion.Content>
-                              </Accordion.Item>
-                            );
-                          })}
+                                  <Accordion.Content>
+                                    <div className="space-y-2 text-xs">
+                                      {changesEntries.map((chg) => (
+                                        <div
+                                          key={chg.field}
+                                          className="flex flex-wrap items-center gap-1"
+                                        >
+                                          <span className="font-medium text-foreground">
+                                            {chg.field}:
+                                          </span>
+                                          <span className="line-through text-red-500 truncate max-w-full">
+                                            {String(chg.old)}
+                                          </span>
+                                          <span className="mx-1 text-foreground-secondary">
+                                            →
+                                          </span>
+                                          <span className="text-green-600 truncate max-w-full">
+                                            {String(chg.new)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                      {hasFileChange && (
+                                        <div className="text-foreground-secondary">
+                                          File replaced.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </Accordion.Content>
+                                </Accordion.Item>
+                              );
+                            }
+                          )}
                         </Accordion>
                       ) : (
-                        <p className="text-sm text-foreground-secondary">No revisions yet.</p>
+                        <p className="text-sm text-foreground-secondary">
+                          No revisions yet.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </Card.Content>
+              </Card>
+
+              {/* Share Status */}
+              <Card>
+                <Card.Header>
+                  <h2 className="text-lg font-semibold">Share Status</h2>
+                </Card.Header>
+                <Card.Content>
+                  {isLoadingShares ? (
+                    <div className="flex items-center justify-center py-4">
+                      <LoadingSpinner size="lg" variant="default" />
+                    </div>
+                  ) : sharesError ? (
+                    <p className="text-sm text-red-500">
+                      Failed to load shares.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {sharesData?.shares.length ? (
+                        <div className="space-y-3">
+                          {sharesData.shares.map((share: ShareItem) => (
+                            <div
+                              key={share.id}
+                              className="p-3 bg-background-secondary rounded-lg border border-border"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Link2 className="w-4 h-4 text-blue-500" />
+                                  <span className="text-sm font-medium">
+                                    Active Share
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge color="green" size="sm">
+                                    Active
+                                  </Badge>
+                                  <button
+                                    id={`revoke-share-${share.id}`}
+                                    onClick={() => handleRevokeShare(share.id)}
+                                    disabled={revokeShareMutation.isPending}
+                                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 text-xs text-foreground-secondary">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>
+                                    Created: {formatDate(share.createdAt)}
+                                  </span>
+                                </div>
+
+                                {share.expiresAt && (
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-3 h-3" />
+                                    <span>
+                                      Expires: {formatDate(share.expiresAt)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-2">
+                                  <DownloadIcon className="w-3 h-3" />
+                                  <span>
+                                    Downloads: {share.downloadCount}
+                                    {share.maxDownloads
+                                      ? ` / ${share.maxDownloads}`
+                                      : " (unlimited)"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="mt-2 p-2 bg-background rounded border border-border">
+                                <p className="text-xs font-mono break-all text-foreground">
+                                  http://localhost:8000/share/{share.token}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center justify-start gap-2 mt-2">
+                                <button
+                                  id={`open-share-${share.id}`}
+                                  onClick={() =>
+                                    handleOpenShareInNewTab(share.token)
+                                  }
+                                  className="p-1 text-white hover:text-gray-300 transition-colors"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </button>
+                                <button
+                                  id={`copy-share-${share.id}`}
+                                  onClick={() =>
+                                    handleCopyShareLink(share.token)
+                                  }
+                                  className="p-1 text-white hover:text-gray-300 transition-colors"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
+
+                              <CustomTooltip
+                                anchorSelect={`#open-share-${share.id}`}
+                                place="bottom"
+                              >
+                                Open in new tab
+                              </CustomTooltip>
+                              <CustomTooltip
+                                anchorSelect={`#copy-share-${share.id}`}
+                                place="bottom"
+                              >
+                                Copy link
+                              </CustomTooltip>
+                              <CustomTooltip
+                                anchorSelect={`#revoke-share-${share.id}`}
+                                place="bottom"
+                              >
+                                Revoke share
+                              </CustomTooltip>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <Link2 className="w-8 h-8 text-foreground-secondary mx-auto mb-2" />
+                          <p className="text-sm text-foreground-secondary">
+                            No active shares
+                          </p>
+                          <p className="text-xs text-foreground-secondary">
+                            Click the Share button to create a public link
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}
@@ -535,28 +819,40 @@ const DocumentDetailPage: React.FC = () => {
                       className="w-full flex items-center justify-center"
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      {downloadMutation.isPending ? "Downloading..." : "Download"}
+                      {downloadMutation.isPending
+                        ? "Downloading..."
+                        : "Download"}
                     </Button>
-                    
+
                     <Button
                       onClick={handleFavoriteToggle}
-                      disabled={isLoadingFavorite || addToFavoritesMutation.isPending || removeFromFavoritesMutation.isPending}
+                      disabled={
+                        isLoadingFavorite ||
+                        addToFavoritesMutation.isPending ||
+                        removeFromFavoritesMutation.isPending
+                      }
                       variant="secondary"
                       className={`w-full flex items-center justify-center ${
-                        favoriteStatus?.isFavorited ? "text-red-500 border-red-200 hover:border-red-300" : ""
+                        favoriteStatus?.isFavorited
+                          ? "text-red-500 border-red-200 hover:border-red-300"
+                          : ""
                       }`}
                     >
-                      <Heart className={`w-4 h-4 mr-2 ${favoriteStatus?.isFavorited ? "fill-current" : ""}`} />
-                      {isLoadingFavorite 
-                        ? "Loading..." 
-                        : addToFavoritesMutation.isPending || removeFromFavoritesMutation.isPending
+                      <Heart
+                        className={`w-4 h-4 mr-2 ${
+                          favoriteStatus?.isFavorited ? "fill-current" : ""
+                        }`}
+                      />
+                      {isLoadingFavorite
+                        ? "Loading..."
+                        : addToFavoritesMutation.isPending ||
+                          removeFromFavoritesMutation.isPending
                         ? "Updating..."
-                        : favoriteStatus?.isFavorited 
-                        ? "Remove from Favorites" 
-                        : "Add to Favorites"
-                      }
+                        : favoriteStatus?.isFavorited
+                        ? "Remove from Favorites"
+                        : "Add to Favorites"}
                     </Button>
-                    
+
                     <Button
                       onClick={() => setShowUpdateModal(true)}
                       disabled={updateMutation.isPending}
@@ -566,7 +862,7 @@ const DocumentDetailPage: React.FC = () => {
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
-                    
+
                     <Button
                       onClick={() => setShowDeleteModal(true)}
                       disabled={deleteMutation.isPending}
@@ -575,6 +871,15 @@ const DocumentDetailPage: React.FC = () => {
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete
+                    </Button>
+
+                    <Button
+                      onClick={() => setShowShareModal(true)}
+                      variant="secondary"
+                      className="w-full flex items-center justify-center"
+                    >
+                      <ShareIcon className="w-4 h-4 mr-2" />
+                      Share
                     </Button>
                   </div>
                 </Card.Content>
@@ -588,38 +893,61 @@ const DocumentDetailPage: React.FC = () => {
                 <Card.Content>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground-secondary">File Type</span>
+                      <span className="text-sm text-foreground-secondary">
+                        File Type
+                      </span>
                       <div className="flex items-center">
-                        <DocumentTypeIndicator fileType={document.fileType} size="sm" />
-                        <span className="ml-2 text-sm font-medium">{document.fileType.toUpperCase()}</span>
+                        <DocumentTypeIndicator
+                          fileType={document.fileType}
+                          size="sm"
+                        />
+                        <span className="ml-2 text-sm font-medium">
+                          {document.fileType.toUpperCase()}
+                        </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground-secondary">File Size</span>
+                      <span className="text-sm text-foreground-secondary">
+                        File Size
+                      </span>
                       <div className="flex items-center">
                         <HardDrive className="w-4 h-4 mr-2 text-foreground-secondary" />
-                        <span className="text-sm font-medium">{formatFileSize(document.fileSize)}</span>
+                        <span className="text-sm font-medium">
+                          {formatFileSize(document.fileSize)}
+                        </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground-secondary">MIME Type</span>
-                      <span className="text-sm font-mono">{document.mimeType}</span>
+                      <span className="text-sm text-foreground-secondary">
+                        MIME Type
+                      </span>
+                      <span className="text-sm font-mono">
+                        {document.mimeType}
+                      </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground-secondary">Version</span>
-                      <span className="text-sm font-medium">v{document.version}</span>
+                      <span className="text-sm text-foreground-secondary">
+                        Version
+                      </span>
+                      <span className="text-sm font-medium">
+                        v{document.version}
+                      </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground-secondary">Status</span>
+                      <span className="text-sm text-foreground-secondary">
+                        Status
+                      </span>
                       {getStatusBadge(document.status)}
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground-secondary">Visibility</span>
+                      <span className="text-sm text-foreground-secondary">
+                        Visibility
+                      </span>
                       {getVisibilityBadge(document.isPublic)}
                     </div>
                   </div>
@@ -636,17 +964,25 @@ const DocumentDetailPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <Eye className="w-4 h-4 mr-2 text-foreground-secondary" />
-                        <span className="text-sm text-foreground-secondary">Views</span>
+                        <span className="text-sm text-foreground-secondary">
+                          Views
+                        </span>
                       </div>
-                      <span className="text-sm font-medium">{document.viewCount}</span>
+                      <span className="text-sm font-medium">
+                        {document.viewCount}
+                      </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <ArrowDown className="w-4 h-4 mr-2 text-foreground-secondary" />
-                        <span className="text-sm text-foreground-secondary">Downloads</span>
+                        <span className="text-sm text-foreground-secondary">
+                          Downloads
+                        </span>
                       </div>
-                      <span className="text-sm font-medium">{document.downloadCount}</span>
+                      <span className="text-sm font-medium">
+                        {document.downloadCount}
+                      </span>
                     </div>
                   </div>
                 </Card.Content>
@@ -662,26 +998,38 @@ const DocumentDetailPage: React.FC = () => {
                     <div>
                       <div className="flex items-center mb-1">
                         <Calendar className="w-4 h-4 mr-2 text-foreground-secondary" />
-                        <span className="text-sm text-foreground-secondary">Created</span>
+                        <span className="text-sm text-foreground-secondary">
+                          Created
+                        </span>
                       </div>
-                      <span className="text-sm font-medium">{formatDate(document.createdAt)}</span>
+                      <span className="text-sm font-medium">
+                        {formatDate(document.createdAt)}
+                      </span>
                     </div>
-                    
+
                     <div>
                       <div className="flex items-center mb-1">
                         <Edit className="w-4 h-4 mr-2 text-foreground-secondary" />
-                        <span className="text-sm text-foreground-secondary">Last Modified</span>
+                        <span className="text-sm text-foreground-secondary">
+                          Last Modified
+                        </span>
                       </div>
-                      <span className="text-sm font-medium">{formatDate(document.updatedAt)}</span>
+                      <span className="text-sm font-medium">
+                        {formatDate(document.updatedAt)}
+                      </span>
                     </div>
-                    
+
                     {document.processedAt && (
                       <div>
                         <div className="flex items-center mb-1">
                           <RefreshCw className="w-4 h-4 mr-2 text-foreground-secondary" />
-                          <span className="text-sm text-foreground-secondary">Processed</span>
+                          <span className="text-sm text-foreground-secondary">
+                            Processed
+                          </span>
                         </div>
-                        <span className="text-sm font-medium">{formatDate(document.processedAt)}</span>
+                        <span className="text-sm font-medium">
+                          {formatDate(document.processedAt)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -700,19 +1048,18 @@ const DocumentDetailPage: React.FC = () => {
         closeOnOverlayClick={true}
         closeOnEscape={true}
       >
-        <Modal.Header>
-          Delete Document
-        </Modal.Header>
-        
+        <Modal.Header>Delete Document</Modal.Header>
+
         <Modal.Content>
           <p className="mb-4">
             Are you sure you want to delete <strong>"{document.title}"</strong>?
           </p>
           <p className="text-sm text-foreground-secondary">
-            This action cannot be undone. The document and all its associated data will be permanently removed.
+            This action cannot be undone. The document and all its associated
+            data will be permanently removed.
           </p>
         </Modal.Content>
-        
+
         <Modal.Footer>
           <Button
             variant="secondary"
@@ -745,6 +1092,29 @@ const DocumentDetailPage: React.FC = () => {
         isOpen={showPDFViewer}
         onClose={handlePDFViewerClose}
         document={document}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        documentId={document.id}
+      />
+
+      {/* Revoke Share Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showRevokeModal}
+        onClose={() => {
+          setShowRevokeModal(false);
+          setSelectedShareId(null);
+        }}
+        onConfirm={confirmRevokeShare}
+        title="Revoke Share"
+        message="Are you sure you want to revoke this share? This action cannot be undone and the link will no longer work."
+        confirmText="Revoke"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={revokeShareMutation.isPending}
       />
     </>
   );
