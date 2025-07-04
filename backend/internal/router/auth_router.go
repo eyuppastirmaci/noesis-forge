@@ -1,16 +1,19 @@
 package router
 
 import (
+	"time"
+
 	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 // Temp in-memory rate limiter; will switch to Redis.
 
-func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
+func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService, redisClient *redis.Client) {
 	// Initialize handler
 	authHandler := handlers.NewAuthHandler(authService)
 
@@ -20,27 +23,27 @@ func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 
 		// Login endpoint - strict rate limiting (5 requests per minute)
 		auth.POST("/login",
-			middleware.StrictRateLimit(5),
+			middleware.RateLimitRedis(redisClient, 5, time.Minute),
 			validations.ValidateLogin(),
 			authHandler.Login)
 
 		// Register endpoint - moderate rate limiting (3 requests per minute)
 		auth.POST("/register",
-			middleware.StrictRateLimit(3),
+			middleware.RateLimitRedis(redisClient, 3, time.Minute),
 			validations.ValidateCreateUser(),
 			authHandler.Register)
 
 		// Refresh and logout - moderate rate limiting (10 requests per minute)
 		auth.POST("/refresh",
-			middleware.RateLimit(10),
+			middleware.RateLimitRedis(redisClient, 10, time.Minute),
 			authHandler.RefreshToken)
 
 		auth.POST("/validate",
-			middleware.RateLimit(20),
+			middleware.RateLimitRedis(redisClient, 20, time.Minute),
 			authHandler.ValidateToken)
 
 		auth.POST("/logout",
-			middleware.RateLimit(10),
+			middleware.RateLimitRedis(redisClient, 10, time.Minute),
 			authHandler.Logout)
 
 		// Protected routes
@@ -53,11 +56,11 @@ func RegisterAuthRoutes(r *gin.RouterGroup, authService *services.AuthService) {
 			protected.POST("/profile/avatar", authHandler.UploadAvatar)
 			protected.DELETE("/profile/avatar", authHandler.DeleteAvatar)
 			protected.PUT("/profile",
-				middleware.RateLimit(30),
+				middleware.RateLimitRedis(redisClient, 30, time.Minute),
 				validations.ValidateUpdateProfile(),
 				authHandler.UpdateProfile)
 			protected.PUT("/change-password",
-				middleware.StrictRateLimit(3),
+				middleware.RateLimitRedis(redisClient, 3, time.Minute),
 				validations.ValidateChangePassword(),
 				authHandler.ChangePassword)
 		}

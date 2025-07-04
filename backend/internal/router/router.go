@@ -101,8 +101,8 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	}
 	r.engine.Use(middleware.CORS(r.config.Environment, allowedOrigins))
 
-	// Temp in-memory rate limiter; will switch to Redis.
-	r.engine.Use(middleware.RateLimit(100)) // 100 requests per minute per IP
+	// Rate limiter
+	r.engine.Use(middleware.RateLimitRedis(r.redisClient, 100, time.Minute))
 
 	// Root endpoint
 	r.engine.GET("/", func(c *gin.Context) {
@@ -120,7 +120,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 
 	// Register routes
 	RegisterHealthRoutes(api, db)
-	RegisterAuthRoutes(api, r.authService)
+	RegisterAuthRoutes(api, r.authService, r.redisClient)
 	RegisterRoleRoutes(api, r.roleService, r.authService)
 	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
@@ -129,7 +129,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	shareHandler := handlers.NewShareHandler(r.shareService, r.minioService)
 	// public download
 	r.engine.GET("/share/:token", shareHandler.DownloadShared)
-	// creation under api group (requires auth)
+	// creation under api group
 	RegisterShareRoutes(api, r.shareService, r.minioService, r.authService)
 }
 

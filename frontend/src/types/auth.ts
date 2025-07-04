@@ -78,7 +78,7 @@ export interface ProfileUpdateResponseData {
   user: User;
 }
 
-// ===== RESPONSE TYPES (with ApiResponse wrapper) =====
+// ===== RESPONSE TYPES =====
 // These match the actual backend response structure
 
 export type LoginResponse = SuccessResponse<LoginResponseData>;
@@ -127,7 +127,6 @@ export interface DecodedJWT {
 // ===== ERROR CODES =====
 export enum AuthErrorCode {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
-  ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
   EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED',
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   INVALID_TOKEN = 'INVALID_TOKEN',
