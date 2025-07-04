@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -186,17 +187,12 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		return nil, fmt.Errorf("failed to fetch document: %w", err)
 	}
 
-	// Start a transaction for atomic updates
-	tx := s.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
 	// Backup old storage paths for cleanup if update fails
 	oldStoragePath := existingDocument.StoragePath
 	oldThumbnailPath := existingDocument.ThumbnailPath
+
+	// Keep a copy of the original document for change detection
+	origDocument := existingDocument
 
 	var newStoragePath, newThumbnailPath string
 
@@ -204,14 +200,12 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 	if req.HasNewFile && file != nil {
 		// Validate file
 		if err := s.validateFile(file); err != nil {
-			tx.Rollback()
 			return nil, err
 		}
 
 		// Open the uploaded file.
 		src, err := file.Open()
 		if err != nil {
-			tx.Rollback()
 			return nil, fmt.Errorf("failed to open new file: %w", err)
 		}
 		defer src.Close()
@@ -228,7 +222,6 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		// Upload new file to MinIO
 		bucketName := s.minioService.config.BucketName
 		if err := s.minioService.UploadFile(ctx, bucketName, objectName, src, file.Size, contentType); err != nil {
-			tx.Rollback()
 			return nil, fmt.Errorf("failed to upload new file to storage: %w", err)
 		}
 
@@ -282,10 +275,30 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		existingDocument.ProcessedAt = &now
 	}
 
-	// Save the updated document
-	if err := tx.Save(&existingDocument).Error; err != nil {
-		tx.Rollback()
+	// Detect changes & handle versioning
+	changes := make(map[string]interface{})
+	if origDocument.Title != existingDocument.Title {
+		changes["title"] = map[string]interface{}{"old": origDocument.Title, "new": existingDocument.Title}
+	}
+	if origDocument.Description != existingDocument.Description {
+		changes["description"] = map[string]interface{}{"old": origDocument.Description, "new": existingDocument.Description}
+	}
+	if origDocument.Tags != existingDocument.Tags {
+		changes["tags"] = map[string]interface{}{"old": origDocument.Tags, "new": existingDocument.Tags}
+	}
+	if origDocument.IsPublic != existingDocument.IsPublic {
+		changes["isPublic"] = map[string]interface{}{"old": origDocument.IsPublic, "new": existingDocument.IsPublic}
+	}
+	if req.HasNewFile {
+		changes["file"] = "updated"
+	}
 
+	if len(changes) > 0 {
+		existingDocument.Version = existingDocument.Version + 1
+	}
+
+	// Save the updated document
+	if err := s.db.Save(&existingDocument).Error; err != nil {
 		// If database save fails and we uploaded new files, clean them up
 		if newStoragePath != "" {
 			if cleanupErr := s.minioService.DeleteFile(ctx, newStoragePath); cleanupErr != nil {
@@ -301,9 +314,18 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		return nil, fmt.Errorf("failed to update document record: %w", err)
 	}
 
-	// Commit the transaction
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("failed to commit document update: %w", err)
+	// Create revision record if anything changed
+	if len(changes) > 0 {
+		diffJSON, _ := json.Marshal(changes)
+		revision := models.DocumentRevision{
+			DocumentID:    existingDocument.ID,
+			Version:       existingDocument.Version,
+			ChangedBy:     userID,
+			ChangeSummary: string(diffJSON),
+		}
+		if err := s.db.Create(&revision).Error; err != nil {
+			logrus.Warnf("Failed to create document revision: %v", err)
+		}
 	}
 
 	// Only delete old files AFTER successful database update
@@ -671,4 +693,21 @@ func (s *DocumentService) GetUserStats(ctx context.Context, userID uuid.UUID) (*
 
 	logrus.Infof("Fetched user stats for user %s", userID)
 	return &stats, nil
+}
+
+func (s *DocumentService) GetDocumentRevisions(ctx context.Context, userID, documentID uuid.UUID) ([]models.DocumentRevision, error) {
+	// Verify ownership
+	var doc models.Document
+	if err := s.db.Select("id").Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("document not found or access denied")
+		}
+		return nil, fmt.Errorf("failed to fetch document: %w", err)
+	}
+
+	var revisions []models.DocumentRevision
+	if err := s.db.Where("document_id = ?", documentID).Order("version DESC").Find(&revisions).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch revisions: %w", err)
+	}
+	return revisions, nil
 }

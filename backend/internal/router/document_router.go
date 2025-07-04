@@ -33,5 +33,6 @@ func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.Docume
 		documents.GET("/:id/download", validations.ValidateDocumentID(), documentHandler.DownloadDocument)
 		documents.GET("/:id/preview", validations.ValidateDocumentID(), documentHandler.GetDocumentPreview)
 		documents.GET("/:id/thumbnail", validations.ValidateDocumentID(), documentHandler.GetDocumentThumbnail)
+		documents.GET("/:id/revisions", validations.ValidateDocumentID(), documentHandler.GetDocumentRevisions)
 	}
 }

@@ -843,3 +843,34 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 
 	logrus.Infof("[BULK_DOWNLOAD] ZIP download completed: %s (%d files)", zipFilename, successfulDownloads)
 }
+
+// GetDocumentRevisions returns version history for a document
+func (h *DocumentHandler) GetDocumentRevisions(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated document ID from context
+	documentID, ok := validations.GetValidatedDocumentID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
+		return
+	}
+
+	revisions, err := h.documentService.GetDocumentRevisions(c.Request.Context(), userID, documentID)
+	if err != nil {
+		if strings.Contains(err.Error(), "document not found") {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
+		return
+	}
+
+	data := gin.H{
+		"revisions": revisions,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Revisions retrieved successfully")
+}

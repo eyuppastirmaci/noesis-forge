@@ -60,7 +60,7 @@ export interface DocumentCollection {
   collection?: Collection;
 }
 
-// === Request/Response Types ===
+// Request/Response Types
 
 // Upload Document Request
 export interface UploadDocumentRequest {
@@ -124,7 +124,7 @@ export interface DocumentUploadProgress {
   error?: string;
 }
 
-// === API Endpoints ===
+// API Endpoints
 export const DOCUMENT_ENDPOINTS = {
   // Document CRUD
   UPLOAD: "/documents/upload",
@@ -142,6 +142,7 @@ export const DOCUMENT_ENDPOINTS = {
   BULK_DOWNLOAD: "/documents/bulk-download",
   PREVIEW: (id: string) => `/documents/${id}/preview`,
   THUMBNAIL: (id: string) => `/documents/${id}/thumbnail`,
+  REVISIONS: (id: string) => `/documents/${id}/revisions`,
 
   // Collections (for future)
   COLLECTIONS: "/collections",
@@ -149,7 +150,7 @@ export const DOCUMENT_ENDPOINTS = {
   COLLECTION_DOCUMENTS: (id: string) => `/collections/${id}/documents`,
 } as const;
 
-// === Query Keys ===
+// Query Keys
 export const DOCUMENT_QUERY_KEYS = {
   // Document queries
   DOCUMENTS: {
@@ -159,6 +160,7 @@ export const DOCUMENT_QUERY_KEYS = {
     BY_ID: (id: string) => ["documents", "detail", id] as const,
     TITLE: (id: string) => ["documents", "title", id] as const,
     PREVIEW: (id: string) => ["documents", "preview", id] as const,
+    REVISIONS: (id: string) => ["documents", "revisions", id] as const,
     SEARCH: (query: string) => ["documents", "search", query] as const,
   },
 
@@ -170,7 +172,7 @@ export const DOCUMENT_QUERY_KEYS = {
   },
 } as const;
 
-// === Mutation Keys ===
+// Mutation Keys
 export const DOCUMENT_MUTATION_KEYS = {
   // Document mutations
   DOCUMENTS: {
@@ -190,7 +192,7 @@ export const DOCUMENT_MUTATION_KEYS = {
   },
 } as const;
 
-// === Validation & Utilities ===
+// Validation & Utilities
 
 // File Validation Result
 export interface FileValidationResult {
@@ -295,4 +297,14 @@ export interface BulkUploadResponse {
     filename: string;
     error: string;
   }>;
+}
+
+// Document Revision Interface
+export interface DocumentRevision {
+  id: string;
+  documentID: string;
+  version: number;
+  changedBy: string;
+  changeSummary: string; // JSON string describing changed fields
+  createdAt: string;
 }

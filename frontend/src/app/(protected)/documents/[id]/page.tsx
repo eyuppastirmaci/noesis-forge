@@ -20,6 +20,7 @@ import {
   } from "lucide-react";
   import Link from "next/link";
   import dynamic from "next/dynamic";
+  import { Accordion } from "@/components/ui/Accordion";
 
 // Dynamically import Image to avoid SSR hydration issues
 const Image = dynamic(() => import("next/image"), { 
@@ -54,11 +55,13 @@ import {
   DOCUMENT_ENDPOINTS,
   DOCUMENT_QUERY_KEYS,
   FAVORITE_QUERY_KEYS,
-  getErrorMessage 
+  getErrorMessage,
 } from "@/types";
 import { toast, formatDate, formatFileSize } from "@/utils";
 import { API_CONFIG } from "@/config/api";
 import PDFViewerModal from "@/components/PDFViewerModal";
+import type { DocumentRevision } from "@/types/document";
+import { createCustomDateFormatter } from "@/utils/dateUtils";
 
 const DocumentDetailPage: React.FC = () => {
   const params = useParams();
@@ -111,6 +114,9 @@ const DocumentDetailPage: React.FC = () => {
       queryClient.invalidateQueries({
         queryKey: DOCUMENT_QUERY_KEYS.DOCUMENTS.ALL,
       });
+      queryClient.invalidateQueries({
+        queryKey: DOCUMENT_QUERY_KEYS.DOCUMENTS.REVISIONS(documentId),
+      });
       toast.success("Document updated successfully");
       setShowUpdateModal(false);
       refetch(); // Refresh current document data
@@ -159,6 +165,13 @@ const DocumentDetailPage: React.FC = () => {
       toast.error(`Failed to remove from favorites: ${getErrorMessage(error)}`);
     },
   });
+
+  // Query for revision history
+  const {
+    data: revisionsData,
+    isLoading: isLoadingRevisions,
+    error: revisionsError,
+  } = useQuery(documentQueries.revisions(documentId));
 
   const document = documentData?.document;
 
@@ -424,6 +437,84 @@ const DocumentDetailPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+                </Card.Content>
+              </Card>
+
+              {/* Version History */}
+              <Card>
+                <Card.Header>
+                  <h2 className="text-lg font-semibold">Version History</h2>
+                </Card.Header>
+                <Card.Content>
+                  {isLoadingRevisions ? (
+                    <div className="flex items-center justify-center py-4">
+                      <LoadingSpinner />
+                    </div>
+                  ) : revisionsError ? (
+                    <p className="text-sm text-red-500">Failed to load revisions.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {revisionsData?.revisions.length ? (
+                        <Accordion>
+                          {revisionsData.revisions.map((rev: DocumentRevision) => {
+                            let changesEntries: Array<{ field: string; old?: any; new?: any }> = [];
+                            let hasFileChange = false;
+                            try {
+                              const parsed = JSON.parse(rev.changeSummary);
+                              for (const key in parsed) {
+                                const val = parsed[key];
+                                if (key === "file") {
+                                  hasFileChange = true;
+                                  continue;
+                                }
+                                if (typeof val === "object" && val.old !== undefined) {
+                                  changesEntries.push({ field: key, old: val.old, new: val.new });
+                                }
+                              }
+                            } catch {}
+
+                            return (
+                              <Accordion.Item key={rev.id} id={rev.id}>
+                                <Accordion.Title>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">Version v{rev.version}</p>
+                                    <p className="text-xs text-foreground-secondary">
+                                      {createCustomDateFormatter({ year: "numeric", month: "long", day: "numeric", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit" })(rev.createdAt)}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {changesEntries.map((chg) => (
+                                      <Badge key={chg.field} color="blue" size="sm">
+                                        {chg.field}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </Accordion.Title>
+
+                                <Accordion.Content>
+                                  <div className="space-y-2 text-xs">
+                                    {changesEntries.map((chg) => (
+                                      <div key={chg.field} className="flex flex-wrap items-center gap-1">
+                                        <span className="font-medium text-foreground">{chg.field}:</span>
+                                        <span className="line-through text-red-500 truncate max-w-full">{String(chg.old)}</span>
+                                        <span className="mx-1 text-foreground-secondary">→</span>
+                                        <span className="text-green-600 truncate max-w-full">{String(chg.new)}</span>
+                                      </div>
+                                    ))}
+                                    {hasFileChange && (
+                                      <div className="text-foreground-secondary">File replaced.</div>
+                                    )}
+                                  </div>
+                                </Accordion.Content>
+                              </Accordion.Item>
+                            );
+                          })}
+                        </Accordion>
+                      ) : (
+                        <p className="text-sm text-foreground-secondary">No revisions yet.</p>
+                      )}
+                    </div>
+                  )}
                 </Card.Content>
               </Card>
             </div>

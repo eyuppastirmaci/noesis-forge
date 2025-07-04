@@ -124,7 +124,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - ✅ Basic metadata form
 - ✅ Backend: Document service, MinIO setup
 - ✅ Batch processing (Handle multiple documents simultaneously)
-- ☐ Version control (Track document changes and revisions)
+- ✅ Version control (Track document changes and revisions)
 
 **Documents List**
 - ✅ Document grid view

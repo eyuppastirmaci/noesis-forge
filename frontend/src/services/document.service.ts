@@ -17,6 +17,8 @@ import {
 } from "@/types";
 import { formatFileSize, getCookieValue } from "@/utils";
 
+import type { DocumentRevision } from "@/types/document";
+
 // Response type definitions for API calls
 export interface DocumentUploadResponseData {
   document: Document;
@@ -34,6 +36,10 @@ export interface DocumentDetailResponseData {
 
 export interface DocumentPreviewResponseData {
   url: string;
+}
+
+export interface DocumentRevisionsResponseData {
+  revisions: DocumentRevision[];
 }
 
 export interface BulkDeleteResponseData {
@@ -61,6 +67,7 @@ export type DocumentPreviewApiResponse =
 export type DocumentDeleteResponse = SuccessResponse<null>;
 export type BulkDeleteResponse = SuccessResponse<BulkDeleteResponseData>;
 export type UserStatsResponse = SuccessResponse<UserStatsResponseData>;
+export type DocumentRevisionsResponse = SuccessResponse<DocumentRevisionsResponseData>;
 
 export class DocumentService {
   /**
@@ -630,6 +637,21 @@ export class DocumentService {
       throw error;
     }
   }
+
+  /**
+   * Get revision history for a document
+   */
+  async getDocumentRevisions(id: string): Promise<DocumentRevisionsResponse> {
+    try {
+      const response = await apiClient.get<DocumentRevisionsResponseData>(
+        DOCUMENT_ENDPOINTS.REVISIONS(id)
+      );
+      return response;
+    } catch (error) {
+      console.error("[DOCUMENT_SERVICE] Failed to retrieve document revisions:", error);
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance
@@ -718,6 +740,19 @@ export const documentQueries = {
         ? lastPage.page + 1
         : undefined;
     },
+    staleTime: 5 * 60 * 1000,
+  }),
+
+  /**
+   * Query for document revisions
+   */
+  revisions: (id: string) => ({
+    queryKey: ["documents", "revisions", id],
+    queryFn: async () => {
+      const response = await documentService.getDocumentRevisions(id);
+      return response.data;
+    },
+    enabled: !!id,
     staleTime: 5 * 60 * 1000,
   }),
 };
