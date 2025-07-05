@@ -37,7 +37,7 @@ func (s *Server) Run() {
 	go func() {
 		logrus.Infof("Server starting on port %s", s.app.Config.Server.Port)
 		logrus.Infof("Environment: %s", s.app.Config.Environment)
-		logrus.Info("API Documentation available at http://localhost:" + s.app.Config.Server.Port)
+		logrus.Infof("API Documentation available at %s", s.app.Config.Server.BaseURL)
 
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logrus.Fatalf("Failed to start server: %v", err)

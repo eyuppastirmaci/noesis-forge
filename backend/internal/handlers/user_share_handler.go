@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
@@ -17,13 +18,17 @@ import (
 
 type UserShareHandler struct {
 	userShareService *services.UserShareService
+	config           *config.Config
 }
 
-func NewUserShareHandler(userShareService *services.UserShareService) *UserShareHandler {
-	return &UserShareHandler{userShareService: userShareService}
+func NewUserShareHandler(userShareService *services.UserShareService, cfg *config.Config) *UserShareHandler {
+	return &UserShareHandler{
+		userShareService: userShareService,
+		config:           cfg,
+	}
 }
 
-// CreateUserShare handles POST /documents/:id/share/users
+// CreateUserShare handles
 func (h *UserShareHandler) CreateUserShare(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -94,7 +99,7 @@ func (h *UserShareHandler) CreateUserShare(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, response, "User shares created")
 }
 
-// GetSharedWithMe handles GET /shares/with-me
+// GetSharedWithMe handles
 func (h *UserShareHandler) GetSharedWithMe(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -224,7 +229,7 @@ func (h *UserShareHandler) GetSharedWithMe(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"shares": response}, "Shared documents retrieved")
 }
 
-// GetSharedByMe handles GET /shares/by-me
+// GetSharedByMe handles
 func (h *UserShareHandler) GetSharedByMe(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -389,7 +394,7 @@ func (h *UserShareHandler) GetSharedByMe(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"shares": response}, "Shared documents retrieved")
 }
 
-// RevokeUserShare handles DELETE /shares/:shareId
+// RevokeUserShare handles
 func (h *UserShareHandler) RevokeUserShare(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -413,7 +418,7 @@ func (h *UserShareHandler) RevokeUserShare(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, nil, "User share revoked successfully")
 }
 
-// UpdateUserShareAccess handles PUT /shares/:shareId/access
+// UpdateUserShareAccess handles
 func (h *UserShareHandler) UpdateUserShareAccess(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -453,7 +458,7 @@ func (h *UserShareHandler) UpdateUserShareAccess(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, nil, "Access level updated successfully")
 }
 
-// GetShareNotifications handles GET /shares/notifications
+// GetShareNotifications
 func (h *UserShareHandler) GetShareNotifications(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -470,7 +475,7 @@ func (h *UserShareHandler) GetShareNotifications(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"notifications": notifications}, "Notifications retrieved")
 }
 
-// MarkNotificationAsRead handles PUT /shares/notifications/:id/read
+// MarkNotificationAsRead
 func (h *UserShareHandler) MarkNotificationAsRead(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -494,7 +499,7 @@ func (h *UserShareHandler) MarkNotificationAsRead(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, nil, "Notification marked as read")
 }
 
-// ValidateAccess handles GET /documents/:id/access
+// ValidateAccess handles
 func (h *UserShareHandler) ValidateAccess(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -537,7 +542,7 @@ func (h *UserShareHandler) ValidateAccess(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"hasAccess": hasAccess}, "Access validated")
 }
 
-// RecordAccess handles POST /documents/:id/access
+// RecordAccess handles
 func (h *UserShareHandler) RecordAccess(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -572,7 +577,7 @@ func (h *UserShareHandler) RecordAccess(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, nil, "Access recorded")
 }
 
-// GetPublicLinks handles GET /shares/public-links
+// GetPublicLinks handles
 func (h *UserShareHandler) GetPublicLinks(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -644,7 +649,7 @@ func (h *UserShareHandler) GetPublicLinks(c *gin.Context) {
 		}
 
 		// Create share URL
-		shareUrl := fmt.Sprintf("http://localhost:8080/share/%s", link.Token)
+		shareUrl := fmt.Sprintf("%s/share/%s", h.config.Server.BaseURL, link.Token)
 
 		// Format expiration date
 		var expiresAtStr *string

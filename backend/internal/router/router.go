@@ -132,14 +132,14 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
 
 	// Share routes
-	shareHandler := handlers.NewShareHandler(r.shareService, r.minioService)
+	shareHandler := handlers.NewShareHandler(r.shareService, r.minioService, r.config)
 	// public download
 	r.engine.GET("/share/:token", shareHandler.DownloadShared)
 	// creation under api group
-	RegisterShareRoutes(api, r.shareService, r.minioService, r.authService)
+	RegisterShareRoutes(api, r.shareService, r.minioService, r.authService, r.config)
 
 	// User Share routes
-	userShareHandler := handlers.NewUserShareHandler(r.userShareService)
+	userShareHandler := handlers.NewUserShareHandler(r.userShareService, r.config)
 	RegisterUserShareRoutes(api, userShareHandler, r.authService)
 }
 

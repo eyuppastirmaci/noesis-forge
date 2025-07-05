@@ -1,4 +1,4 @@
-package handlers
+package middleware
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Returns a middleware that checks for X-CSRF-Token header.
+// CSRF returns a middleware that checks for X-CSRF-Token header.
 func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == http.MethodPost ||

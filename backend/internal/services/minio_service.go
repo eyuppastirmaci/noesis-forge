@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
@@ -31,22 +30,6 @@ const (
 	MIMEApplicationXML         = "application/xml"
 	MIMEApplicationOctetStream = "application/octet-stream" // Default type.
 )
-
-// mimeTypes maps file extensions to their corresponding MIME type constants.
-// This map is initialized once at package level for efficient lookups.
-var mimeTypes = map[string]string{
-	".pdf":  MIMEApplicationPDF,
-	".docx": MIMEApplicationDOCX,
-	".doc":  MIMEApplicationDOC,
-	".xlsx": MIMEApplicationXLSX,
-	".xls":  MIMEApplicationXLS,
-	".pptx": MIMEApplicationPPTX,
-	".ppt":  MIMEApplicationPPT,
-	".txt":  MIMETextPlain,
-	".md":   MIMETextMarkdown,
-	".json": MIMEApplicationJSON,
-	".xml":  MIMEApplicationXML,
-}
 
 type MinIOService struct {
 	client *minio.Client
@@ -166,22 +149,6 @@ func (s *MinIOService) generateObjectName(userID uuid.UUID, originalFileName str
 	objectName := fmt.Sprintf("users/%s/documents/%s", userID.String(), uuidFileName)
 
 	return objectName, uuidFileName
-}
-
-// getContentType retrieves the MIME type for a given filename.
-// It uses the pre-defined mimeTypes map for the lookup.
-func (s *MinIOService) getContentType(filename string) string {
-	// Get the file extension and convert it to lowercase.
-	ext := strings.ToLower(filepath.Ext(filename))
-
-	// Check if the extension exists in the map using the "comma ok" idiom.
-	if contentType, ok := mimeTypes[ext]; ok {
-		// If the extension is found in the map, return the corresponding MIME type.
-		return contentType
-	}
-
-	// If the extension is not found, return the default MIME type.
-	return MIMEApplicationOctetStream
 }
 
 // UploadThumbnail uploads thumbnail image data directly to MinIO

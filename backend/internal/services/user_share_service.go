@@ -254,7 +254,7 @@ func (s *UserShareService) RecordAccess(ctx context.Context, userID uuid.UUID, d
 	}
 
 	// Create audit log
-	s.createUserShareAuditLog(ctx, share.ID, userID, action, ipAddress, userAgent, fmt.Sprintf("User accessed document via share"))
+	s.createUserShareAuditLog(ctx, share.ID, userID, action, ipAddress, userAgent, "User accessed document via share")
 
 	return nil
 }

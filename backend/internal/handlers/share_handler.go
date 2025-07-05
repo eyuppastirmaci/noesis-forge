@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
@@ -13,13 +14,18 @@ import (
 type ShareHandler struct {
 	shareService *services.ShareService
 	minioService *services.MinIOService
+	config       *config.Config
 }
 
-func NewShareHandler(shareService *services.ShareService, minioService *services.MinIOService) *ShareHandler {
-	return &ShareHandler{shareService: shareService, minioService: minioService}
+func NewShareHandler(shareService *services.ShareService, minioService *services.MinIOService, cfg *config.Config) *ShareHandler {
+	return &ShareHandler{
+		shareService: shareService,
+		minioService: minioService,
+		config:       cfg,
+	}
 }
 
-// CreateShare handles POST /documents/:id/share (public link only for MVP)
+// CreateShare handles
 func (h *ShareHandler) CreateShare(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -51,12 +57,12 @@ func (h *ShareHandler) CreateShare(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"shareURL": "localhost:8000/share/" + link.Token,
+		"shareURL": h.config.Server.BaseURL + "/share/" + link.Token,
 	}
 	utils.SuccessResponse(c, http.StatusCreated, data, "Share link created")
 }
 
-// DownloadShared handles GET /share/:token/download
+// DownloadShared handles
 func (h *ShareHandler) DownloadShared(c *gin.Context) {
 	token := c.Param("token")
 	clientIP := c.ClientIP()
@@ -84,7 +90,7 @@ func (h *ShareHandler) DownloadShared(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, -1, doc.MimeType, reader, nil)
 }
 
-// GetDocumentShares handles GET /documents/:id/shares
+// GetDocumentShares handles
 func (h *ShareHandler) GetDocumentShares(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -108,7 +114,7 @@ func (h *ShareHandler) GetDocumentShares(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, gin.H{"shares": shares}, "Shares retrieved successfully")
 }
 
-// RevokeShare handles DELETE /documents/:id/shares/:shareId
+// RevokeShare handles
 func (h *ShareHandler) RevokeShare(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

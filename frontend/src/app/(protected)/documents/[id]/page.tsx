@@ -69,6 +69,7 @@ import {
 } from "@/types";
 import { toast, formatDate, formatFileSize } from "@/utils";
 import { API_CONFIG } from "@/config/api";
+import { ENV } from "@/config/env";
 import PDFViewerModal from "@/components/PDFViewerModal";
 import type { DocumentRevision } from "@/types/document";
 import type { ShareItem } from "@/types/share";
@@ -321,13 +322,13 @@ const DocumentDetailPage: React.FC = () => {
   }, [document, selectedShareId, revokeShareMutation]);
 
   const handleCopyShareLink = useCallback((shareToken: string) => {
-    const shareUrl = `http://localhost:8000/share/${shareToken}`;
+    const shareUrl = `${ENV.API_URL.replace('/api/v1', '')}/share/${shareToken}`;
     navigator.clipboard.writeText(shareUrl);
     toast.success("Share link copied to clipboard");
   }, []);
 
   const handleOpenShareInNewTab = useCallback((shareToken: string) => {
-    const shareUrl = `http://localhost:8000/share/${shareToken}`;
+    const shareUrl = `${ENV.API_URL.replace('/api/v1', '')}/share/${shareToken}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   }, []);
 
@@ -740,7 +741,7 @@ const DocumentDetailPage: React.FC = () => {
 
                               <div className="mt-2 p-2 bg-background rounded border border-border">
                                 <p className="text-xs font-mono break-all text-foreground">
-                                  http://localhost:8000/share/{share.token}
+                                  {ENV.API_URL.replace('/api/v1', '')}/share/{share.token}
                                 </p>
                               </div>
 

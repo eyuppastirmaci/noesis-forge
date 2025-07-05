@@ -26,8 +26,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port string `envconfig:"PORT" default:"8000"`
-	Mode string `envconfig:"GIN_MODE" default:"debug"`
+	Port    string `envconfig:"PORT" default:"8000"`
+	Mode    string `envconfig:"GIN_MODE" default:"debug"`
+	BaseURL string `envconfig:"API_BASE_URL" default:"http://localhost:8000"`
 }
 
 type DatabaseConfig struct {
