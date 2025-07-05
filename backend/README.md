@@ -8,10 +8,10 @@ NoesisForge is a modern document processing and AI-powered search system built w
 - **Web Framework:** Gin
 - **Database:** PostgreSQL with GORM
 - **Authentication:** JWT
-- **Cache:** Redis (planned)
+- **Cache:** Redis (rate limiting, session & query caching)
 - **Message Queue:** RabbitMQ (planned)
 - **Vector Database:** Qdrant (planned)
-- **Object Storage:** MinIO (planned)
+- **Object Storage:** MinIO
 - **Monitoring:** Prometheus & Grafana (planned)
 
 ## 📋 Prerequisites
@@ -23,41 +23,13 @@ NoesisForge is a modern document processing and AI-powered search system built w
 ### For Manual Installation
 - **Go** 1.24.2 or higher
 - **PostgreSQL** 13+
+- **Redis** 6+ (for caching and rate limiting)
 - **ImageMagick** (for PDF thumbnail generation)
 - **Git**
 
-#### Installing ImageMagick
 
-**Windows:**
-1. Download ImageMagick from: https://imagemagick.org/script/download.php#windows
-2. Choose the Q16-HDRI version for your architecture (x64 recommended)
-3. Run the installer and ensure "Install development headers and libraries for C and C++" is checked
-4. Add ImageMagick to your PATH during installation
-5. Verify installation: `magick --version`
 
-**macOS:**
-```bash
-# Using Homebrew
-brew install imagemagick
 
-# Using MacPorts
-sudo port install ImageMagick
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt-get update
-sudo apt-get install imagemagick imagemagick-dev libmagickwand-dev
-```
-
-**Linux (CentOS/RHEL/Fedora):**
-```bash
-# CentOS/RHEL
-sudo yum install ImageMagick ImageMagick-devel
-
-# Fedora
-sudo dnf install ImageMagick ImageMagick-devel
-```
 
 ## 🚀 Installation
 
@@ -77,7 +49,7 @@ Docker automatically handles all dependencies including ImageMagick.
    docker-compose up -d
    
    # Or start only backend and its dependencies
-   docker-compose up -d postgres minio minio-init backend
+   docker-compose up -d postgres redis minio minio-init backend
    ```
 
 3. **View logs:**
@@ -98,7 +70,7 @@ Docker automatically handles all dependencies including ImageMagick.
    ```
 
 2. **Install ImageMagick:**
-   Follow the ImageMagick installation instructions above for your operating system.
+   Install ImageMagick for PDF thumbnail generation (see main README.md for detailed installation instructions).
 
 3. **Install Go dependencies:**
    ```bash
@@ -115,20 +87,10 @@ Docker automatically handles all dependencies including ImageMagick.
    ```
 
 5. **Start external services:**
-   ```bash
-   # Start PostgreSQL and MinIO with Docker
-   cd .. # go back to root directory
-   docker-compose up -d postgres minio minio-init
-   cd backend
-   ```
+   - **Option A (Recommended)**: Use Docker: `docker-compose up -d postgres redis minio minio-init`
+   - **Option B**: Install and start PostgreSQL, Redis, and MinIO manually (see main README.md)
 
-6. **Run database migrations:**
-   ```bash
-   # Auto-migrate on startup
-   go run cmd/api/main.go
-   ```
-
-7. **Run the application:**
+6. **Run the application:**
    ```bash
    # Development mode with hot reload (recommended)
    # Install Air first: go install github.com/air-verse/air@latest
@@ -148,7 +110,7 @@ The project includes a `.env.example` file with all required environment variabl
    ```
 
 2. **Update the configuration:**
-   Edit the `.env` file with your own settings, secrets, and database credentials. Make sure to replace all placeholder values with your actual configuration.
+   Edit the `.env` file with your own settings, secrets, and database credentials.
 
 
 
@@ -166,51 +128,27 @@ go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 ```
 
-## 🚀 Deployment
-
-### Using Docker (Recommended)
-```bash
-# Build Docker image
-docker build -t noesisforge-backend .
-
-# Run container with environment variables
-docker run -d \
-  --name noesisforge-backend \
-  -p 8080:8080 \
-  -e APP_ENV=production \
-  -e DB_HOST=your-db-host \
-  -e DB_USER=your-db-user \
-  -e DB_PASSWORD=your-db-password \
-  -e DB_NAME=your-db-name \
-  -e MINIO_ENDPOINT=your-minio-endpoint \
-  -e MINIO_ACCESS_KEY=your-access-key \
-  -e MINIO_SECRET_KEY=your-secret-key \
-  -e JWT_SECRET=your-jwt-secret \
-  noesisforge-backend
-
-# Or use docker-compose for full stack deployment
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Manual Deployment
-```bash
-# Install ImageMagick on your server first
-# For Ubuntu/Debian:
-sudo apt-get install imagemagick imagemagick-dev libmagickwand-dev
-
-# Build for production
-CGO_ENABLED=0 GOOS=linux go build -o bin/api cmd/api/main.go
-
-# Set environment variables
-export APP_ENV=production
-export DB_HOST=your-db-host
-# ... other env vars
-
-# Run binary
-./bin/api
-```
 
 
+
+
+## 🔧 Troubleshooting
+
+
+
+### PDF Thumbnail Issues
+
+**Problem**: PDF thumbnails not generating
+**Solutions**:
+1. **Verify ImageMagick installation**: `magick --version` or `convert --version`
+2. **Restart backend service**: Check logs for ImageMagick errors
+3. **Linux permission issues**:
+   ```bash
+   # Fix ImageMagick security policy for PDF processing
+   sudo nano /etc/ImageMagick-6/policy.xml
+   # Comment out the PDF policy line:
+   <!-- <policy domain="coder" rights="none" pattern="PDF" /> -->
+   ```
 
 ## 📝 API Documentation
 

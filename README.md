@@ -317,7 +317,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Database**: PostgreSQL (metadata & relational data)
 - **Vector Database**: Qdrant (document embeddings)
 - **Object Storage**: MinIO (document files)
-- **Cache**: Redis (session & query caching)
+- **Cache**: Redis (rate limiting, session & query caching)
 - **Message Queue**: RabbitMQ (async processing)
 - **Authentication**: JWT tokens
 - **Monitoring**: Prometheus + Grafana
@@ -361,6 +361,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Go** 1.24.2 or higher
 - **Node.js** 18+ (for frontend)
 - **PostgreSQL** 13+
+- **Redis** 6+ (for caching and rate limiting)
 - **ImageMagick** (for PDF thumbnail generation)
 
 ### Quick Setup
@@ -397,17 +398,11 @@ docker compose logs -f backend
 docker compose logs -f frontend
 ```
 
-##### 4. Access your application
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8080
-- **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
-- **Database**: PostgreSQL on port 5432 (you can use PgAdmin or any PostgreSQL client)
-
 ---
 
 #### Option B: Manual Installation
 
-If you prefer to run services manually or need more control over the setup.
+If you prefer to run services manually or need more control over the setup. You'll need to manually install and configure PostgreSQL, Redis, and MinIO on your system.
 
 ##### 1. Clone the repository
 ```bash
@@ -448,11 +443,21 @@ sudo yum install ImageMagick ImageMagick-devel
 sudo dnf install ImageMagick ImageMagick-devel
 ```
 
-##### 3. Start database services
+##### 3. Start database and cache services
+
+**Option A: Use Docker (Recommended)**
 ```bash
-# Start PostgreSQL and MinIO with Docker
-docker-compose up -d postgres minio minio-init
+# Use Docker for PostgreSQL, Redis, and MinIO (easier than manual installation)
+docker-compose up -d postgres redis minio minio-init
 ```
+
+**Option B: Manual Services**
+If you chose manual installation, ensure you have installed and started:
+- **PostgreSQL** 13+ running on port 5432
+- **Redis** 6+ running on port 6379  
+- **MinIO** running on port 9000 with bucket `noesis-documents`
+
+Configure these services according to your `.env` file settings.
 
 ##### 4. Setup Backend
 ```bash
@@ -485,10 +490,14 @@ cp .env.example .env.local
 npm run dev
 ```
 
-##### 6. Access Your Application
+## 🚀 Access Your Application
+
+After completing either installation option above, you can access:
+
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
+- **Redis**: on port 6379 (CLI: `redis-cli` | GUI: [RedisInsight](https://redis.io/insight/))
 - **Database**: PostgreSQL on port 5432 (you can use PgAdmin or any PostgreSQL client)
 
 ## 🔧 Troubleshooting
