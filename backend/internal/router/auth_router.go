@@ -5,10 +5,10 @@ import (
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
+	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
 // Temp in-memory rate limiter; will switch to Redis.

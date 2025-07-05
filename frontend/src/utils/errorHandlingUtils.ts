@@ -7,12 +7,12 @@ export { isApiClientError, getErrorMessage, extractFieldErrors };
 /**
  * Check if error is a specific API error code
  * @param error - The error object to check
- * @param code - The specific error code to match
+ * @param httpStatus - The specific error status code to match
  * @returns Boolean indicating if the error matches the specified code
  */
-export function isApiErrorCode(error: any, code: string): boolean {
+export function isApiErrorCode(error: any, httpStatus: number): boolean {
   if (isApiClientError(error)) {
-    return error.code === code;
+    return error.statusCode === httpStatus;
   }
   return false;
 }
@@ -53,8 +53,6 @@ export function getFieldError(error: any, field: string): string | undefined {
 export function hasFieldError(error: any, field: string): boolean {
   return !!getFieldError(error, field);
 }
-
-
 
 /**
  * Show error toast notification

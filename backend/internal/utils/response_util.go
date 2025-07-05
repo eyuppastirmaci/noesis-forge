@@ -30,6 +30,26 @@ type ValidationError struct {
 	Value   interface{} `json:"value,omitempty"`
 }
 
+// httpStatusToCode maps HTTP status codes to generic error codes used in the JSON response body.
+func httpStatusToCode(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "BAD_REQUEST"
+	case http.StatusUnauthorized:
+		return "UNAUTHORIZED"
+	case http.StatusForbidden:
+		return "FORBIDDEN"
+	case http.StatusNotFound:
+		return "NOT_FOUND"
+	case http.StatusConflict:
+		return "CONFLICT"
+	case http.StatusTooManyRequests:
+		return "TOO_MANY_REQUESTS"
+	default:
+		return "INTERNAL_ERROR"
+	}
+}
+
 func SuccessResponse(c *gin.Context, statusCode int, data interface{}, message ...string) {
 	msg := ""
 	if len(message) > 0 {
@@ -48,6 +68,11 @@ func SuccessResponse(c *gin.Context, statusCode int, data interface{}, message .
 }
 
 func ErrorResponse(c *gin.Context, statusCode int, code string, message string, details ...string) {
+	// Derive a generic code from HTTP status if none (or empty string) provided.
+	if code == "" {
+		code = httpStatusToCode(statusCode)
+	}
+
 	detail := ""
 	if len(details) > 0 {
 		detail = details[0]

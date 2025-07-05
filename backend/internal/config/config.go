@@ -57,17 +57,27 @@ type JWTConfig struct {
 	Audience         string        `envconfig:"JWT_AUDIENCE" default:"noesis-forge-api"`
 }
 
-// Future configuration structs
+type MinIOConfig struct {
+	Endpoint        string `envconfig:"MINIO_ENDPOINT" default:"localhost:9000"`
+	AccessKeyID     string `envconfig:"MINIO_ACCESS_KEY_ID" default:"minioadmin"`
+	SecretAccessKey string `envconfig:"MINIO_SECRET_ACCESS_KEY" default:"minioadmin123"`
+	UseSSL          bool   `envconfig:"MINIO_USE_SSL" default:"false"`
+	BucketName      string `envconfig:"MINIO_BUCKET_NAME" default:"noesis-documents"`
+	Region          string `envconfig:"MINIO_REGION" default:"us-east-1"`
+}
 
 type RedisConfig struct {
-	URL         string        `envconfig:"REDIS_URL" default:"redis://localhost:6379"`
-	Password    string        `envconfig:"REDIS_PASSWORD"`
-	DB          int           `envconfig:"REDIS_DB" default:"0"`
-	PoolSize    int           `envconfig:"REDIS_POOL_SIZE" default:"10"`
-	MinIdle     int           `envconfig:"REDIS_MIN_IDLE_CONNS" default:"5"`
-	DialTimeout time.Duration `envconfig:"REDIS_DIAL_TIMEOUT" default:"5s"`
-	ReadTimeout time.Duration `envconfig:"REDIS_READ_TIMEOUT" default:"3s"`
+	URL          string        `envconfig:"REDIS_URL" default:"redis://localhost:6379"`
+	Password     string        `envconfig:"REDIS_PASSWORD"`
+	DB           int           `envconfig:"REDIS_DB" default:"0"`
+	PoolSize     int           `envconfig:"REDIS_POOL_SIZE" default:"10"`
+	MinIdle      int           `envconfig:"REDIS_MIN_IDLE_CONNS" default:"5"`
+	DialTimeout  time.Duration `envconfig:"REDIS_DIAL_TIMEOUT" default:"5s"`
+	ReadTimeout  time.Duration `envconfig:"REDIS_READ_TIMEOUT" default:"3s"`
+	WriteTimeout time.Duration `envconfig:"REDIS_WRITE_TIMEOUT" default:"3s"`
 }
+
+// Future configuration structs
 
 type RabbitMQConfig struct {
 	URL            string        `envconfig:"RABBITMQ_URL" default:"amqp://guest:guest@localhost:5672/"`

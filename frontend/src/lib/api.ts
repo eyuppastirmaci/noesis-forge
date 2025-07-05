@@ -3,7 +3,6 @@ import {
   ApiResponse,
   SuccessResponse,
   ApiClientError,
-  ApiErrorCode,
   HttpStatus,
   isSuccessResponse,
 } from "@/types";
@@ -27,7 +26,7 @@ class ApiClient {
   }
 
   private setupInterceptors(): void {
-    // Request interceptor - add Authorization header from cookies
+    // Request interceptor
     this.client.interceptors.request.use(
       async (config) => {
         const token = getCookieValue('access_token');
@@ -51,7 +50,7 @@ class ApiClient {
           return { ...response, data: apiResponse };
         } else {
           const error = apiResponse.error || {
-            code: ApiErrorCode.INTERNAL_ERROR,
+            code: "INTERNAL_ERROR",
             message: "An unexpected error occurred",
           };
           throw new ApiClientError(error, response.status, response);
@@ -62,7 +61,7 @@ class ApiClient {
         if (!error.response) {
           throw new ApiClientError(
             {
-              code: ApiErrorCode.INTERNAL_ERROR,
+              code: "INTERNAL_ERROR",
               message: "Network error or server unavailable",
               details: error.message,
             },
@@ -90,7 +89,7 @@ class ApiClient {
         const apiResponse = this.transformResponse(response);
         if (apiResponse && !isSuccessResponse(apiResponse)) {
           const errorObj = apiResponse.error || {
-            code: ApiErrorCode.INTERNAL_ERROR,
+            code: "INTERNAL_ERROR",
             message: "An unexpected error occurred",
           };
           throw new ApiClientError(errorObj, response.status, response);
@@ -99,7 +98,7 @@ class ApiClient {
         // Handle unexpected errors as fallback
         throw new ApiClientError(
           {
-            code: ApiErrorCode.INTERNAL_ERROR,
+            code: "INTERNAL_ERROR",
             message: "An unexpected error occurred",
             details: error.message,
           },
@@ -131,7 +130,7 @@ class ApiClient {
         statusCode: status,
         timestamp: new Date().toISOString(),
         error: {
-          code: data.code || ApiErrorCode.INTERNAL_ERROR,
+          code: data.code || "INTERNAL_ERROR",
           message: data.message || "An error occurred",
           details: data.error,
           validationErrors: data.error?.validationErrors,
@@ -166,7 +165,7 @@ class ApiClient {
       window.location.href = "/auth/login";
     }
   }
-  // HTTP methods (unchanged)
+  // HTTP methods
   async get<T>(
     url: string,
     config?: AxiosRequestConfig

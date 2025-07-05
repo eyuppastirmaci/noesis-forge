@@ -1,15 +1,16 @@
 package router
 
 import (
-	"context"
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
+	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -33,23 +34,15 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 
 	engine := gin.New()
 
-	// Initialize Redis client (optional for token blacklisting)
+	// Initialize Redis client using our Redis package
 	var redisClient *redis.Client
-	if cfg.Redis.URL != "" || cfg.Redis.URL == "redis://localhost:6379" {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379", // Default Redis address
-			Password: cfg.Redis.Password,
-			DB:       cfg.Redis.DB,
-		})
+	var err error
 
-		// Test Redis connection (don't fail if Redis is not available)
-		ctx := context.Background()
-		_, err := redisClient.Ping(ctx).Result()
-		if err != nil {
-			// Log warning but don't fail - Redis is optional
-			gin.DefaultWriter.Write([]byte("Warning: Redis connection failed, token blacklisting disabled\n"))
-			redisClient = nil
-		}
+	redisClient, err = redis.NewClient(cfg.Redis)
+	if err != nil {
+		// Log warning but don't fail - Redis is optional
+		logrus.Warnf("Redis connection failed in router, some features disabled: %v", err)
+		redisClient = nil
 	}
 
 	// Initialize MinIO service first as AuthService depends on it
@@ -59,8 +52,13 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 		panic("Failed to initialize MinIO service: " + err.Error())
 	}
 
-	// Initialize services
-	authService := services.NewAuthService(db, cfg, redisClient, minioService)
+	// Initialize services with proper Redis client types
+	var rawRedisClient *goredis.Client = nil
+	if redisClient != nil {
+		rawRedisClient = redisClient.Client
+	}
+
+	authService := services.NewAuthService(db, cfg, rawRedisClient, minioService)
 	roleService := services.NewRoleService(db)
 
 	// Initialize Document service
@@ -69,7 +67,7 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 	// Initialize Favorite service
 	favoriteService := services.NewFavoriteService(db)
 
-	// Initialize Share service
+	// Initialize Share service with our custom Redis client
 	shareService := services.NewShareService(db, redisClient)
 
 	return &Router{
@@ -101,7 +99,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	}
 	r.engine.Use(middleware.CORS(r.config.Environment, allowedOrigins))
 
-	// Rate limiter
+	// Rate limiter using our Redis client
 	r.engine.Use(middleware.RateLimitRedis(r.redisClient, 100, time.Minute))
 
 	// Root endpoint
@@ -120,7 +118,10 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 
 	// Register routes
 	RegisterHealthRoutes(api, db)
+
+	// For auth routes, we pass our custom Redis client
 	RegisterAuthRoutes(api, r.authService, r.redisClient)
+
 	RegisterRoleRoutes(api, r.roleService, r.authService)
 	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)

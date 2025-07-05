@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 )
 
-// RateLimitRedis returns a Gin middleware that enforces a simple
+// RateLimitRedis returns a Gin middleware that enforces rate limiting using Redis
 func RateLimitRedis(client *redis.Client, limit int, window time.Duration) gin.HandlerFunc {
 	const keyPrefix = "rate_limit:ip:"
 	return func(c *gin.Context) {
@@ -20,27 +20,22 @@ func RateLimitRedis(client *redis.Client, limit int, window time.Duration) gin.H
 		}
 
 		ip := c.ClientIP()
-		key := fmt.Sprintf("%s%s", keyPrefix, ip)
+		// Include request path so limits apply per-endpoint rather than globally per IP
+		key := fmt.Sprintf("%s%s:%s", keyPrefix, ip, c.FullPath())
 
-		ctx := c.Request.Context()
-
-		// Increment the counter atomically.
-		count, err := client.Incr(ctx, key).Result()
+		// Check rate limit using our Redis client
+		exceeded, count, err := client.CheckRateLimit(key, int64(limit), window)
 		if err != nil {
 			// Fail-open: on Redis error allow request but log if desired.
 			c.Next()
 			return
 		}
 
-		// First time we see the key – set expiry to the window length.
-		if count == 1 {
-			_ = client.Expire(ctx, key, window).Err()
-		}
-
-		if count > int64(limit) {
+		if exceeded {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"code":    "RATE_LIMIT_EXCEEDED",
 				"message": "Too many requests. Please try again later.",
+				"details": fmt.Sprintf("Rate limit exceeded. %d requests in the last %v", count, window),
 			})
 			c.Abort()
 			return

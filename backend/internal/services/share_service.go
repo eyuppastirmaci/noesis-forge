@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
+	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -19,8 +19,8 @@ type ShareService struct {
 	redis *redis.Client // optional, may be nil
 }
 
-func NewShareService(db *gorm.DB, redis *redis.Client) *ShareService {
-	return &ShareService{db: db, redis: redis}
+func NewShareService(db *gorm.DB, redisClient *redis.Client) *ShareService {
+	return &ShareService{db: db, redis: redisClient}
 }
 
 // CreatePublicShare creates a new public share link for a document.
@@ -58,15 +58,17 @@ func (s *ShareService) CreatePublicShare(ctx context.Context, ownerID, documentI
 
 // ValidateToken validates token, increments download count, returns document.
 func (s *ShareService) ValidateToken(ctx context.Context, token string, clientIP, userAgent string) (*models.Document, error) {
-	// brute-force protection (if redis present)
+	// brute-force protection using Redis
 	if s.redis != nil {
-		key := fmt.Sprintf("share_attempt:%s", clientIP)
-		attempts, _ := s.redis.Incr(ctx, key).Result()
-		if attempts == 1 {
-			s.redis.Expire(ctx, key, 15*time.Minute)
-		}
-		if attempts > 20 {
-			return nil, fmt.Errorf("too many attempts")
+		const maxAttempts = 20
+		const window = 15 * time.Minute
+
+		attempts, err := s.redis.IncrementShareAttempt(clientIP, window)
+		if err != nil {
+			// Log error but continue - don't fail if Redis is down
+			fmt.Printf("Redis error in share validation: %v\n", err)
+		} else if attempts > maxAttempts {
+			return nil, fmt.Errorf("too many share access attempts from your IP")
 		}
 	}
 
