@@ -28,9 +28,9 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   variant = "danger",
   isLoading = false,
 }) => {
-  const handleConfirm = () => {
-    onConfirm();
-    onClose();
+  const handleConfirm = async () => {
+    await onConfirm();
+    // onClose() - Don't close here, let the onConfirm handle it
   };
 
   const getVariantStyles = () => {

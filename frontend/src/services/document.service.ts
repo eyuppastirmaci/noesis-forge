@@ -317,33 +317,20 @@ export class DocumentService {
    */
   async getPDFBlobUrl(id: string): Promise<string> {
     try {
-      // Create a new axios instance that bypasses apiClient interceptors
-      const downloadClient = (apiClient as any).client.create({
-        withCredentials: true,
-        timeout: 60000, // 1 minute timeout for PDF viewing
-      });
+      // First get the preview URL from the backend
+      const previewResponse = await this.getDocumentPreview(id);
+      const previewUrl = previewResponse.data.url;
 
-      // Only add the request interceptor for auth (not response interceptor)
-      downloadClient.interceptors.request.use(
-        async (config: any) => {
-          // Get access token from cookies (same as apiClient)
-          const accessToken = getCookieValue('access_token');
-          if (accessToken) {
-            config.headers.Authorization = `Bearer ${accessToken}`;
-          }
-          return config;
-        }
-      );
+      // Now fetch the PDF content from the presigned URL
+      const response = await fetch(previewUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PDF content: ${response.status}`);
+      }
 
-      const response = await downloadClient.get(
-        DOCUMENT_ENDPOINTS.DOWNLOAD(id),
-        {
-          responseType: 'blob', // Important: get response as blob
-        }
-      );
-
-      // Response.data should be a blob
-      const blob = response.data;
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create and return the blob URL
       const url = window.URL.createObjectURL(blob);
       return url;
 

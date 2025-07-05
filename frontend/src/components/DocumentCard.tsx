@@ -60,6 +60,8 @@ interface DocumentCardProps {
   isSelected?: boolean;
   onSelect?: (documentId: string, selected: boolean) => void;
   className?: string;
+  hideDelete?: boolean;
+  hideDownload?: boolean;
 }
 
 const DocumentCard = memo(
@@ -74,6 +76,8 @@ const DocumentCard = memo(
     isSelected = false,
     onSelect,
     className = "",
+    hideDelete = false,
+    hideDownload = false,
   }: DocumentCardProps) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showPDFViewer, setShowPDFViewer] = useState(false);
@@ -348,37 +352,45 @@ const DocumentCard = memo(
                       : "Add to favorites"}
                   </CustomTooltip>
 
-                  <div data-tooltip-id={`download-${document.id}`}>
-                    <IconButton
-                      Icon={Download}
-                      onClick={() => onDownload(document)}
-                      variant="default"
-                      size="sm"
-                      bordered={false}
-                      disabled={isDownloading}
-                    />
-                  </div>
-                  <CustomTooltip
-                    anchorSelect={`[data-tooltip-id='download-${document.id}']`}
-                  >
-                    Download document
-                  </CustomTooltip>
+                  {!hideDownload && (
+                    <>
+                      <div data-tooltip-id={`download-${document.id}`}>
+                        <IconButton
+                          Icon={Download}
+                          onClick={() => onDownload(document)}
+                          variant="default"
+                          size="sm"
+                          bordered={false}
+                          disabled={isDownloading}
+                        />
+                      </div>
+                      <CustomTooltip
+                        anchorSelect={`[data-tooltip-id='download-${document.id}']`}
+                      >
+                        Download document
+                      </CustomTooltip>
+                    </>
+                  )}
 
-                  <div data-tooltip-id={`delete-${document.id}`}>
-                    <IconButton
-                      Icon={Trash2}
-                      onClick={handleDeleteClick}
-                      variant="danger"
-                      size="sm"
-                      bordered={false}
-                      disabled={isDeleting}
-                    />
-                  </div>
-                  <CustomTooltip
-                    anchorSelect={`[data-tooltip-id='delete-${document.id}']`}
-                  >
-                    Delete document
-                  </CustomTooltip>
+                  {!hideDelete && (
+                    <>
+                      <div data-tooltip-id={`delete-${document.id}`}>
+                        <IconButton
+                          Icon={Trash2}
+                          onClick={handleDeleteClick}
+                          variant="danger"
+                          size="sm"
+                          bordered={false}
+                          disabled={isDeleting}
+                        />
+                      </div>
+                      <CustomTooltip
+                        anchorSelect={`[data-tooltip-id='delete-${document.id}']`}
+                      >
+                        Delete document
+                      </CustomTooltip>
+                    </>
+                  )}
                 </div>
               )}
             </div>

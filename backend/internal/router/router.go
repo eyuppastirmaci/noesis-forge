@@ -15,15 +15,16 @@ import (
 )
 
 type Router struct {
-	engine          *gin.Engine
-	config          *config.Config
-	authService     *services.AuthService
-	roleService     *services.RoleService
-	documentService *services.DocumentService
-	favoriteService *services.FavoriteService
-	minioService    *services.MinIOService
-	redisClient     *redis.Client
-	shareService    *services.ShareService
+	engine           *gin.Engine
+	config           *config.Config
+	authService      *services.AuthService
+	roleService      *services.RoleService
+	documentService  *services.DocumentService
+	favoriteService  *services.FavoriteService
+	minioService     *services.MinIOService
+	redisClient      *redis.Client
+	shareService     *services.ShareService
+	userShareService *services.UserShareService
 }
 
 func New(cfg *config.Config, db *gorm.DB) *Router {
@@ -70,16 +71,20 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 	// Initialize Share service with our custom Redis client
 	shareService := services.NewShareService(db, redisClient)
 
+	// Initialize User Share service
+	userShareService := services.NewUserShareService(db, redisClient)
+
 	return &Router{
-		engine:          engine,
-		config:          cfg,
-		authService:     authService,
-		roleService:     roleService,
-		documentService: documentService,
-		favoriteService: favoriteService,
-		minioService:    minioService,
-		redisClient:     redisClient,
-		shareService:    shareService,
+		engine:           engine,
+		config:           cfg,
+		authService:      authService,
+		roleService:      roleService,
+		documentService:  documentService,
+		favoriteService:  favoriteService,
+		minioService:     minioService,
+		redisClient:      redisClient,
+		shareService:     shareService,
+		userShareService: userShareService,
 	}
 }
 
@@ -123,7 +128,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterAuthRoutes(api, r.authService, r.redisClient)
 
 	RegisterRoleRoutes(api, r.roleService, r.authService)
-	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService)
+	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
 
 	// Share routes
@@ -132,6 +137,10 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	r.engine.GET("/share/:token", shareHandler.DownloadShared)
 	// creation under api group
 	RegisterShareRoutes(api, r.shareService, r.minioService, r.authService)
+
+	// User Share routes
+	userShareHandler := handlers.NewUserShareHandler(r.userShareService)
+	RegisterUserShareRoutes(api, userShareHandler, r.authService)
 }
 
 func (r *Router) GetEngine() *gin.Engine {

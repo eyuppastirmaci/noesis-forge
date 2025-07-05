@@ -24,14 +24,16 @@ import (
 )
 
 type DocumentHandler struct {
-	documentService *services.DocumentService
-	minioService    *services.MinIOService
+	documentService  *services.DocumentService
+	minioService     *services.MinIOService
+	userShareService *services.UserShareService
 }
 
-func NewDocumentHandler(documentService *services.DocumentService, minioService *services.MinIOService) *DocumentHandler {
+func NewDocumentHandler(documentService *services.DocumentService, minioService *services.MinIOService, userShareService *services.UserShareService) *DocumentHandler {
 	return &DocumentHandler{
-		documentService: documentService,
-		minioService:    minioService,
+		documentService:  documentService,
+		minioService:     minioService,
+		userShareService: userShareService,
 	}
 }
 
@@ -267,16 +269,41 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 
 	logrus.Infof("[DOWNLOAD_HANDLER] Fetching document %s for user %s", documentID, userID)
 
-	// Get document info
+	// First try to get document as owner
 	document, err := h.documentService.DownloadDocument(c.Request.Context(), userID, documentID)
+
+	// If user doesn't own the document, check for shared access
 	if err != nil {
-		logrus.Errorf("[DOWNLOAD_HANDLER] Document fetch error: %v", err)
+		logrus.Infof("[DOWNLOAD_HANDLER] Document fetch error: %v", err)
 		if err.Error() == "document not found" {
-			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+			logrus.Infof("[DOWNLOAD_HANDLER] Document not found for owner, checking shared access...")
+
+			// Check if user has shared access to this document (at least download level)
+			hasAccess, accessErr := h.userShareService.ValidateUserAccess(c.Request.Context(), userID, documentID, models.AccessLevelDownload)
+			logrus.Infof("[DOWNLOAD_HANDLER] Shared access check result: hasAccess=%v, error=%v", hasAccess, accessErr)
+
+			if accessErr != nil || !hasAccess {
+				logrus.Infof("[DOWNLOAD_HANDLER] No shared access found or error: %v", accessErr)
+				utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or download access denied")
+				return
+			}
+
+			// Get document details directly from database since user has shared access
+			var sharedDocument models.Document
+			if err := h.userShareService.GetDB().Where("id = ?", documentID).First(&sharedDocument).Error; err != nil {
+				logrus.Errorf("[DOWNLOAD_HANDLER] Failed to get shared document from DB: %v", err)
+				utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+				return
+			}
+
+			// Convert to expected format
+			document = &sharedDocument
+			logrus.Infof("[DOWNLOAD_HANDLER] User %s downloading shared document %s", userID, documentID)
+		} else {
+			logrus.Errorf("[DOWNLOAD_HANDLER] Document fetch error (not 'not found'): %v", err)
+			utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", err.Error())
 			return
 		}
-		utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", err.Error())
-		return
 	}
 
 	logrus.Infof("[DOWNLOAD_HANDLER] Document found: %s (original: %s)", document.FileName, document.OriginalFileName)
@@ -333,13 +360,27 @@ func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 		return
 	}
 
-	// Get the full document model to access StoragePath
+	// First try to get the full document model as owner
 	var document models.Document
-	if err := h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document); err != nil {
-		if err.Error() == "document not found" {
+	err = h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document)
+
+	// If user doesn't own the document, check for shared access
+	if err != nil && err.Error() == "document not found" {
+		// Check if user has shared access to this document (at least view level)
+		hasAccess, accessErr := h.userShareService.ValidateUserAccess(c.Request.Context(), userID, documentID, models.AccessLevelView)
+		if accessErr != nil || !hasAccess {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or preview access denied")
+			return
+		}
+
+		// Get document details directly from database since user has shared access
+		if err := h.userShareService.GetDB().Where("id = ?", documentID).First(&document).Error; err != nil {
 			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
 			return
 		}
+
+		logrus.Infof("[PREVIEW] User %s accessing preview for shared document %s", userID, documentID)
+	} else if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "PREVIEW_FAILED", "Failed to get document details")
 		return
 	}
@@ -375,13 +416,27 @@ func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
 		return
 	}
 
-	// Get document to check if it exists and has thumbnail
+	// First try to get document as owner
 	var document models.Document
-	if err := h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document); err != nil {
-		if err.Error() == "document not found" {
+	err = h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document)
+
+	// If user doesn't own the document, check for shared access
+	if err != nil && err.Error() == "document not found" {
+		// Check if user has shared access to this document
+		hasAccess, accessErr := h.userShareService.ValidateUserAccess(c.Request.Context(), userID, documentID, models.AccessLevelView)
+		if accessErr != nil || !hasAccess {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or access denied")
+			return
+		}
+
+		// Get document details directly from database since user has shared access
+		if err := h.userShareService.GetDB().Where("id = ?", documentID).First(&document).Error; err != nil {
 			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
 			return
 		}
+
+		logrus.Infof("User %s accessing thumbnail for shared document %s", userID, documentID)
+	} else if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
 		return
 	}
