@@ -8,7 +8,7 @@
 
 ![list](https://github.com/user-attachments/assets/f59d7462-f806-44da-86be-deb5b0251972)
 
-![annotations](https://github.com/user-attachments/assets/b6b2b1c9-4695-423b-8191-2c1285c50689)
+![annotation](https://github.com/user-attachments/assets/f45c3fb3-98c8-4b5b-93d8-2a8f228f5530)
 
 ## 🚧 Development Status
 
