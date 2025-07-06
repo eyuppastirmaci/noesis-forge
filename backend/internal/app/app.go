@@ -73,8 +73,11 @@ func New() (*App, error) {
 	}
 	authService := services.NewAuthService(db, cfg, rawRedisClient, minioService)
 
-	// Initialize Document service
-	documentService := services.NewDocumentService(db, minioService)
+	// Initialize User Share service
+	userShareService := services.NewUserShareService(db, customRedisClient)
+
+	// Initialize Document service (depends on UserShareService)
+	documentService := services.NewDocumentService(db, minioService, userShareService)
 
 	// Initialize router (router will also initialize its own services)
 	r := router.New(cfg, db)

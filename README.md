@@ -144,8 +144,8 @@ Core document features work, but many AI capabilities are still being built. Con
 - ✅ Document favoriting system
 - ✅ Favorites page (My Favorite Documents)
 - ✅ Shared documents page (Documents Shared with Me)
-- ☐ Document comments and annotations
-- ☐ Document activity history
+- ✅ Document comments and annotations
+- ✅ Document activity history
 
 ### Phase 3: Search Foundation
 
@@ -317,7 +317,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Database**: PostgreSQL (metadata & relational data)
 - **Vector Database**: Qdrant (document embeddings)
 - **Object Storage**: MinIO (document files)
-- **Cache**: Redis (rate limiting, session & query caching)
+- **Cache**: Redis 8.0.2 (rate limiting, session & query caching)
 - **Message Queue**: RabbitMQ (async processing)
 - **Authentication**: JWT tokens
 - **Monitoring**: Prometheus + Grafana
@@ -361,7 +361,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Go** 1.24.2 or higher
 - **Node.js** 18+ (for frontend)
 - **PostgreSQL** 13+
-- **Redis** 6+ (for caching and rate limiting)
+- **Redis** 8.0.2+ (for caching and rate limiting)
 - **ImageMagick** (for PDF thumbnail generation)
 
 ### Quick Setup
@@ -454,7 +454,7 @@ docker-compose up -d postgres redis minio minio-init
 **Option B: Manual Services**
 If you chose manual installation, ensure you have installed and started:
 - **PostgreSQL** 13+ running on port 5432
-- **Redis** 6+ running on port 6379  
+- **Redis** 8.0.2+ running on port 6379  
 - **MinIO** running on port 9000 with bucket `noesis-documents`
 
 Configure these services according to your `.env` file settings.

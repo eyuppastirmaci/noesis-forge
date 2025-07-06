@@ -51,6 +51,7 @@ const DocumentSharedPage: FC = () => {
     ...shareMutations.revokeUserShare(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: shareQueries.sharedByMe().queryKey });
+      queryClient.invalidateQueries({ queryKey: shareQueries.sharedWithMe().queryKey });
       toast.success("Access revoked successfully");
     },
     onError: (error: any) => {
@@ -92,8 +93,7 @@ const DocumentSharedPage: FC = () => {
   const handleDelete = useCallback(async (document: Document) => {
     setDeletingDocs(prev => new Set([...prev, document.id]));
     try {
-      // Implement delete logic here
-      console.log("Deleting document:", document.id);
+      // TODO: Implement delete logic here
     } catch (error) {
       console.error("Delete failed:", error);
     } finally {
@@ -315,8 +315,9 @@ const DocumentSharedPage: FC = () => {
                       )}
                       <button
                         id={`remove-shared-${item.id}`}
-                        onClick={() => console.log('Remove from my shared documents')}
-                        className="p-2 hover:bg-danger/10 rounded transition-colors"
+                        onClick={() => handleRevokeShare(item.document.id, item.share?.id || '')}
+                        disabled={revokeUserShareMutation.isPending}
+                        className="p-2 hover:bg-danger/10 rounded transition-colors disabled:opacity-50"
                       >
                         <X className="w-4 h-4 text-danger hover:text-danger-dark" />
                       </button>

@@ -103,10 +103,6 @@ func (s *ShareService) GetDocumentShares(ctx context.Context, ownerID, documentI
 		Where("document_id = ? AND owner_id = ? AND is_revoked = false", documentID, ownerID).
 		Find(&shares).Error
 
-	// Debug log
-	fmt.Printf("[DEBUG] GetDocumentShares - DocumentID: %s, OwnerID: %s, Found: %d shares, Error: %v\n",
-		documentID, ownerID, len(shares), err)
-
 	return shares, err
 }
 

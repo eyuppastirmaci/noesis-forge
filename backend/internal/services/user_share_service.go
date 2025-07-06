@@ -341,6 +341,43 @@ func (s *UserShareService) createUserShareAuditLog(ctx context.Context, shareID,
 	s.db.WithContext(ctx).Create(&log)
 }
 
+// GetUserAccessLevel returns the user's access level for a document (empty string if no access)
+func (s *UserShareService) GetUserAccessLevel(ctx context.Context, userID uuid.UUID, documentID uuid.UUID) (string, error) {
+	logrus.Infof("[GET_ACCESS_LEVEL] Getting access level for user %s to document %s", userID, documentID)
+
+	var share models.UserShare
+
+	// Get user email to check both user ID and email-based shares
+	var user models.User
+	if err := s.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
+		logrus.Errorf("[GET_ACCESS_LEVEL] User not found: %v", err)
+		return "", fmt.Errorf("user not found")
+	}
+
+	logrus.Infof("[GET_ACCESS_LEVEL] User found: %s (%s)", user.Email, userID)
+
+	// Check if user has access either by user ID or email
+	if err := s.db.WithContext(ctx).
+		Where("document_id = ? AND (shared_with_user_id = ? OR shared_with_email = ?) AND is_revoked = false", documentID, userID, user.Email).
+		First(&share).Error; err != nil {
+		logrus.Infof("[GET_ACCESS_LEVEL] No share found for user %s (email: %s) to document %s: %v", userID, user.Email, documentID, err)
+		return "", nil // Not found is not an error, just no access
+	}
+
+	logrus.Infof("[GET_ACCESS_LEVEL] Share found: ID=%s, AccessLevel=%s, IsRevoked=%v, ExpiresAt=%v", share.ID, share.AccessLevel, share.IsRevoked, share.ExpiresAt)
+
+	// Check if expired
+	if share.IsExpired() {
+		logrus.Infof("[GET_ACCESS_LEVEL] Share is expired")
+		return "", nil
+	}
+
+	// Convert access level to string
+	accessLevel := string(share.AccessLevel)
+	logrus.Infof("[GET_ACCESS_LEVEL] User access level: %s", accessLevel)
+	return accessLevel, nil
+}
+
 // GetDB returns the database instance
 func (s *UserShareService) GetDB() *gorm.DB {
 	return s.db

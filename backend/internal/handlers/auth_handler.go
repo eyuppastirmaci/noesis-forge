@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
@@ -23,7 +22,6 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
-	fmt.Println("Register request received")
 
 	// Get validated request from context
 	req, ok := validations.GetValidatedUser(c)

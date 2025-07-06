@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import { useClickOutside } from "@/hooks/useClickOutside";
 
 export interface SelectOption {
   value: string;
@@ -49,22 +50,20 @@ export function Select({
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+  // Handle click outside to close dropdown
+  useClickOutside({
+    ref: selectRef,
+    isActive: isOpen,
+    onClickOutside: (event) => {
       const target = event.target as Node;
-      
-      // Check if click is outside both select trigger and dropdown
-      if (
-        selectRef.current && 
-        !selectRef.current.contains(target) &&
-        dropdownRef.current &&
-        !dropdownRef.current.contains(target)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsOpen(false);
         setFocusedIndex(-1);
       }
-    };
+    }
+  });
 
+  useEffect(() => {
     const handleScroll = () => {
       if (isOpen) {
         updateDropdownPosition();
@@ -77,12 +76,10 @@ export function Select({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
     window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", handleResize);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", handleResize);
     };

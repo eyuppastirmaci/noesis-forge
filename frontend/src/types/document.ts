@@ -37,6 +37,7 @@ export interface Document {
   createdAt: string;
   updatedAt: string;
   hasThumbnail: boolean; // Whether server-generated thumbnail exists
+  userAccessLevel: string; // Current user's access level (owner, edit, view)
 }
 
 // Collection Interface (for future use)

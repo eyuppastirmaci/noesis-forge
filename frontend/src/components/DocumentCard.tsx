@@ -2,7 +2,6 @@
 
 import React, { useCallback, memo, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Download,
@@ -39,15 +38,7 @@ import {
 } from "@/utils";
 import { API_CONFIG } from "@/config/api";
 
-// Dynamically import Image to avoid SSR hydration issues
-const Image = dynamic(() => import("next/image"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-16 h-16 bg-background-secondary rounded border border-border animate-pulse flex items-center justify-center">
-      <div className="w-4 h-4 bg-border rounded animate-pulse"></div>
-    </div>
-  ),
-});
+import DynamicImage from "@/components/ui/DynamicImage";
 
 interface DocumentCardProps {
   document: Document;
@@ -255,7 +246,7 @@ const DocumentCard = memo(
                     onClick={handlePDFViewerOpen}
                     title={`Open ${document.title} in PDF viewer`}
                   >
-                    <Image
+                    <DynamicImage
                       src={`${
                         API_CONFIG.BASE_URL
                       }${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${
@@ -273,6 +264,7 @@ const DocumentCard = memo(
                           target.nextElementSibling as HTMLElement;
                         if (placeholder) placeholder.style.display = "flex";
                       }}
+                      loadingSkeleton={{ width: 64, height: 64 }}
                     />
                   </div>
                 ) : document.fileType === DocumentType.PDF ? (

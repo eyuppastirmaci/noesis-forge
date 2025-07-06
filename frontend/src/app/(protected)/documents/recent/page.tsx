@@ -30,18 +30,7 @@ import {
   Grid,
   List,
 } from "lucide-react";
-import dynamic from "next/dynamic";
-
-// Dynamically import Image to avoid SSR hydration issues
-const Image = dynamic(() => import("next/image"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-16 h-20 bg-background-secondary rounded border border-border animate-pulse flex items-center justify-center">
-      <div className="w-6 h-6 bg-border rounded animate-pulse"></div>
-    </div>
-  ),
-});
-
+import DynamicImage from "@/components/ui/DynamicImage";
 import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import LinkButton from "@/components/ui/LinkButton";
@@ -599,12 +588,13 @@ const DocumentRecentPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-center h-24 mb-3 bg-background rounded border border-border">
                       {document.fileType === "pdf" && document.hasThumbnail ? (
-                        <Image
+                        <DynamicImage
                           src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${document.version}`}
                           alt={`${document.title} thumbnail`}
                           width={80}
                           height={96}
                           className="max-h-full max-w-full object-contain rounded"
+                          loadingSkeleton={{ width: 80, height: 96 }}
                         />
                       ) : (
                         <DocumentTypeIndicator fileType={document.fileType} size="lg" />
@@ -872,12 +862,13 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
         <div className="flex items-center gap-4 max-w-full">
           <div className="flex-shrink-0 w-12 h-16">
             {document.fileType === "pdf" && document.hasThumbnail ? (
-              <Image
+              <DynamicImage
                 src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${document.version}`}
                 alt={`${document.title} thumbnail`}
                 width={48}
                 height={64}
                 className="w-full h-full object-cover rounded border border-border"
+                loadingSkeleton={{ width: 48, height: 64 }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-background-secondary rounded border border-border">
@@ -1014,12 +1005,13 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document }) => {
       <Card.Content>
         <div className="flex items-center justify-center h-32 mb-3 bg-background-secondary rounded border border-border">
           {document.fileType === "pdf" && document.hasThumbnail ? (
-            <Image
+            <DynamicImage
               src={`${API_CONFIG.BASE_URL}${DOCUMENT_ENDPOINTS.THUMBNAIL(document.id)}?v=${document.version}`}
               alt={`${document.title} thumbnail`}
               width={120}
               height={120}
               className="max-h-full max-w-full object-contain rounded"
+              loadingSkeleton={{ width: 120, height: 120 }}
             />
           ) : (
             <DocumentTypeIndicator fileType={document.fileType} size="lg" />

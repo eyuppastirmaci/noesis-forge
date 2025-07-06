@@ -8,7 +8,8 @@ import {
   RevokeUserShareRequest,
   ShareAnalytics,
   ShareNotification,
-  SHARE_ENDPOINTS 
+  SHARE_ENDPOINTS,
+  UserShare
 } from "@/types/share";
 import { apiClient } from "@/lib/api";
 
@@ -46,6 +47,12 @@ export const shareApi = {
   getPublicLinks: async (): Promise<PublicLinkItem[]> => {
     const response = await apiClient.get<{links: PublicLinkItem[]; pagination: any}>(SHARE_ENDPOINTS.PUBLIC_LINKS);
     return response.data.links;
+  },
+
+  // List user-specific shares for a document
+  getUserShares: async (documentId: string): Promise<UserShare[]> => {
+    const response = await apiClient.get<{shares: UserShare[]}>(SHARE_ENDPOINTS.GET_USER_SHARES(documentId));
+    return response.data.shares;
   },
 
   // Analytics and notifications
@@ -95,6 +102,13 @@ export const shareQueries = {
     queryFn: shareApi.getPublicLinks,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
+  }),
+
+  userShares: (documentId: string) => ({
+    queryKey: SHARE_QUERY_KEYS.USER_SHARES(documentId),
+    queryFn: () => shareApi.getUserShares(documentId),
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
   }),
 
   shareAnalytics: () => ({

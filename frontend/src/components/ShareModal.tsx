@@ -10,14 +10,15 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import SwitchButton from "@/components/ui/SwitchButton";
 import Badge from "@/components/ui/Badge";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { documentMutations } from "@/services/document.service";
-import { shareMutations } from "@/services/share.service";
+import { shareMutations, shareQueries, shareUtils } from "@/services/share.service";
 import { toast } from "@/utils";
 import { CreateShareRequest } from "@/types";
 import { CreateUserShareRequest, AccessLevel } from "@/types/share";
 import { Copy, Check, ExternalLink, Link2, Users, X, Plus } from "lucide-react";
 import CustomTooltip from "@/components/ui/CustomTooltip";
+import type { UserShare as ExistingUserShare, SharedByMeItem } from "@/types/share";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -25,9 +26,9 @@ interface ShareModalProps {
   documentId: string;
 }
 
-interface UserShare {
+interface UserShareInput {
   email: string;
-  accessLevel: "view" | "download" | "edit";
+  accessLevel: AccessLevel;
 }
 
 const ShareModal: React.FC<ShareModalProps> = ({
@@ -48,7 +49,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const [userAccessLevel, setUserAccessLevel] = useState<
     "view" | "download" | "edit"
   >("view");
-  const [userShares, setUserShares] = useState<UserShare[]>([]);
+  const [userShares, setUserShares] = useState<UserShareInput[]>([]);
   const [userExpiresInDays, setUserExpiresInDays] = useState<
     number | undefined
   >(30);
@@ -57,6 +58,31 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const queryClient = useQueryClient();
   const shareMutation = useMutation(documentMutations.share());
   const userShareMutation = useMutation(shareMutations.createUserShare());
+
+  const {
+    data: sharedByMeData,
+    isLoading: isLoadingExistingShares,
+  } = useQuery<SharedByMeItem[]>(shareQueries.sharedByMe());
+
+  const existingShares: ExistingUserShare[] | undefined = sharedByMeData
+    ? sharedByMeData
+        .filter((item) => item.document.id === documentId)
+        .flatMap((item) => item.shares)
+        .map((share) => ({
+          id: share.id,
+          documentId: documentId,
+          ownerId: '',
+          sharedWithEmail: share.sharedWith.email,
+          sharedWithUserId: share.sharedWith.id,
+          accessLevel: share.accessLevel,
+          expiresAt: share.expiresAt,
+          isRevoked: share.isRevoked,
+          acceptedAt: share.acceptedAt,
+          lastAccessedAt: share.lastAccessedAt,
+          createdAt: share.sharedAt,
+          updatedAt: share.sharedAt,
+        }))
+    : undefined;
 
   const handleCreateLink = async () => {
     const req: CreateShareRequest = {
@@ -359,6 +385,31 @@ const ShareModal: React.FC<ShareModalProps> = ({
                   Share this document with specific users by email
                 </p>
               </div>
+
+              {/* Existing Shares */}
+              <h4 className="text-sm font-semibold mb-2 text-foreground">
+                Existing Shares
+              </h4>
+              {isLoadingExistingShares ? (
+                <div className="flex items-center justify-center py-2">
+                  <LoadingSpinner size="sm" />
+                </div>
+              ) : existingShares && existingShares.length > 0 ? (
+                <div className="space-y-2 mb-4 max-h-40 overflow-auto">
+                  {existingShares.map((share) => (
+                    <div key={share.id} className="flex items-center justify-between p-2 bg-background-secondary rounded border border-border">
+                      <span className="text-sm text-foreground">
+                        {share.sharedWithEmail}
+                      </span>
+                      <Badge color={shareUtils.getAccessLevelColor(share.accessLevel)} size="sm">
+                        {shareUtils.getAccessLevelText(share.accessLevel)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-foreground-secondary mb-4">No existing user shares.</p>
+              )}
 
               {/* Add User Form */}
               <div className="space-y-4 p-4 bg-background-secondary rounded-lg border border-border">

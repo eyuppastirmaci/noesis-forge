@@ -59,6 +59,7 @@ type Document struct {
 	IsPublic      bool   `json:"isPublic" gorm:"default:false"`
 	ViewCount     int64  `json:"viewCount" gorm:"default:0"`
 	DownloadCount int64  `json:"downloadCount" gorm:"default:0"`
+	PageCount     *int   `json:"pageCount,omitempty"` // Number of pages (for PDF documents)
 
 	// Relations
 	UserID uuid.UUID `json:"userID" gorm:"type:uuid;not null"`

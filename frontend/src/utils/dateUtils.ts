@@ -117,9 +117,13 @@ export const formatDateTime = (date: string | Date | number): string => {
 /**
  * Format relative time (e.g., "2 hours ago", "in 3 days")
  * @param date - Date string, Date object, or timestamp
+ * @param options - Options for formatting (addSuffix)
  * @returns Relative time string
  */
-export const formatRelativeTime = (date: string | Date | number): string => {
+export const formatRelativeTime = (
+  date: string | Date | number,
+  options: { addSuffix?: boolean } = { addSuffix: true }
+): string => {
   const dateObj = typeof date === "string" ? new Date(date) : 
                   typeof date === "number" ? new Date(date) : date;
   
@@ -129,21 +133,61 @@ export const formatRelativeTime = (date: string | Date | number): string => {
   
   const now = new Date();
   const diffMs = dateObj.getTime() - now.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffSeconds = Math.floor(Math.abs(diffMs) / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
   
-  if (Math.abs(diffDays) >= 1) {
-    return relativeTimeFormatter.format(diffDays, "day");
-  } else if (Math.abs(diffHours) >= 1) {
-    return relativeTimeFormatter.format(diffHours, "hour");
-  } else if (Math.abs(diffMinutes) >= 1) {
-    return relativeTimeFormatter.format(diffMinutes, "minute");
+  const isPast = diffMs < 0;
+  const addSuffix = options.addSuffix !== false;
+  
+  let value: number;
+  let unit: string;
+  
+  if (diffYears >= 1) {
+    value = diffYears;
+    unit = diffYears === 1 ? "year" : "years";
+  } else if (diffMonths >= 1) {
+    value = diffMonths;
+    unit = diffMonths === 1 ? "month" : "months";
+  } else if (diffWeeks >= 1) {
+    value = diffWeeks;
+    unit = diffWeeks === 1 ? "week" : "weeks";
+  } else if (diffDays >= 1) {
+    value = diffDays;
+    unit = diffDays === 1 ? "day" : "days";
+  } else if (diffHours >= 1) {
+    value = diffHours;
+    unit = diffHours === 1 ? "hour" : "hours";
+  } else if (diffMinutes >= 1) {
+    value = diffMinutes;
+    unit = diffMinutes === 1 ? "minute" : "minutes";
   } else {
-    return relativeTimeFormatter.format(diffSeconds, "second");
+    value = diffSeconds;
+    unit = diffSeconds === 1 ? "second" : "seconds";
+  }
+  
+  if (!addSuffix) {
+    return `${value} ${unit}`;
+  }
+  
+  if (isPast) {
+    return `${value} ${unit} ago`;
+  } else {
+    return `in ${value} ${unit}`;
   }
 };
+
+/**
+ * Alias for formatRelativeTime to match date-fns API
+ * @param date - Date string, Date object, or timestamp
+ * @param options - Options for formatting
+ * @returns Relative time string
+ */
+export const formatDistanceToNow = formatRelativeTime;
 
 /**
  * Check if a date is today

@@ -8,7 +8,7 @@ NoesisForge is a modern document processing and AI-powered search system built w
 - **Web Framework:** Gin
 - **Database:** PostgreSQL with GORM
 - **Authentication:** JWT
-- **Cache:** Redis (rate limiting, session & query caching)
+- **Cache:** Redis 8.0.2 (rate limiting, session & query caching)
 - **Message Queue:** RabbitMQ (planned)
 - **Vector Database:** Qdrant (planned)
 - **Object Storage:** MinIO
@@ -23,13 +23,9 @@ NoesisForge is a modern document processing and AI-powered search system built w
 ### For Manual Installation
 - **Go** 1.24.2 or higher
 - **PostgreSQL** 13+
-- **Redis** 6+ (for caching and rate limiting)
+- **Redis** 8.0.2+ (for caching and rate limiting)
 - **ImageMagick** (for PDF thumbnail generation)
 - **Git**
-
-
-
-
 
 ## 🚀 Installation
 
@@ -112,8 +108,6 @@ The project includes a `.env.example` file with all required environment variabl
 2. **Update the configuration:**
    Edit the `.env` file with your own settings, secrets, and database credentials.
 
-
-
 ## 🧪 Testing
 
 ```bash
@@ -128,13 +122,7 @@ go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 ```
 
-
-
-
-
 ## 🔧 Troubleshooting
-
-
 
 ### PDF Thumbnail Issues
 

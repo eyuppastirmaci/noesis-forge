@@ -62,17 +62,17 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 	authService := services.NewAuthService(db, cfg, rawRedisClient, minioService)
 	roleService := services.NewRoleService(db)
 
-	// Initialize Document service
-	documentService := services.NewDocumentService(db, minioService)
-
-	// Initialize Favorite service
-	favoriteService := services.NewFavoriteService(db)
-
 	// Initialize Share service with our custom Redis client
 	shareService := services.NewShareService(db, redisClient)
 
 	// Initialize User Share service
 	userShareService := services.NewUserShareService(db, redisClient)
+
+	// Initialize Document service (depends on UserShareService)
+	documentService := services.NewDocumentService(db, minioService, userShareService)
+
+	// Initialize Favorite service
+	favoriteService := services.NewFavoriteService(db)
 
 	return &Router{
 		engine:           engine,
@@ -130,6 +130,8 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterRoleRoutes(api, r.roleService, r.authService)
 	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
+	RegisterCommentRoutes(api, db, r.authService, r.redisClient)
+	RegisterActivityRoutes(api, db, r.authService)
 
 	// Share routes
 	shareHandler := handlers.NewShareHandler(r.shareService, r.minioService, r.config)

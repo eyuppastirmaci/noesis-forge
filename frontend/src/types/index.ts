@@ -85,6 +85,89 @@ export {
 export type { CreateShareRequest, CreateShareResponse, ShareItem, GetSharesResponse } from "./share";
 export { SHARE_ENDPOINTS } from "./share";
 
+// Comment types
+export type {
+  Comment,
+  CommentType,
+  CommentPosition,
+  CommentUser,
+  CommentResponse,
+  CommentsListResponse,
+  CreateCommentRequest,
+  UpdateCommentRequest,
+  CommentListRequest,
+  CommentFilters,
+  CommentSort,
+  CommentStats,
+  CommentPermissions,
+  CommentUIState,
+  CommentThread,
+  CommentEvent,
+  CommentMention,
+  CommentDraft,
+  CommentNotification,
+  CommentExportData,
+  AnnotationData,
+  AnnotationTool,
+  CommentActivity,
+  CommentRealTimeEvent,
+  CommentTypingIndicator,
+} from "./comment";
+
+export {
+  COMMENT_ENDPOINTS,
+  COMMENT_QUERY_KEYS,
+  COMMENT_MUTATION_KEYS,
+  COMMENT_VALIDATION,
+  CommentErrorCode,
+} from "./comment";
+
+// Activity types
+export type {
+  ActivityType,
+  ActivityMetadata,
+  ActivityUser,
+  ActivityDocument,
+  ActivityResponse,
+  ActivitiesListResponse,
+  ActivityStatsResponse,
+  DocumentActivitySummary,
+  UserActivitySummary,
+  ActivityListRequest,
+  ActivityFilters,
+  ActivitySort,
+  ActivityUIState,
+  ActivityGroup,
+  ActivityTimelineItem,
+  ActivityFeed,
+  ActivityNotification,
+  ActivityExportData,
+  ActivityExportOptions,
+  ActivitySearchRequest,
+  ActivitySearchResponse,
+  ActivityAnalytics,
+  DailyActivityStats,
+  WeeklyActivityStats,
+  MonthlyActivityStats,
+  TypeBreakdownStats,
+  UserBreakdownStats,
+  DocumentBreakdownStats,
+  PeakHoursStats,
+  ActivityRealTimeEvent,
+  ActivitySubscription,
+  ActivityPreferences,
+} from "./activity";
+
+export {
+  ACTIVITY_ICONS,
+  ACTIVITY_COLORS,
+  ACTIVITY_MESSAGES,
+  ACTIVITY_ENDPOINTS,
+  ACTIVITY_QUERY_KEYS,
+  ACTIVITY_MUTATION_KEYS,
+  ActivityErrorCode,
+} from "./activity";
+
 // API types
 export type {
   ApiResponse,
