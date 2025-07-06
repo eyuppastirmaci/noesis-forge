@@ -33,7 +33,7 @@ const AnnotationForm: React.FC<AnnotationFormProps> = ({
       style={{
         left: `${formPosition.x}px`,
         top: `${formPosition.y}px`,
-        transform: "translate(-50%, -125%)",
+        transform: "translate(-50%, -114%)",
         zIndex: 10000,
       }}
       onClick={(e) => e.stopPropagation()}

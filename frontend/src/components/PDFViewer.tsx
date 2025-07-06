@@ -36,6 +36,7 @@ import {
   COMMENT_QUERY_KEYS,
 } from "@/types";
 import { formatDate } from "@/utils/dateUtils";
+import Image from "next/image";
 
 interface PDFViewerProps {
   documentId: string;
@@ -765,7 +766,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
             style={{
               left: `${selectedAnnotationPosition.left}px`,
               top: `${selectedAnnotationPosition.top}px`,
-              transform: "translate(-50%, -125%)",
+              transform: "translate(-50%, -114%)",
               zIndex: 1000,
             }}
           >
@@ -795,14 +796,53 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  {selectedAnnotation.comment.user.name}
-                </span>
-                <span className="text-xs text-foreground-secondary">
-                  {formatDate(selectedAnnotation.comment.createdAt)}
-                </span>
+              <div className="flex items-start gap-3">
+                {/* User Avatar */}
+                <div
+                  className="relative w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    backgroundColor: selectedAnnotation.comment.user.avatar
+                      ? "transparent"
+                      : `hsl(${(
+                          (selectedAnnotation.comment.user.username.charCodeAt(0) * 137.508) %
+                            360
+                        ).toFixed(0)}, 70%, 45%)`,
+                  }}
+                >
+                  {selectedAnnotation.comment.user.avatar ? (
+                    <Image
+                      src={selectedAnnotation.comment.user.avatar}
+                      alt={
+                        selectedAnnotation.comment.user.name ||
+                        selectedAnnotation.comment.user.username
+                      }
+                      fill
+                      sizes="32px"
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-medium text-white select-none">
+                      {(
+                        selectedAnnotation.comment.user.name?.[0] ||
+                        selectedAnnotation.comment.user.username?.[0] ||
+                        "U"
+                      ).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {selectedAnnotation.comment.user.name}
+                    </span>
+                    <span className="text-xs text-foreground-secondary">
+                      {formatDate(selectedAnnotation.comment.createdAt)}
+                    </span>
+                  </div>
+                </div>
               </div>
+
               <p className="text-sm text-foreground m-0 leading-normal">
                 {selectedAnnotation.comment.content}
               </p>
