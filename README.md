@@ -26,62 +26,18 @@ Core document features work, but many AI capabilities are still being built. Con
 
 ## ✨ Key Features
 
-### 📄 **Document Management**
-- **📁 Multi-format Support**: PDF, DOCX, TXT, and more
-- **🧠 Intelligent Processing**: Automatic text extraction and metadata generation
-- **📝 Version Control**: Track document changes and revisions
-- **⚡ Batch Processing**: Handle multiple documents simultaneously
+- **Document Management**: Multi-format support (PDF, DOCX, TXT), intelligent processing, version control
+- **Advanced Search**: Semantic search, vector similarity, full-text search with context-aware results
+- **AI Models**: Pre-built models (BGE-M3, SigLIP2, ColPaLI), custom model testing, A/B comparison
+- **Intelligence**: Document classification, layout analysis, content summarization, local Q&A
+- **Security**: Self-hosted, local processing, JWT authentication, role-based access
+- **Analytics**: Usage tracking, performance metrics, model comparison dashboards
 
-### 🔍 **Advanced Search Capabilities**
-- **🎯 Semantic Search**: Find documents by meaning, not just keywords
-- **🔗 Vector Similarity**: Document similarity matching
-- **📝 Full-text Search**: Traditional keyword-based search
-- **🧩 Context-aware Results**: Intelligent ranking and relevance scoring
+## 🎯 Perfect For
 
-### 🧠 **Model Options & Testing**
-- **🔄 Pre-built Models**: BGE-M3 + SigLIP2 or ColPaLI v1.2-hf
-- **📤 Custom Upload**: Test your domain-specific models
-- **⚖️ A/B Testing**: Compare accuracy, speed, and resource usage
-- **🏆 Leaderboards**: See which models perform best for your data
-- **📊 Real-time Analytics**: Live performance dashboards
-- **🎯 Auto-Selection**: AI chooses the best model for each document
-
-### 🤖 **Intelligent Processing**
-- **🏷️ Document Classification**: Automatic categorization (16 types)
-- **📐 Layout Analysis**: Form and structured document understanding
-- **📝 Content Summarization**: Local LLM-powered summaries
-- **💬 Question Answering**: Chat with your documents locally
-- **🌍 Multilingual Support**: 100+ languages supported
-
-### 🔐 **Security & Privacy**
-- **🏠 Self-hosted**: Complete data control
-- **🔒 Local Processing**: Privacy-first approach
-- **🔑 JWT Authentication**: Secure user access
-- **👥 Role-based Access**: Granular permission management
-- **📋 Audit Logging**: Track all system activities
-
-### 📊 **Analytics & Monitoring**
-- **📈 Usage Analytics**: Document access patterns
-- **⚡ Performance Metrics**: Real-time system monitoring
-- **🔍 Model Comparison**: Accuracy and latency dashboards
-- **🎯 Search Analytics**: Query effectiveness insights
-
-## 🎯 **Perfect For**
-
-### **Research Institutions**
-- Compare embedding models for academic papers
-- Test domain-specific models (medical, legal, technical)
-- A/B test retrieval strategies
-
-### **Enterprise Teams**
-- Self-hosted document intelligence
-- Custom model development and testing
-- Privacy-compliant AI deployment
-
-### **ML Engineers**
-- Model performance benchmarking
-- Embedding model research and development
-- Custom ML pipeline development
+- **Research Institutions**: Academic paper analysis, domain-specific model testing, retrieval strategy comparison
+- **Enterprise Teams**: Self-hosted document intelligence, custom model development, privacy-compliant deployment
+- **ML Engineers**: Model performance benchmarking, embedding research, custom pipeline development
 
 ## 🗺️ Development Roadmap
 
@@ -279,7 +235,18 @@ Core document features work, but many AI capabilities are still being built. Con
 - ☐ Markdown rendering
 - ☐ Search in docs
 
-### Phase 9: Advanced Features
+### Phase 9: CI/CD & DevOps
+
+**CI/CD & DevOps**
+- ☐ Jenkins pipeline setup
+- ☐ Automated testing (unit, integration)
+- ☐ Automated building (Docker images)
+- ☐ Automated deployment (staging/production)
+- ☐ Code quality checks (linting, security scans)
+- ☐ Environment-specific configurations
+- ☐ Rollback strategies
+
+### Phase 10: Advanced Features
 
 **Team Features**
 - ☐ Team creation
@@ -298,7 +265,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - ☐ Edge deployment for lightweight models
 - ☐ Federated learning for privacy-preserving collaborative training
 
-**Advanced Features**
+**Platform Extensions**
 - ☐ API Keys management
 - ☐ Integrations (Slack, etc.)
 - ☐ System settings
@@ -311,40 +278,11 @@ Core document features work, but many AI capabilities are still being built. Con
 
 ## 🛠️ Tech Stack
 
-### Backend
-- **Language**: Go 1.24.2
-- **Framework**: Gin (HTTP router)
-- **Database**: PostgreSQL (metadata & relational data)
-- **Vector Database**: Qdrant (document embeddings)
-- **Object Storage**: MinIO (document files)
-- **Cache**: Redis 8.0.2 (rate limiting, session & query caching)
-- **Message Queue**: RabbitMQ (async processing)
-- **Authentication**: JWT tokens
-- **Monitoring**: Prometheus + Grafana
-
-### Frontend
-- **Framework**: Next.js 15 with React 19
-- **Styling**: Tailwind CSS
-- **State Management**: Redux Toolkit
-- **HTTP Client**: Axios
-- **UI Components**: Custom components
-- **Type Safety**: TypeScript
-
-### AI/ML Pipeline
-- **Embedding Models**: BGE-M3 + SigLIP2 (dual) or ColPaLI (unified)
-- **Custom Models**: Upload and test your own embedding models
-- **Document Processing**: DiT (classification), LayoutLM (layout analysis)
-- **Local LLM**: Ollama runtime (Llama, Mistral, CodeLlama)
-- **Vector Database**: Qdrant with hybrid retrieval
-- **Model Testing**: A/B framework with performance metrics
-- **Auto Selection**: Intelligent model switching based on document type
-
-### DevOps & Infrastructure
-- **Containerization**: Docker & Docker Compose
-- **Process Management**: Air (development hot reload)
-- **Environment Management**: godotenv
-- **Logging**: Logrus with structured logging
-- **Configuration**: Environment variables + YAML
+- **Backend**: Go 1.24.2 + Gin, PostgreSQL, Redis, MinIO, JWT authentication
+- **Frontend**: Next.js 15 + React 19, Tailwind CSS, TypeScript, Redux Toolkit
+- **AI/ML**: BGE-M3, SigLIP2, ColPaLI, Ollama (local LLM), Qdrant vector database
+- **Infrastructure**: Docker + Docker Compose, Air (dev), Prometheus + Grafana (monitoring)
+- **CI/CD**: Jenkins (automated testing, building, deployment)
 
 ## 🏗️ Architecture
 
@@ -363,6 +301,11 @@ Core document features work, but many AI capabilities are still being built. Con
 - **PostgreSQL** 13+
 - **Redis** 8.0.2+ (for caching and rate limiting)
 - **ImageMagick** (for PDF thumbnail generation)
+
+#### For CI/CD Pipeline (Optional)
+- **Jenkins** 2.400+ (for automated builds and deployments)
+- **Git** (for source code management)
+- **Docker** (for containerized builds)
 
 ### Quick Setup
 
@@ -490,6 +433,8 @@ cp .env.example .env.local
 npm run dev
 ```
 
+
+
 ## 🚀 Access Your Application
 
 After completing either installation option above, you can access:
@@ -499,6 +444,28 @@ After completing either installation option above, you can access:
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
 - **Redis**: on port 6379 (CLI: `redis-cli` | GUI: [RedisInsight](https://redis.io/insight/))
 - **Database**: PostgreSQL on port 5432 (you can use PgAdmin or any PostgreSQL client)
+- **Jenkins** (if configured): http://localhost:8080 (CI/CD pipeline management)
+
+## 🚀 Deployment
+
+### Jenkins CI/CD Setup (Future/Planned)
+
+##### 1. Install and Run Jenkins
+```bash
+# Run Jenkins with Docker
+docker run -d --name jenkins \
+  -p 8080:8080 -p 50000:50000 \
+  -v jenkins_home:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  jenkins/jenkins:lts
+```
+
+##### 2. Run Jenkinsfile
+```bash
+# Access Jenkins: http://localhost:8080
+# Create Pipeline job → Point to repository → Run Jenkinsfile
+# Build, test, and deploy will happen automatically
+```
 
 ## 🔧 Troubleshooting
 
