@@ -1,14 +1,34 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, X, Save, Plus } from "lucide-react";
+import {
+  MessageSquare,
+  X,
+  Plus,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+} from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import { documentService } from "@/services/document.service";
 import { commentService } from "@/services/comment.service";
 import { toast } from "@/utils";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PDFViewerSkeleton from "@/components/ui/PDFViewerSkeleton";
+import AnnotationForm from "@/components/AnnotationForm";
+import IconButton from "@/components/ui/IconButton";
+import CustomTooltip from "@/components/ui/CustomTooltip";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import {
   CommentPosition,
   CommentResponse,
@@ -24,6 +44,7 @@ interface PDFViewerProps {
   onAnnotationCreate?: (position: CommentPosition) => void;
   targetAnnotation?: CommentResponse | null;
   onTargetAnnotationViewed?: () => void;
+  onAnnotationAdded?: () => void;
 }
 
 interface AnnotationMarker {
@@ -31,16 +52,116 @@ interface AnnotationMarker {
   position: CommentPosition;
   comment: CommentResponse;
   page: number;
-  x: number; // Relative to page (0-1)
-  y: number; // Relative to page (0-1)
+  x: number;
+  y: number;
 }
 
 interface PDFPage {
   pageNumber: number;
-  canvas: HTMLCanvasElement;
   viewport: pdfjsLib.PageViewport;
   offsetTop: number;
+  canvas?: HTMLCanvasElement;
+  textLayer?: HTMLDivElement;
 }
+
+// Single Page Renderer Component
+const PDFPageItem: React.FC<{
+  pdfPage: pdfjsLib.PDFPageProxy;
+  viewport: pdfjsLib.PageViewport;
+  onRender: (canvas: HTMLCanvasElement, textLayer?: HTMLDivElement) => void;
+}> = React.memo(({ pdfPage, viewport, onRender }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textLayerRef = useRef<HTMLDivElement>(null);
+  const renderTask = useRef<pdfjsLib.RenderTask | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const textLayerDiv = textLayerRef.current;
+    if (!canvas || !textLayerDiv) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    // Ensure previous render is cancelled before starting a new one.
+    if (renderTask.current) {
+      renderTask.current.cancel();
+    }
+    
+    // Clear previous content to avoid artifacts
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    textLayerDiv.innerHTML = '';
+
+    // Setup canvas for high-DPI
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    canvas.width = viewport.width * devicePixelRatio;
+    canvas.height = viewport.height * devicePixelRatio;
+    canvas.style.width = `${viewport.width}px`;
+    canvas.style.height = `${viewport.height}px`;
+    context.scale(devicePixelRatio, devicePixelRatio);
+
+    renderTask.current = pdfPage.render({ canvasContext: context, viewport });
+
+    renderTask.current.promise
+      .then(async () => {
+        if (!textLayerRef.current) return;
+        try {
+          const textContent = await pdfPage.getTextContent();
+          textContent.items.forEach((item: any) => {
+            if (!item.str || !item.str.trim()) return;
+            const span = document.createElement("span");
+            span.textContent = item.str;
+            span.style.position = "absolute";
+            span.style.whiteSpace = "pre";
+            span.style.color = "transparent";
+            span.style.userSelect = "text";
+            span.style.pointerEvents = "auto";
+            span.style.cursor = "text";
+
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+            const [a, , , d, e, f] = tx;
+            const fontHeight = Math.abs(d);
+            span.style.fontSize = `${fontHeight}px`;
+            span.style.left = `${e}px`;
+            span.style.top = `${f - fontHeight}px`;
+            span.style.transformOrigin = "0 0";
+            span.style.transform = `scaleX(${a / fontHeight})`;
+
+            textLayerRef.current!.appendChild(span);
+          });
+          onRender(canvas, textLayerRef.current);
+        } catch (err) {
+          console.warn(`Failed to render text layer for page ${pdfPage.pageNumber}`, err);
+          onRender(canvas, undefined);
+        }
+      })
+      .catch((error) => {
+        // A rendering cancelled exception is expected, so we can ignore it.
+        if (error.name !== 'RenderingCancelledException') {
+          console.error("PDF page rendering error:", error);
+        }
+      });
+      
+    return () => {
+      if (renderTask.current) {
+        renderTask.current.cancel();
+      }
+    };
+  }, [pdfPage, viewport, onRender]);
+
+  return (
+    <>
+      <canvas ref={canvasRef} />
+      <div ref={textLayerRef} className="textLayer" />
+      <div className="absolute inset-0 flex items-center justify-center -z-10">
+        <LoadingSpinner />
+      </div>
+    </>
+  );
+});
+
+PDFPageItem.displayName = "PDFPageItem";
 
 const PDFViewer: React.FC<PDFViewerProps> = ({
   documentId,
@@ -49,10 +170,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   onAnnotationCreate,
   targetAnnotation,
   onTargetAnnotationViewed,
+  onAnnotationAdded,
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [pages, setPages] = useState<PDFPage[]>([]);
+  const [pageLayouts, setPageLayouts] = useState<
+    {
+      pageNumber: number;
+      offsetTop: number;
+      viewport: pdfjsLib.PageViewport;
+    }[]
+  >([]);
+  const [renderedPages, setRenderedPages] = useState<Set<number>>(new Set());
   const [annotations, setAnnotations] = useState<AnnotationMarker[]>([]);
   const [selectedAnnotation, setSelectedAnnotation] =
     useState<AnnotationMarker | null>(null);
@@ -60,23 +189,53 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     x: number;
     y: number;
   } | null>(null);
-  const [pendingAnnotationForm, setPendingAnnotationForm] = useState<{
+  const [annotationFormTarget, setAnnotationFormTarget] = useState<{
     position: CommentPosition;
-    content: string;
-  } | null>(null);
-  const [annotationFormPosition, setAnnotationFormPosition] = useState<{
-    x: number;
-    y: number;
+    formPosition: { x: number; y: number };
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirmAnnotation, setDeleteConfirmAnnotation] = useState<AnnotationMarker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
+  const pdfRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const [popupPosition, setPopupPosition] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const [scale, setScale] = useState(1.5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // Fetch existing annotations
+  // Calculate position for the annotation detail popup
+  const selectedAnnotationPosition = useMemo(() => {
+    if (!selectedAnnotation || !containerRef.current || pageLayouts.length === 0)
+      return null;
+
+    const layout = pageLayouts.find(
+      (p) => p.pageNumber === selectedAnnotation.page
+    );
+    if (!layout) return null;
+
+    const container = containerRef.current;
+
+    // Horizontal position, accounting for page centering
+    const containerPadding = 16; // p-4
+    const pageX =
+      containerPadding +
+      (container.clientWidth - containerPadding * 2 - layout.viewport.width) / 2;
+    const annotationX = pageX + layout.viewport.width * selectedAnnotation.x;
+
+    // Vertical position, relative to the scrollable container
+    const annotationY =
+      layout.offsetTop + layout.viewport.height * selectedAnnotation.y;
+
+    return {
+      left: annotationX,
+      top: annotationY,
+    };
+  }, [selectedAnnotation, pageLayouts]);
+
+  // Fetch annotations (comments)
   const { data: commentsData } = useQuery({
     queryKey: COMMENT_QUERY_KEYS.DOCUMENT_COMMENTS(documentId),
     queryFn: () =>
@@ -93,11 +252,14 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         queryKey: COMMENT_QUERY_KEYS.DOCUMENT_COMMENTS(documentId),
       });
       toast.success("Annotation added successfully!");
-      setPendingAnnotationForm(null);
+      setAnnotationFormTarget(null);
+      setClickPosition(null);
       setIsSubmitting(false);
-
       if (onTargetAnnotationViewed) {
         onTargetAnnotationViewed();
+      }
+      if (onAnnotationAdded) {
+        onAnnotationAdded();
       }
     },
     onError: (error) => {
@@ -106,66 +268,102 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     },
   });
 
-  // Load PDF with PDF.js
+  // Delete annotation mutation
+  const deleteAnnotationMutation = useMutation({
+    mutationFn: (commentId: string) => commentService.deleteComment(commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: COMMENT_QUERY_KEYS.DOCUMENT_COMMENTS(documentId),
+      });
+      toast.success("Annotation deleted successfully!");
+      setDeleteConfirmAnnotation(null); // Only close the confirmation modal
+      setSelectedAnnotation(null); // Only close the annotation popup
+      // PDF Viewer modal stays open - no setShowPDFViewer(false) call
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete annotation: ${error.message}`);
+    },
+  });
+
+  const queryClient = useQueryClient();
+
+  // Load document and calculate layout
   useEffect(() => {
-    const loadPDF = async () => {
+    const loadDocument = async () => {
       try {
         setLoading(true);
-        setError(null);
-
         const blobUrl = await documentService.getPDFBlobUrl(documentId);
         const pdf = await pdfjsLib.getDocument(blobUrl).promise;
-
-        // Render all pages
-        const pdfPages: PDFPage[] = [];
-        let currentOffsetTop = 0;
-
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 1.5 });
-
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-
-          if (!context) {
-            throw new Error(`Failed to get canvas context for page ${pageNum}`);
-          }
-
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-
-          await page.render({
-            canvasContext: context,
-            viewport: viewport,
-          }).promise;
-
-          pdfPages.push({
-            pageNumber: pageNum,
-            canvas,
-            viewport,
-            offsetTop: currentOffsetTop,
-          });
-
-          currentOffsetTop += viewport.height + 20; // 20px margin between pages
+        if (pdf) {
+          pdfRef.current = pdf;
+          setTotalPages(pdf.numPages);
+        } else {
+          throw new Error("Failed to load PDF document.");
         }
-
-        setPages(pdfPages);
-        setLoading(false);
-
-        // Clean up blob URL
-        URL.revokeObjectURL(blobUrl);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load PDF");
         setLoading(false);
       }
     };
-
-    loadPDF();
+    loadDocument();
   }, [documentId]);
+
+  // Calculate page layouts when pdf or scale changes
+  useEffect(() => {
+    if (!pdfRef.current) return;
+    const calculateLayout = async () => {
+      const pdf = pdfRef.current;
+      if (!pdf) return;
+      const layouts: {
+        pageNumber: number;
+        offsetTop: number;
+        viewport: pdfjsLib.PageViewport;
+      }[] = [];
+      let currentOffsetTop = 16; // Start with the p-4 top padding
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+        layouts.push({
+          pageNumber: pageNum,
+          offsetTop: currentOffsetTop,
+          viewport,
+        });
+        currentOffsetTop += viewport.height + 20; // 20px margin
+      }
+      setPageLayouts(layouts);
+      setLoading(false);
+    };
+    calculateLayout();
+  }, [scale, totalPages]);
+
+  // Intersection Observer for lazy loading pages
+  useEffect(() => {
+    if (pageLayouts.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const pageNum = Number(entry.target.getAttribute("data-page-number"));
+            setRenderedPages((prev) => new Set(prev).add(pageNum));
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        root: containerRef.current,
+        rootMargin: "500px",
+      }
+    );
+
+    pageRefs.current.forEach((ref) => observer.observe(ref));
+
+    return () => observer.disconnect();
+  }, [pageLayouts]);
 
   // Process annotations from comments
   useEffect(() => {
-    if (commentsData?.data?.comments && pages.length > 0) {
+    if (commentsData?.data?.comments && pageLayouts.length > 0) {
       const annotationComments = commentsData.data.comments.filter(
         (comment) => comment.commentType === "annotation" && comment.position
       );
@@ -181,211 +379,189 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
       setAnnotations(markers);
     }
-  }, [commentsData, pages]);
+  }, [commentsData, pageLayouts]);
 
-  // Auto-scroll to target annotation
-  useEffect(() => {
-    if (
-      targetAnnotation &&
-      targetAnnotation.position &&
-      !loading &&
-      pages.length > 0
-    ) {
-      const targetPage = targetAnnotation.position.page || 1;
-      const targetPageData = pages.find((p) => p.pageNumber === targetPage);
-
-      if (
-        targetPageData &&
-        containerRef.current &&
-        targetAnnotation.position.y !== undefined
-      ) {
-        const scrollTop =
-          targetPageData.offsetTop +
-          targetAnnotation.position.y * targetPageData.viewport.height;
-        containerRef.current.scrollTo({
-          top: scrollTop - 200, // Offset to center the annotation
-          behavior: "smooth",
-        });
-
-        // Find and select the annotation
-        const marker = annotations.find((a) => a.id === targetAnnotation.id);
-        if (marker) {
-          setTimeout(() => {
-            setSelectedAnnotation(marker);
-          }, 500);
-        }
-
-        if (onTargetAnnotationViewed) {
-          onTargetAnnotationViewed();
-        }
-      }
-    }
-  }, [targetAnnotation, annotations, loading, pages, onTargetAnnotationViewed]);
-
-  // Handle container click for annotation creation
   const handleContainerClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!annotationMode) return;
-      if (pendingAnnotationForm) return;
-      if (!containerRef.current) return;
+      if (!annotationMode || annotationFormTarget || !containerRef.current)
+        return;
 
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
       const scrollTop = container.scrollTop;
-
-      const clickXRelative = event.clientX - containerRect.left;
-      const clickYRelative = event.clientY - containerRect.top + scrollTop;
       const clickXViewport = event.clientX;
       const clickYViewport = event.clientY;
+      const clickYRelative = clickYViewport - containerRect.top + scrollTop;
 
-      // Find which page was clicked
-      let targetPage: PDFPage | null = null;
-      for (const page of pages) {
+      let targetPageLayout = null;
+      for (const layout of pageLayouts) {
         if (
-          clickYRelative >= page.offsetTop &&
-          clickYRelative <= page.offsetTop + page.viewport.height
+          clickYRelative >= layout.offsetTop &&
+          clickYRelative <= layout.offsetTop + layout.viewport.height
         ) {
-          targetPage = page;
+          targetPageLayout = layout;
           break;
         }
       }
+      if (!targetPageLayout) return;
 
-      if (!targetPage) return;
-
-      // Calculate relative position within the page
-      const pageWidth = targetPage.viewport.width;
-      const pageHeight = targetPage.viewport.height;
-
-      // Account for horizontal centering and container padding
-      const containerPadding = 16; // p-4
+      const containerPadding = 16;
       const pageLeft =
         containerPadding +
-        (container.clientWidth - containerPadding * 2 - pageWidth) / 2;
-      const relativeX = (clickXRelative - pageLeft) / pageWidth;
-      const relativeY = (clickYRelative - targetPage.offsetTop) / pageHeight;
+        (container.clientWidth -
+          containerPadding * 2 -
+          targetPageLayout.viewport.width) /
+          2;
+      const relativeX =
+        (event.clientX - containerRect.left - pageLeft) /
+        targetPageLayout.viewport.width;
+      const relativeY =
+        (clickYRelative - targetPageLayout.offsetTop) /
+        targetPageLayout.viewport.height;
 
-      // Ensure coordinates are within bounds
-      const clampedX = Math.max(0, Math.min(1, relativeX));
-      const clampedY = Math.max(0, Math.min(1, relativeY));
-
-      // Show visual feedback
-      setClickPosition({ x: clickXViewport, y: clickYViewport });
-
-      // Create position object
       const position: CommentPosition = {
-        page: targetPage.pageNumber,
-        x: clampedX,
-        y: clampedY,
+        page: targetPageLayout.pageNumber,
+        x: Math.max(0, Math.min(1, relativeX)),
+        y: Math.max(0, Math.min(1, relativeY)),
       };
 
-      // Store form position for rendering
-      setAnnotationFormPosition({ x: clickXViewport, y: clickYViewport });
+      setClickPosition({ x: clickXViewport, y: clickYViewport });
+      setAnnotationFormTarget({
+        position,
+        formPosition: { x: clickXViewport, y: clickYViewport },
+      });
 
-      // Show form after short delay but keep + icon
-      setTimeout(() => {
-        setPendingAnnotationForm({ position, content: "" });
-
-        if (onAnnotationCreate) {
-          onAnnotationCreate(position);
-        }
-      }, 300);
+      if (onAnnotationCreate) {
+        onAnnotationCreate(position);
+      }
     },
-    [annotationMode, pendingAnnotationForm, pages, onAnnotationCreate]
+    [annotationMode, annotationFormTarget, pageLayouts, onAnnotationCreate]
   );
 
   const handleAnnotationClick = useCallback(
     (annotation: AnnotationMarker) => {
       setSelectedAnnotation(annotation);
-      // Compute popup position near the annotation icon
-      if (!containerRef.current) return;
-      const container = containerRef.current;
-      const pageData = pages.find((p) => p.pageNumber === annotation.page);
-      if (!pageData) return;
-
-      // Calculate position relative to the container
-      const containerPadding = 16; // 4 * 4px (p-4)
-      const pageLeft =
-        containerPadding +
-        (container.clientWidth -
-          containerPadding * 2 -
-          pageData.viewport.width) /
-          2;
-      const absoluteX = pageLeft + annotation.x * pageData.viewport.width;
-      const absoluteY =
-        containerPadding +
-        pageData.offsetTop +
-        annotation.y * pageData.viewport.height;
-
-      setPopupPosition({ x: absoluteX, y: absoluteY });
     },
-    [pages]
+    []
   );
 
-  // Recompute popup position whenever the selected annotation or scroll state changes
-  React.useEffect(() => {
-    if (!selectedAnnotation || !containerRef.current) {
-      setPopupPosition(null);
-      return;
-    }
-
-    const container = containerRef.current;
-    const pageData = pages.find(
-      (p) => p.pageNumber === selectedAnnotation.page
-    );
-    if (!pageData) return;
-
-    const containerPadding = 16; // 4 * 4px (p-4)
-    const pageLeft =
-      containerPadding +
-      (container.clientWidth - containerPadding * 2 - pageData.viewport.width) /
-        2;
-    const absoluteX = pageLeft + selectedAnnotation.x * pageData.viewport.width;
-    const absoluteY =
-      containerPadding +
-      pageData.offsetTop +
-      selectedAnnotation.y * pageData.viewport.height;
-
-    setPopupPosition({ x: absoluteX, y: absoluteY });
-  }, [selectedAnnotation, pages]);
-
-  const handleSaveAnnotation = async () => {
-    if (!pendingAnnotationForm || !pendingAnnotationForm.content.trim()) {
-      toast.error("Please enter annotation content");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const request: CreateCommentRequest = {
-      content: pendingAnnotationForm.content.trim(),
-      commentType: "annotation",
-      position: pendingAnnotationForm.position,
+  // Track current page based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!containerRef.current || pageLayouts.length === 0) return;
+      const container = containerRef.current;
+      const scrollCenter = container.scrollTop + container.clientHeight / 2;
+      for (const layout of pageLayouts) {
+        if (
+          scrollCenter >= layout.offsetTop &&
+          scrollCenter <= layout.offsetTop + layout.viewport.height
+        ) {
+          setCurrentPage(layout.pageNumber);
+          break;
+        }
+      }
     };
+    const container = containerRef.current;
+    container?.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container?.removeEventListener("scroll", handleScroll);
+  }, [pageLayouts]);
 
-    createAnnotationMutation.mutate(request);
+  const handleZoomIn = useCallback(() => {
+    setScale((s) => Math.min(s * 1.2, 3.0));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setScale((s) => Math.max(s / 1.2, 0.5));
+  }, []);
+
+  const handleZoomReset = useCallback(() => setScale(1.5), []);
+
+  const handlePageNavigation = useCallback(
+    (pageNum: number) => {
+      const layout = pageLayouts.find((p) => p.pageNumber === pageNum);
+      if (layout && containerRef.current) {
+        containerRef.current.scrollTo({
+          top: layout.offsetTop,
+          behavior: "smooth",
+        });
+      }
+    },
+    [pageLayouts]
+  );
+
+  const handleSaveAnnotation = async (content: string) => {
+    if (!annotationFormTarget) return;
+    setIsSubmitting(true);
+    createAnnotationMutation.mutate({
+      content,
+      commentType: "annotation",
+      position: annotationFormTarget.position,
+    });
   };
 
-  // Clear click marker when annotation mutation succeeds
-  React.useEffect(() => {
-    if (createAnnotationMutation.isSuccess) {
-      setClickPosition(null);
-    }
-  }, [createAnnotationMutation.isSuccess]);
-
   const handleCancelAnnotation = () => {
-    setPendingAnnotationForm(null);
-    setAnnotationFormPosition(null);
+    setAnnotationFormTarget(null);
     setClickPosition(null);
   };
 
-  const handleAnnotationContentChange = (content: string) => {
-    if (pendingAnnotationForm) {
-      setPendingAnnotationForm({
-        ...pendingAnnotationForm,
-        content,
-      });
+  const handleDeleteAnnotation = (annotation: AnnotationMarker) => {
+    setDeleteConfirmAnnotation(annotation);
+  };
+
+  const handleConfirmDeleteAnnotation = () => {
+    if (deleteConfirmAnnotation) {
+      deleteAnnotationMutation.mutate(deleteConfirmAnnotation.id);
     }
   };
+
+  const handleCancelDeleteAnnotation = () => {
+    setDeleteConfirmAnnotation(null);
+  };
+
+  // When a targetAnnotation is provided from parent, scroll to it and show popup
+  useEffect(() => {
+    if (!targetAnnotation) return;
+    if (!containerRef.current) return;
+    if (annotations.length === 0 || pageLayouts.length === 0) return;
+
+    const marker = annotations.find((a) => a.id === targetAnnotation.id);
+    if (!marker) return;
+
+    // Set selected annotation to open popup
+    setSelectedAnnotation(marker);
+
+    // Scroll smoothly to the page containing the annotation
+    const layout = pageLayouts.find((p) => p.pageNumber === marker.page);
+    if (layout) {
+      const container = containerRef.current;
+      const targetY = layout.offsetTop + layout.viewport.height * marker.y;
+      // Place the marker ≈30% below the top to ensure popup visibility
+      const desiredScrollTop = Math.max(
+        0,
+        targetY - container.clientHeight * 0.3
+      );
+      container.scrollTo({
+        top: desiredScrollTop,
+        behavior: "smooth",
+      });
+    }
+
+    // Notify parent that annotation has been viewed so it can clear state
+    if (onTargetAnnotationViewed) {
+      onTargetAnnotationViewed();
+    }
+  }, [targetAnnotation, annotations, pageLayouts, onTargetAnnotationViewed]);
+
+  const pdfPageProxies = useMemo(() => {
+    if (!pdfRef.current) return new Map();
+    const map = new Map<number, pdfjsLib.PDFPageProxy>();
+    for (let i = 1; i <= pdfRef.current.numPages; i++) {
+      pdfRef.current.getPage(i).then(page => {
+        map.set(i, page)
+      })
+    }
+    return map;
+  }, [totalPages]);
 
   // Configure worker on client
   useEffect(() => {
@@ -402,13 +578,11 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-96">
-        <div className="text-center mb-4">
-          <p className="text-red-600 dark:text-red-400 mb-2">{error}</p>
-          <p className="text-sm text-foreground-secondary mb-4">
-            PDF viewer failed to load.
-          </p>
-        </div>
+      <div className="flex flex-col items-center justify-center h-96 text-center">
+        <p className="text-red-500 mb-2">{error}</p>
+        <p className="text-sm text-foreground-secondary">
+          PDF viewer failed to load.
+        </p>
       </div>
     );
   }
@@ -422,75 +596,143 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
             PDF Viewer
           </span>
           {annotationMode && (
-            <span className="text-xs bg-info-light text-info-dark px-2 py-1 rounded-full">
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
               Annotation Mode
             </span>
           )}
+        </div>
+        <div className="flex items-center space-x-2">
+          <div id="pdf-prev-page">
+            <IconButton
+              Icon={ChevronLeft}
+              onClick={() => handlePageNavigation(currentPage - 1)}
+              disabled={currentPage <= 1}
+              size="sm"
+            />
+          </div>
+          <CustomTooltip anchorSelect="#pdf-prev-page" place="bottom">
+            Previous Page
+          </CustomTooltip>
+          <span className="text-sm text-foreground px-2">
+            {currentPage} / {totalPages}
+          </span>
+          <div id="pdf-next-page">
+            <IconButton
+              Icon={ChevronRight}
+              onClick={() => handlePageNavigation(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              size="sm"
+            />
+          </div>
+          <CustomTooltip anchorSelect="#pdf-next-page" place="bottom">
+            Next Page
+          </CustomTooltip>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div id="pdf-zoom-out">
+            <IconButton
+              Icon={ZoomOut}
+              onClick={handleZoomOut}
+              size="sm"
+              disabled={scale <= 0.5}
+            />
+          </div>
+          <CustomTooltip anchorSelect="#pdf-zoom-out" place="bottom">
+            Zoom Out
+          </CustomTooltip>
+          <span className="text-sm text-foreground px-2 min-w-[50px] text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          <div id="pdf-zoom-in">
+            <IconButton
+              Icon={ZoomIn}
+              onClick={handleZoomIn}
+              size="sm"
+              disabled={scale >= 3.0}
+            />
+          </div>
+          <CustomTooltip anchorSelect="#pdf-zoom-in" place="bottom">
+            Zoom In
+          </CustomTooltip>
+          <div id="pdf-zoom-reset">
+            <IconButton
+              Icon={RotateCcw}
+              onClick={handleZoomReset}
+              size="sm"
+            />
+          </div>
+          <CustomTooltip anchorSelect="#pdf-zoom-reset" place="bottom">
+            Reset Zoom
+          </CustomTooltip>
         </div>
       </div>
 
       {/* PDF Content */}
       <div
         ref={containerRef}
-        className="flex-1 bg-gray-100 dark:bg-gray-800 overflow-auto relative"
+        className={`flex-1 bg-gray-100 dark:bg-gray-800 overflow-auto relative ${
+          annotationMode ? "annotation-mode" : ""
+        }`}
         onClick={handleContainerClick}
         style={{ cursor: annotationMode ? "crosshair" : "default" }}
       >
-        <div className="p-4 space-y-5">
-          {pages.map((page) => (
-            <div
-              key={page.pageNumber}
-              className="relative bg-white shadow-lg mx-auto"
-              style={{ width: page.viewport.width }}
-            >
-              <canvas
-                ref={(canvas) => {
-                  if (canvas && canvas !== page.canvas) {
-                    const context = canvas.getContext("2d");
-                    if (context) {
-                      canvas.width = page.canvas.width;
-                      canvas.height = page.canvas.height;
-                      context.drawImage(page.canvas, 0, 0);
-                    }
-                  }
+        <div className="p-4 space-y-5 relative">
+          {pageLayouts.map(({ pageNumber, viewport }) => {
+            const pageProxy = pdfPageProxies.get(pageNumber);
+            return (
+              <div
+                key={pageNumber}
+                ref={(el) => {
+                  if (el) pageRefs.current.set(pageNumber, el);
+                  else pageRefs.current.delete(pageNumber);
                 }}
-                width={page.viewport.width}
-                height={page.viewport.height}
-                className="w-full h-auto"
-              />
-
-              {/* Page-specific annotations */}
-              {annotations
-                .filter((annotation) => annotation.page === page.pageNumber)
-                .map((annotation) => (
-                  <div
-                    key={annotation.id}
-                    className="absolute pointer-events-auto"
-                    style={{
-                      left: `${annotation.x * 100}%`,
-                      top: `${annotation.y * 100}%`,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAnnotationClick(annotation);
+                data-page-number={pageNumber}
+                className="relative bg-white shadow-lg mx-auto"
+                style={{
+                  width: viewport.width,
+                  height: viewport.height,
+                }}
+              >
+                {renderedPages.has(pageNumber) && pageProxy && (
+                  <PDFPageItem
+                    pdfPage={pageProxy}
+                    viewport={viewport}
+                    onRender={() => {}}
+                  />
+                )}
+                {/* Annotations for this page */}
+                {annotations
+                  .filter((a) => a.page === pageNumber)
+                  .map((annotation) => (
+                    <div
+                      key={annotation.id}
+                      className="absolute pointer-events-auto"
+                      style={{
+                        left: `${annotation.x * 100}%`,
+                        top: `${annotation.y * 100}%`,
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 30,
                       }}
-                      className="w-8 h-8 bg-info text-white rounded-full flex items-center justify-center hover:bg-info-dark transition-colors shadow-lg"
-                      title={`Annotation by ${
-                        annotation.comment.user.name
-                      }: ${annotation.comment.content.substring(0, 50)}...`}
                     >
-                      <MessageSquare size={16} />
-                    </button>
-                  </div>
-                ))}
-            </div>
-          ))}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAnnotationClick(annotation);
+                        }}
+                        className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors shadow-lg"
+                        title={`Annotation by ${
+                          annotation.comment.user.name
+                        }: ${annotation.comment.content.substring(0, 50)}...`}
+                      >
+                        <MessageSquare size={16} />
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            );
+          })}
         </div>
 
-        {/* Click Position Feedback */}
         {clickPosition && (
           <div
             className="fixed pointer-events-none"
@@ -501,199 +743,88 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
               zIndex: 9999,
             }}
           >
-            <div className="w-6 h-6 bg-info text-white rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg">
               <Plus size={16} />
             </div>
           </div>
         )}
 
-        {/* Annotation Form */}
-        {pendingAnnotationForm && annotationFormPosition && (
-          <div
-            className="fixed pointer-events-auto w-80"
-            style={{
-              left: `${annotationFormPosition.x}px`,
-              top: `${annotationFormPosition.y}px`,
-              transform: "translate(-50%, -125%)",
-              zIndex: 10000,
-            }}
-          >
-            <div className="bg-background border-2 border-border rounded-xl shadow-2xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-foreground m-0">
-                  Add Annotation
-                </h3>
-                <button
-                  onClick={handleCancelAnnotation}
-                  className="text-foreground-secondary hover:text-foreground bg-transparent border-none cursor-pointer p-1 rounded"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="text-xs text-foreground-secondary">
-                  Page {pendingAnnotationForm.position.page}, Position:{" "}
-                  {Math.round((pendingAnnotationForm.position.x || 0) * 100)}%,
-                  {Math.round((pendingAnnotationForm.position.y || 0) * 100)}%
-                </div>
-
-                <textarea
-                  value={pendingAnnotationForm.content}
-                  onChange={(e) => {
-                    if (e.target.value.length <= 1000) {
-                      handleAnnotationContentChange(e.target.value);
-                    }
-                  }}
-                  placeholder="Write your annotation..."
-                  className="w-full p-2 border border-border rounded-md bg-background text-foreground text-sm resize-none outline-none"
-                  rows={3}
-                  disabled={isSubmitting}
-                  autoFocus
-                  maxLength={1000}
-                />
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-foreground-secondary">
-                    {pendingAnnotationForm.content.length}/1000 characters
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCancelAnnotation}
-                      disabled={isSubmitting}
-                      className="px-3 py-1.5 text-sm border border-border rounded-md bg-background text-foreground disabled:cursor-not-allowed"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveAnnotation}
-                      disabled={
-                        !pendingAnnotationForm.content.trim() || isSubmitting
-                      }
-                      className="px-3 py-1.5 text-sm rounded-md text-white flex items-center gap-1 disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor:
-                          !pendingAnnotationForm.content.trim() || isSubmitting
-                            ? "var(--color-gray-400)"
-                            : "var(--color-blue)",
-                      }}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <LoadingSpinner size="sm" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save size={14} />
-                          Save
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {annotationFormTarget && (
+          <AnnotationForm
+            position={annotationFormTarget.position}
+            formPosition={annotationFormTarget.formPosition}
+            onSave={handleSaveAnnotation}
+            onCancel={handleCancelAnnotation}
+            isSubmitting={isSubmitting}
+          />
         )}
 
-        {/* Annotation Detail Popup */}
-        {selectedAnnotation && popupPosition && (
+        {selectedAnnotation && selectedAnnotationPosition && (
           <div
-            className="absolute pointer-events-auto"
+            className="absolute pointer-events-auto bg-background border-2 border-border rounded-xl shadow-2xl p-4 w-80"
             style={{
-              left: `${popupPosition.x}px`,
-              top: `${popupPosition.y}px`,
+              left: `${selectedAnnotationPosition.left}px`,
+              top: `${selectedAnnotationPosition.top}px`,
               transform: "translate(-50%, -125%)",
               zIndex: 1000,
-              width: "320px",
             }}
           >
-            <div className="bg-background border-2 border-border rounded-xl shadow-2xl p-4">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "12px",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    color: "var(--color-foreground)",
-                    margin: 0,
-                  }}
-                >
-                  Annotation
-                </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-foreground m-0">
+                Annotation
+              </h3>
+              <div className="flex items-center gap-1">
+                <div id="pdf-delete-annotation">
+                  <button
+                    onClick={() => handleDeleteAnnotation(selectedAnnotation)}
+                    className="p-1 rounded text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    title="Delete annotation"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <CustomTooltip anchorSelect="#pdf-delete-annotation" place="bottom">
+                  Delete Annotation
+                </CustomTooltip>
                 <button
                   onClick={() => setSelectedAnnotation(null)}
-                  style={{
-                    color: "var(--color-foreground-secondary)",
-                    backgroundColor: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "4px",
-                    borderRadius: "4px",
-                  }}
+                  className="p-1 rounded text-foreground-secondary hover:text-foreground"
                 >
                   <X size={16} />
                 </button>
               </div>
-
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-              >
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "500",
-                      color: "var(--color-foreground)",
-                    }}
-                  >
-                    {selectedAnnotation.comment.user.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--color-foreground-secondary)",
-                    }}
-                  >
-                    {formatDate(selectedAnnotation.comment.createdAt)}
-                  </span>
-                </div>
-
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "var(--color-foreground)",
-                    margin: 0,
-                    lineHeight: "1.4",
-                  }}
-                >
-                  {selectedAnnotation.comment.content}
-                </p>
-
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--color-foreground-secondary)",
-                  }}
-                >
-                  Page {selectedAnnotation.page} • Position:{" "}
-                  {Math.round(selectedAnnotation.x * 100)}%,{" "}
-                  {Math.round(selectedAnnotation.y * 100)}%
-                </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {selectedAnnotation.comment.user.name}
+                </span>
+                <span className="text-xs text-foreground-secondary">
+                  {formatDate(selectedAnnotation.comment.createdAt)}
+                </span>
+              </div>
+              <p className="text-sm text-foreground m-0 leading-normal">
+                {selectedAnnotation.comment.content}
+              </p>
+              <div className="text-xs text-foreground-secondary">
+                Page {selectedAnnotation.page}
               </div>
             </div>
           </div>
         )}
+
+        {/* Delete Annotation Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={deleteConfirmAnnotation !== null}
+          onConfirm={handleConfirmDeleteAnnotation}
+          onClose={handleCancelDeleteAnnotation}
+          title="Delete Annotation"
+          message={`Are you sure you want to delete this annotation? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          isLoading={deleteAnnotationMutation.isPending}
+        />
       </div>
     </div>
   );

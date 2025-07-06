@@ -527,10 +527,10 @@ const DocumentDetailPage: React.FC = () => {
                 </Card.Content>
               </Card>
 
-              {/* Comments Section */}
+              {/* Discussion Section */}
               <Card data-section="comments">
                 <Card.Header>
-                  <h2 className="text-lg font-semibold">Comments</h2>
+                  <h2 className="text-lg font-semibold">Discussion</h2>
                 </Card.Header>
                 <Card.Content>
                   <CommentSection
@@ -1334,6 +1334,7 @@ const DocumentDetailPage: React.FC = () => {
         onAnnotationCreate={handleAnnotationCreate}
         targetAnnotation={targetAnnotation}
         onTargetAnnotationViewed={() => setTargetAnnotation(null)}
+        onAnnotationAdded={() => setPendingAnnotation(null)}
       />
 
       {/* Share Modal - Only for users who can share (owners) */}

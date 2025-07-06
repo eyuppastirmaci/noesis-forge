@@ -13,4 +13,55 @@ body {
     color: var(--primary);
     background-color: var(--accent);
   }
+  
+  /* PDF.js text layer styles */
+  .textLayer {
+    font-family: sans-serif;
+    font-size: 1px;
+    color: transparent;
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    opacity: 1;
+    line-height: 1.0;
+    pointer-events: auto;
+    user-select: text;
+    cursor: text;
+    z-index: 10;
+  }
+  
+  .textLayer span {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    transform-origin: 0% 0%;
+    user-select: text;
+    cursor: text;
+    pointer-events: auto;
+    background: transparent;
+  }
+  
+  .textLayer span:hover {
+    color: transparent;
+    background: rgba(0, 0, 255, 0.1);
+  }
+  
+  .textLayer span::selection {
+    background: rgba(0, 0, 255, 0.3);
+    color: transparent;
+  }
+  
+  .textLayer span::-moz-selection {
+    background: rgba(0, 0, 255, 0.3);
+    color: transparent;
+  }
+
+  .annotation-mode .textLayer,
+  .annotation-mode .textLayer span {
+    cursor: crosshair !important;
+    pointer-events: none !important;
+  }
 }

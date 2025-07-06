@@ -20,7 +20,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Modal from "@/components/ui/Modal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import Badge from "@/components/ui/Badge";
-import { Select } from "@/components/ui/Select";
+import Tab from "@/components/ui/Tab";
 import { formatDistanceToNow } from "@/utils/dateUtils";
 import { useDispatch } from "react-redux";
 import { addToast } from "@/store/slices/toastSlice";
@@ -55,6 +55,7 @@ interface CommentItemProps {
   onReply: (commentId: ID) => void;
   onEdit: (comment: CommentResponse) => void;
   onDelete: (commentId: ID) => void;
+  onDeleteAnnotation?: (annotation: CommentResponse) => void;
   onResolve: (commentId: ID) => void;
   onUnresolve: (commentId: ID) => void;
   onAnnotationClick?: (annotation: CommentResponse) => void;
@@ -84,6 +85,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     null
   );
   const [deleteConfirmId, setDeleteConfirmId] = useState<ID | null>(null);
+  const [deleteConfirmAnnotation, setDeleteConfirmAnnotation] = useState<CommentResponse | null>(null);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<CommentListRequest>({
     page: 1,
@@ -96,16 +98,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Comment type filter options for Select component
-  const commentTypeFilterOptions = [
-    { value: 'general', label: 'Comments', icon: <MessageSquare size={16} /> },
-    { value: 'annotation', label: 'Annotations', icon: <FileText size={16} /> },
-  ];
-
-  // Comment type options for creating new comments
-  const commentCreationTypeOptions = [
-    { value: 'general', label: 'Comment', icon: <MessageSquare size={16} /> },
-    { value: 'annotation', label: 'Annotation', icon: <FileText size={16} /> },
+  // Tab labels
+  const tabs = [
+    { value: 'general', label: 'Comments' },
+    { value: 'annotation', label: 'Annotations' },
   ];
 
   const showToast = (message: string, type: "success" | "error" | "info") => {
@@ -133,6 +129,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const filteredComments = comments.filter(comment => {
     return comment.commentType === commentType;
   });
+
+  const generalCount = comments.filter(c => c.commentType === 'general').length;
+  const annotationCount = comments.filter(c => c.commentType === 'annotation').length;
 
   // Update comment count when comments change
   useEffect(() => {
@@ -297,6 +296,24 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     setDeleteConfirmId(commentId);
   };
 
+  // Handle delete annotation
+  const handleDeleteAnnotation = (annotation: CommentResponse) => {
+    setDeleteConfirmAnnotation(annotation);
+  };
+
+  // Handle confirm delete annotation
+  const handleConfirmDeleteAnnotation = () => {
+    if (deleteConfirmAnnotation) {
+      deleteCommentMutation.mutate(deleteConfirmAnnotation.id);
+      setDeleteConfirmAnnotation(null);
+    }
+  };
+
+  // Handle cancel delete annotation
+  const handleCancelDeleteAnnotation = () => {
+    setDeleteConfirmAnnotation(null);
+  };
+
   // Handle confirm delete
   const handleConfirmDelete = () => {
     if (deleteConfirmId) {
@@ -350,137 +367,139 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     <div className={cn("space-y-4", className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Comments ({totalComments})
-        </h3>
-
-        <div className="flex items-center space-x-2">
-          {/* Comment Type Filter & Selection */}
-          <div className="flex items-center space-x-2">
-            <label className="text-sm text-gray-600 dark:text-gray-400">
-              Type:
-            </label>
-            <div className="min-w-[140px]">
-              <Select
-                options={commentTypeFilterOptions}
-                value={commentType}
-                onChange={(value) => setCommentType(value as CommentType)}
-                placeholder="Select type"
-                aria-label="Select comment type"
-              />
-            </div>
-          </div>
-
-          {enableResolvedToggle && (
-            <Button
-              onClick={toggleShowResolved}
-              variant={filters.resolved === false ? "primary" : "secondary"}
-              size="sm"
-            >
-              {filters.resolved === false ? "Show All" : "Hide Resolved"}
-            </Button>
-          )}
-        </div>
+        {enableResolvedToggle && (
+          <Button
+            onClick={toggleShowResolved}
+            variant={filters.resolved === false ? "primary" : "secondary"}
+            size="sm"
+          >
+            {filters.resolved === false ? "Show All" : "Hide Resolved"}
+          </Button>
+        )}
       </div>
+
+      {/* Tab switcher */}
+      <Tab
+        defaultTab={commentType}
+        onTabChange={(val) => setCommentType(val as CommentType)}
+        className="mt-2"
+      >
+        <Tab.List>
+          <Tab.Title value="general">
+            <span className="inline-flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" />
+              Comments ({generalCount})
+            </span>
+          </Tab.Title>
+          <Tab.Title value="annotation">
+            <span className="inline-flex items-center gap-1">
+              <FileText className="w-3 h-3" />
+              Annotations ({annotationCount})
+            </span>
+          </Tab.Title>
+        </Tab.List>
+      </Tab>
 
       {/* New Comment Form */}
-      <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-        {replyingTo && (
-          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-            <span className="text-sm text-blue-600 dark:text-blue-400">
-              Replying to comment
-            </span>
-            <Button
-              onClick={() => setReplyingTo(null)}
-              variant="ghost"
-              size="sm"
-              className="text-blue-600 dark:text-blue-400"
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
-
-        {pendingAnnotation && !replyingTo && (
-          <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-2 rounded">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
-              <span className="text-sm text-green-600 dark:text-green-400">
-                Adding annotation at position: Page {pendingAnnotation.page || 1}, {Math.round((pendingAnnotation.x || 0) * 100)}%, {Math.round((pendingAnnotation.y || 0) * 100)}%
+      {!(commentType === 'annotation' && !annotationPosition && !replyingTo) && (
+        <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          {replyingTo && (
+            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+              <span className="text-sm text-blue-600 dark:text-blue-400">
+                Replying to comment
               </span>
-            </div>
-            <Button
-              onClick={() => {
-                setCommentType("general");
-                setAnnotationPosition(undefined);
-                onAnnotationUsed?.();
-              }}
-              variant="ghost"
-              size="sm"
-              className="text-green-600 dark:text-green-400"
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
-
-        {/* Comment type is now handled by the main Type dropdown above */}
-
-        <div className="space-y-2">
-          <textarea
-            ref={textareaRef}
-            value={newCommentContent}
-            onChange={(e) => setNewCommentContent(e.target.value)}
-            placeholder={
-              replyingTo
-                ? "Write a reply..."
-                : pendingAnnotation
-                ? "Write your annotation comment..."
-                : commentType === 'annotation'
-                ? "Add an annotation..."
-                : "Add a comment..."
-            }
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={3}
-            disabled={isSubmitting}
-          />
-
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {newCommentContent.length}/5000 characters
-            </span>
-
-            <div className="flex items-center space-x-2">
-              {replyingTo && (
-                <Button
-                  onClick={() => setReplyingTo(null)}
-                  variant="ghost"
-                  size="sm"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-              )}
               <Button
-                onClick={handleSubmitComment}
-                disabled={!newCommentContent.trim() || isSubmitting}
+                onClick={() => setReplyingTo(null)}
+                variant="ghost"
                 size="sm"
+                className="text-blue-600 dark:text-blue-400"
               >
-                {isSubmitting ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Adding...
-                  </>
-                ) : replyingTo ? (
-                  "Reply"
-                ) : (
-                  "Add Comment"
-                )}
+                Cancel
               </Button>
+            </div>
+          )}
+
+          {pendingAnnotation && !replyingTo && (
+            <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-2 rounded">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm text-green-600 dark:text-green-400">
+                  Adding annotation at position: Page {pendingAnnotation.page || 1}, {Math.round((pendingAnnotation.x || 0) * 100)}%, {Math.round((pendingAnnotation.y || 0) * 100)}%
+                </span>
+              </div>
+              <Button
+                onClick={() => {
+                  setCommentType("general");
+                  setAnnotationPosition(undefined);
+                  onAnnotationUsed?.();
+                }}
+                variant="ghost"
+                size="sm"
+                className="text-green-600 dark:text-green-400"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {/* Comment type is now handled by the main Type dropdown above */}
+
+          <div className="space-y-2">
+            <textarea
+              ref={textareaRef}
+              value={newCommentContent}
+              onChange={(e) => setNewCommentContent(e.target.value)}
+              placeholder={
+                replyingTo
+                  ? "Write a reply..."
+                  : pendingAnnotation
+                  ? "Write your annotation comment..."
+                  : commentType === 'annotation'
+                  ? "Add an annotation..."
+                  : "Add a comment..."
+              }
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={3}
+              disabled={isSubmitting}
+            />
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {newCommentContent.length}/5000 characters
+              </span>
+
+              <div className="flex items-center space-x-2">
+                {replyingTo && (
+                  <Button
+                    onClick={() => setReplyingTo(null)}
+                    variant="ghost"
+                    size="sm"
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  onClick={handleSubmitComment}
+                  disabled={!newCommentContent.trim() || isSubmitting}
+                  size="sm"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <LoadingSpinner size="sm" className="mr-2" />
+                      Adding...
+                    </>
+                  ) : replyingTo ? (
+                    "Reply"
+                  ) : (
+                    "Add Comment"
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Comments List */}
       <div className="space-y-4">
@@ -509,6 +528,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 onReply={handleReplyToComment}
                 onEdit={handleEditComment}
                 onDelete={handleDeleteComment}
+                onDeleteAnnotation={handleDeleteAnnotation}
                 onResolve={handleResolveComment}
                 onUnresolve={handleUnresolveComment}
                 onAnnotationClick={onAnnotationClick}
@@ -546,6 +566,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         confirmText="Delete"
         isLoading={deleteCommentMutation.isPending}
       />
+
+      {/* Delete Annotation Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmAnnotation !== null}
+        onClose={handleCancelDeleteAnnotation}
+        onConfirm={handleConfirmDeleteAnnotation}
+        title="Delete Annotation"
+        message="Are you sure you want to delete this annotation? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteCommentMutation.isPending}
+      />
     </div>
   );
 };
@@ -558,6 +591,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
   onReply,
   onEdit,
   onDelete,
+  onDeleteAnnotation,
   onResolve,
   onUnresolve,
   onAnnotationClick,
@@ -566,6 +600,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const isOwner = currentUserId === comment.userID;
   const canResolve = isOwner; // Add more complex logic as needed
   const maxDepth = 3;
+
+  // Debug log
+  if (comment.commentType === "annotation") {
+    console.log("Annotation debug:", {
+      currentUserId,
+      commentUserID: comment.userID,
+      isEqual: currentUserId === comment.userID,
+      isOwner,
+      onDeleteAnnotation: !!onDeleteAnnotation
+    });
+  }
 
   return (
     <div
@@ -608,22 +653,35 @@ const CommentItem: React.FC<CommentItemProps> = ({
               </span>
 
               {/* Show comment type badge */}
-              {comment.commentType === "annotation" && onAnnotationClick ? (
-                <button
-                  onClick={() => onAnnotationClick(comment)}
-                  className="inline-flex items-center"
-                  title="View annotation on PDF"
-                >
-                  <Badge color="blue" size="sm" className="hover:bg-blue-600 transition-colors">
-                    <FileText className="w-3 h-3 mr-1" />
-                    Annotation
-                  </Badge>
-                </button>
-              ) : comment.commentType === "annotation" ? (
-                <Badge color="blue" size="sm">
-                  <FileText className="w-3 h-3 mr-1" />
-                  Annotation
-                </Badge>
+              {comment.commentType === "annotation" ? (
+                <div className="flex items-center gap-2">
+                  {onAnnotationClick ? (
+                    <button
+                      onClick={() => onAnnotationClick(comment)}
+                      className="inline-flex items-center"
+                      title="Go to annotation in PDF"
+                    >
+                      <Badge color="blue" size="sm" className="hover:bg-blue-600 transition-colors">
+                        <FileText className="w-3 h-3 mr-1" />
+                        Go to Annotation
+                      </Badge>
+                    </button>
+                  ) : (
+                    <Badge color="blue" size="sm">
+                      <FileText className="w-3 h-3 mr-1" />
+                      Go to Annotation
+                    </Badge>
+                  )}
+                  {onDeleteAnnotation && (
+                    <button
+                      onClick={() => onDeleteAnnotation(comment)}
+                      className="p-1 rounded text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      title="Delete annotation"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               ) : comment.commentType === "general" ? (
                 <Badge color="gray" size="sm">
                   <MessageSquare className="w-3 h-3 mr-1" />
@@ -732,35 +790,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         <p className="whitespace-pre-wrap">{comment.content}</p>
       </div>
 
-      {/* Position Info for Annotations */}
-      {comment.position && comment.commentType === "annotation" && (
-        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-600 dark:text-blue-400">
-          {comment.position.page && `Page ${comment.position.page}`}
-          {comment.position.quotedText && (
-            <div className="mt-1 italic">"{comment.position.quotedText}"</div>
-          )}
-        </div>
-      )}
-
-      {/* Replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="mt-4 space-y-3">
-          {comment.replies.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              documentId={documentId}
-              currentUserId={currentUserId}
-              onReply={onReply}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onResolve={onResolve}
-              onUnresolve={onUnresolve}
-              level={level + 1}
-            />
-          ))}
-        </div>
-      )}
+      {/* (Page badge removed for annotations) */}
     </div>
   );
 };

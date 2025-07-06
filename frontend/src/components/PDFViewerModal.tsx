@@ -22,6 +22,7 @@ interface PDFViewerModalProps {
   onAnnotationCreate?: (position: CommentPosition) => void;
   targetAnnotation?: CommentResponse | null;
   onTargetAnnotationViewed?: () => void;
+  onAnnotationAdded?: () => void;
 }
 
 const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
@@ -31,6 +32,7 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
   onAnnotationCreate,
   targetAnnotation,
   onTargetAnnotationViewed,
+  onAnnotationAdded,
 }) => {
   const [annotationMode, setAnnotationMode] = useState(false);
 
@@ -68,7 +70,7 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       isOpen={isOpen}
       onClose={handleModalClose}
       size="full"
-      closeOnOverlayClick={true}
+      closeOnOverlayClick={false}
       closeOnEscape={true}
     >
       <Modal.Header className="!mb-2">
@@ -106,6 +108,7 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
           onAnnotationCreate={handleAnnotationCreate}
           targetAnnotation={targetAnnotation}
           onTargetAnnotationViewed={onTargetAnnotationViewed}
+          onAnnotationAdded={onAnnotationAdded}
         />
       </Modal.Content>
     </Modal>

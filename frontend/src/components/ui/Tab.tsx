@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 interface TabContextType {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  onTabChange?: (tab: string) => void;
 }
 
 const TabContext = createContext<TabContextType | undefined>(undefined);
@@ -22,13 +23,14 @@ interface TabProps {
   defaultTab?: string;
   children: ReactNode;
   className?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-const Tab = ({ defaultTab, children, className }: TabProps) => {
+const Tab = ({ defaultTab, children, className, onTabChange }: TabProps) => {
   const [activeTab, setActiveTab] = useState(defaultTab || "");
 
   return (
-    <TabContext.Provider value={{ activeTab, setActiveTab }}>
+    <TabContext.Provider value={{ activeTab, setActiveTab, onTabChange }}>
       <div className={cn("w-full", className)}>{children}</div>
     </TabContext.Provider>
   );
@@ -42,12 +44,16 @@ interface TabTitleProps {
 }
 
 const TabTitle = ({ value, children, disabled = false, className }: TabTitleProps) => {
-  const { activeTab, setActiveTab } = useTabContext();
+  const { activeTab, setActiveTab, onTabChange } = useTabContext();
   const isActive = activeTab === value;
 
   return (
     <button
-      onClick={() => !disabled && setActiveTab(value)}
+      onClick={() => {
+        if (disabled) return;
+        setActiveTab(value);
+        if (onTabChange) onTabChange(value);
+      }}
       disabled={disabled}
       className={cn(
         "px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-info/50 focus:ring-offset-2 dark:focus:ring-offset-background",

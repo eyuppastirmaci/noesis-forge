@@ -282,7 +282,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Frontend**: Next.js 15 + React 19, Tailwind CSS, TypeScript, Redux Toolkit
 - **AI/ML**: BGE-M3, SigLIP2, ColPaLI, Ollama (local LLM), Qdrant vector database
 - **Infrastructure**: Docker + Docker Compose, Air (dev), Prometheus + Grafana (monitoring)
-- **CI/CD**: Jenkins (automated testing, building, deployment)
+- **CI/CD**: Jenkins 2.504.3 (automated testing, building, deployment)
 
 ## 🏗️ Architecture
 
@@ -302,10 +302,8 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Redis** 8.0.2+ (for caching and rate limiting)
 - **ImageMagick** (for PDF thumbnail generation)
 
-#### For CI/CD Pipeline (Optional)
-- **Jenkins** 2.400+ (for automated builds and deployments)
-- **Git** (for source code management)
-- **Docker** (for containerized builds)
+#### For CI/CD Pipeline
+- **Jenkins** 2.504.3 (for automated tests, builds and deployments)
 
 ### Quick Setup
 
