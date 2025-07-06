@@ -8,15 +8,9 @@
 
 ### Upload Document
 
-![upload](https://github.com/user-attachments/assets/56b2179d-cf3b-4c54-8caf-b25e1e9e65d6)
-
-### Documents
-
 ![list](https://github.com/user-attachments/assets/f59d7462-f806-44da-86be-deb5b0251972)
 
-### Preview Document
-
-![preview](https://github.com/user-attachments/assets/29d2f39b-b01d-411b-862f-c7594f2cfe84)
+![annotations](https://github.com/user-attachments/assets/b6b2b1c9-4695-423b-8191-2c1285c50689)
 
 ## 🚧 Development Status
 
