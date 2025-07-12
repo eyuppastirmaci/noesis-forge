@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ShareService handles creation & validation of shared links.
+// Handles creation & validation of shared links.
 type ShareService struct {
 	db    *gorm.DB
 	redis *redis.Client // optional, may be nil
@@ -23,7 +23,7 @@ func NewShareService(db *gorm.DB, redisClient *redis.Client) *ShareService {
 	return &ShareService{db: db, redis: redisClient}
 }
 
-// CreatePublicShare creates a new public share link for a document.
+// Creates a new public share link for a document.
 func (s *ShareService) CreatePublicShare(ctx context.Context, ownerID, documentID uuid.UUID, expiresInDays int, maxDownloads *int) (*models.SharedLink, error) {
 	// generate random 128-bit token
 	b := make([]byte, 16)
@@ -56,7 +56,7 @@ func (s *ShareService) CreatePublicShare(ctx context.Context, ownerID, documentI
 	return link, nil
 }
 
-// ValidateToken validates token, increments download count, returns document.
+// Validates token, increments download count, returns document.
 func (s *ShareService) ValidateToken(ctx context.Context, token string, clientIP, userAgent string) (*models.Document, error) {
 	// brute-force protection using Redis
 	if s.redis != nil {
@@ -96,7 +96,7 @@ func (s *ShareService) ValidateToken(ctx context.Context, token string, clientIP
 	return link.Document, nil
 }
 
-// GetDocumentShares returns all active shares for a document owned by the user
+// Returns all active shares for a document owned by the user
 func (s *ShareService) GetDocumentShares(ctx context.Context, ownerID, documentID uuid.UUID) ([]models.SharedLink, error) {
 	var shares []models.SharedLink
 	err := s.db.WithContext(ctx).
@@ -106,7 +106,7 @@ func (s *ShareService) GetDocumentShares(ctx context.Context, ownerID, documentI
 	return shares, err
 }
 
-// RevokeShare revokes a share link by setting is_revoked to true
+// Revokes a share link by setting is_revoked to true
 func (s *ShareService) RevokeShare(ctx context.Context, ownerID, shareID uuid.UUID) error {
 	result := s.db.WithContext(ctx).
 		Model(&models.SharedLink{}).

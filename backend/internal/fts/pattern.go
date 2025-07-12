@@ -1,4 +1,4 @@
-package strategies
+package fts
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
-	"github.com/eyuppastirmaci/noesis-forge/internal/models/search"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +13,7 @@ type PatternStrategy struct {
 	db *gorm.DB
 }
 
-func NewPatternStrategy(db *gorm.DB) search.SearchStrategy {
+func NewPatternStrategy(db *gorm.DB) SearchStrategy {
 	return &PatternStrategy{db: db}
 }
 
@@ -22,21 +21,26 @@ func (s *PatternStrategy) Name() string {
 	return "pattern"
 }
 
-func (s *PatternStrategy) CanHandle(req *search.SearchRequest) bool {
-	return len(req.Tokens) > 0
+// CanHandle decides if this strategy applies to the current request
+func (s *PatternStrategy) CanHandle(req *SearchRequest) bool {
+	return len(req.Tokens) > 0 // No minimum query length, handles any tokenized input
 }
 
-func (s *PatternStrategy) Search(ctx context.Context, req *search.SearchRequest, filters func(*gorm.DB) *gorm.DB) (*search.SearchResult, error) {
+// Search executes SQL ILIKE pattern matching across multiple columns and returns scored results
+func (s *PatternStrategy) Search(ctx context.Context, req *SearchRequest, filters func(*gorm.DB) *gorm.DB) (*SearchResult, error) {
+	// Build base query scoped to the user and any extra filters
 	baseQuery := s.db.WithContext(ctx).Model(&models.Document{}).Where("user_id = ?", req.UserID)
-	baseQuery = filters(baseQuery)
+	baseQuery = filters(baseQuery) // Apply external filters
 
-	// Build ILIKE query for each significant token
+	// Build ILIKE query for each significant token across multiple columns
 	patternQuery := baseQuery.Session(&gorm.Session{})
 
 	hasValidTokens := false
 	for _, token := range req.Tokens {
-		if len(token) >= 2 {
+		if len(token) >= 2 { // Minimum 2 chars to avoid noise in pattern matching
+			// Create wildcard pattern for substring matching
 			pattern := "%" + token + "%"
+			// Search across title, description, tags, and original_file_name columns
 			patternQuery = patternQuery.Where(
 				"title ILIKE ? OR description ILIKE ? OR tags ILIKE ? OR original_file_name ILIKE ?",
 				pattern, pattern, pattern, pattern,
@@ -45,24 +49,24 @@ func (s *PatternStrategy) Search(ctx context.Context, req *search.SearchRequest,
 		}
 	}
 
-	if !hasValidTokens {
-		return &search.SearchResult{}, nil
+	if !hasValidTokens { // No valid tokens means nothing to search
+		return &SearchResult{}, nil
 	}
 
 	var total int64
 	if err := patternQuery.Count(&total).Error; err != nil || total == 0 {
-		return &search.SearchResult{}, nil
+		return &SearchResult{}, nil
 	}
 
-	// Score by token matches across all columns
 	var docs []models.Document
 	selectParts := []string{"*"}
 	scoreParts := []string{}
 
 	for _, token := range req.Tokens {
 		if len(token) >= 2 {
-			// Escape single quotes for SQL
+			// Escape single quotes for SQL injection prevention
 			escapedToken := strings.ReplaceAll(token, "'", "''")
+			// Create weighted scoring: title=2pts, description=1pt, tags=1pt, filename=1pt
 			scoreParts = append(scoreParts, fmt.Sprintf(
 				"(CASE WHEN title ILIKE '%%%s%%' THEN 2 ELSE 0 END) + "+
 					"(CASE WHEN description ILIKE '%%%s%%' THEN 1 ELSE 0 END) + "+
@@ -73,10 +77,11 @@ func (s *PatternStrategy) Search(ctx context.Context, req *search.SearchRequest,
 		}
 	}
 
+	// Combine all scoring parts or provide default score
 	if len(scoreParts) > 0 {
 		selectParts = append(selectParts, "("+strings.Join(scoreParts, " + ")+") as search_score")
 	} else {
-		selectParts = append(selectParts, "1 as search_score")
+		selectParts = append(selectParts, "1 as search_score") // Fallback score
 	}
 
 	err := patternQuery.
@@ -87,12 +92,12 @@ func (s *PatternStrategy) Search(ctx context.Context, req *search.SearchRequest,
 		Find(&docs).Error
 
 	if err != nil {
-		return &search.SearchResult{}, nil
+		return &SearchResult{}, nil
 	}
 
 	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
 
-	return &search.SearchResult{
+	return &SearchResult{
 		Documents:  docs,
 		Total:      total,
 		Page:       req.Page,

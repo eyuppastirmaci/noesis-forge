@@ -1,4 +1,4 @@
-package search
+package types
 
 import (
 	"time"
@@ -7,6 +7,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// Document Request Types
+
+// UploadDocumentRequest represents the request for uploading a document
+type UploadDocumentRequest struct {
+	Title       string `json:"title" validate:"required,min=1,max=255"`
+	Description string `json:"description" validate:"max=1000"`
+	Tags        string `json:"tags" validate:"max=500"`
+	IsPublic    bool   `json:"isPublic"`
+}
+
+// UpdateDocumentRequest represents the request for updating a document
+type UpdateDocumentRequest struct {
+	Title       string `json:"title" validate:"required,min=1,max=255"`
+	Description string `json:"description" validate:"max=1000"`
+	Tags        string `json:"tags" validate:"max=500"`
+	IsPublic    bool   `json:"isPublic"`
+	HasNewFile  bool   `json:"hasNewFile"`
+}
+
+// DocumentListRequest represents the request for listing documents
 type DocumentListRequest struct {
 	Page     int    `json:"page" validate:"min=1"`
 	Limit    int    `json:"limit" validate:"min=1,max=100"`
@@ -18,21 +38,9 @@ type DocumentListRequest struct {
 	SortDir  string `json:"sortDir"` // asc, desc
 }
 
-type UploadDocumentRequest struct {
-	Title       string `json:"title" validate:"required,min=1,max=255"`
-	Description string `json:"description" validate:"max=1000"`
-	Tags        string `json:"tags" validate:"max=500"`
-	IsPublic    bool   `json:"isPublic"`
-}
+// Document Response Types
 
-type UpdateDocumentRequest struct {
-	Title       string `json:"title" validate:"required,min=1,max=255"`
-	Description string `json:"description" validate:"max=1000"`
-	Tags        string `json:"tags" validate:"max=500"`
-	IsPublic    bool   `json:"isPublic"`
-	HasNewFile  bool   `json:"hasNewFile"`
-}
-
+// DocumentResponse represents the response for a document
 type DocumentResponse struct {
 	ID               uuid.UUID             `json:"id"`
 	Title            string                `json:"title"`
@@ -58,6 +66,7 @@ type DocumentResponse struct {
 	SearchScore      float64               `json:"searchScore,omitempty"`
 }
 
+// DocumentListResponse represents the response for document listing
 type DocumentListResponse struct {
 	Documents  []DocumentResponse `json:"documents"`
 	Total      int64              `json:"total"`
@@ -66,7 +75,33 @@ type DocumentListResponse struct {
 	TotalPages int                `json:"totalPages"`
 }
 
+// UserStatsResponse represents user document statistics
 type UserStatsResponse struct {
 	DocumentsThisMonth int64 `json:"documentsThisMonth"`
 	TotalStorageUsage  int64 `json:"totalStorageUsage"`
+}
+
+// Search Types
+
+// SearchRequest represents a search request
+type SearchRequest struct {
+	UserID   uuid.UUID
+	Query    string
+	Tokens   []string
+	Page     int
+	Limit    int
+	FileType string
+	Status   string
+	Tags     string
+	SortBy   string
+	SortDir  string
+}
+
+// SearchResult represents a search result
+type SearchResult struct {
+	Documents  []models.Document
+	Total      int64
+	Page       int
+	Limit      int
+	TotalPages int
 }

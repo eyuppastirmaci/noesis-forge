@@ -151,7 +151,7 @@ func (s *MinIOService) generateObjectName(userID uuid.UUID, originalFileName str
 	return objectName, uuidFileName
 }
 
-// UploadThumbnail uploads thumbnail image data directly to MinIO
+// Uploads thumbnail image data directly to MinIO
 func (s *MinIOService) UploadThumbnail(ctx context.Context, objectName string, data []byte, contentType string) (*UploadResult, error) {
 	reader := bytes.NewReader(data)
 

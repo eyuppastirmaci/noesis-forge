@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
-	"github.com/eyuppastirmaci/noesis-forge/internal/models/search"
 	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/interfaces"
+	"github.com/eyuppastirmaci/noesis-forge/internal/types"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -66,27 +66,23 @@ func (r *documentRepository) IncrementDownloadCount(ctx context.Context, id uuid
 		UpdateColumn("download_count", gorm.Expr("download_count + 1")).Error
 }
 
-func (r *documentRepository) GetUserStats(ctx context.Context, userID uuid.UUID) (*search.UserStatsResponse, error) {
-	var stats search.UserStatsResponse
-	now := time.Now()
-	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
+func (r *documentRepository) GetUserStats(ctx context.Context, userID uuid.UUID) (*types.UserStatsResponse, error) {
+	var stats types.UserStatsResponse
 
-	// Documents this month
-	err := r.db.WithContext(ctx).Model(&models.Document{}).
-		Where("user_id = ? AND created_at BETWEEN ? AND ?", userID, startOfMonth, endOfMonth).
-		Count(&stats.DocumentsThisMonth).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to count documents: %w", err)
+	// Get documents count for current month
+	startOfMonth := time.Now().Truncate(24*time.Hour).AddDate(0, 0, -time.Now().Day()+1)
+	if err := r.db.WithContext(ctx).Model(&models.Document{}).
+		Where("user_id = ? AND created_at >= ?", userID, startOfMonth).
+		Count(&stats.DocumentsThisMonth).Error; err != nil {
+		return nil, fmt.Errorf("failed to count documents this month: %w", err)
 	}
 
-	// Total storage usage
-	err = r.db.WithContext(ctx).Model(&models.Document{}).
+	// Get total storage usage
+	if err := r.db.WithContext(ctx).Model(&models.Document{}).
 		Where("user_id = ?", userID).
 		Select("COALESCE(SUM(file_size), 0)").
-		Row().Scan(&stats.TotalStorageUsage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate storage: %w", err)
+		Scan(&stats.TotalStorageUsage).Error; err != nil {
+		return nil, fmt.Errorf("failed to calculate total storage usage: %w", err)
 	}
 
 	return &stats, nil

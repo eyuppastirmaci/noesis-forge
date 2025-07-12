@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
+	"github.com/eyuppastirmaci/noesis-forge/internal/types"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -22,7 +23,7 @@ type FavoriteResponse struct {
 }
 
 type FavoriteDocumentResponse struct {
-	*DocumentResponse
+	*types.DocumentResponse
 	IsFavorited   bool   `json:"isFavorited"`
 	FavoritedAt   string `json:"favoritedAt,omitempty"`
 	FavoriteCount int64  `json:"favoriteCount"`
@@ -32,7 +33,7 @@ func NewFavoriteService(db *gorm.DB) *FavoriteService {
 	return &FavoriteService{db: db}
 }
 
-// AddToFavorites adds a document to user's favorites
+// Adds a document to user's favorites
 func (s *FavoriteService) AddToFavorites(ctx context.Context, userID, documentID uuid.UUID) (*FavoriteResponse, error) {
 	// Check if document exists and user has access
 	var document models.Document
@@ -69,7 +70,7 @@ func (s *FavoriteService) AddToFavorites(ctx context.Context, userID, documentID
 	}, nil
 }
 
-// RemoveFromFavorites removes a document from user's favorites
+// Removes a document from user's favorites
 func (s *FavoriteService) RemoveFromFavorites(ctx context.Context, userID, documentID uuid.UUID) error {
 	result := s.db.Where("user_id = ? AND document_id = ?", userID, documentID).Delete(&models.Favorite{})
 	if result.Error != nil {
@@ -84,8 +85,8 @@ func (s *FavoriteService) RemoveFromFavorites(ctx context.Context, userID, docum
 	return nil
 }
 
-// GetUserFavorites gets all favorite documents for a user
-func (s *FavoriteService) GetUserFavorites(ctx context.Context, userID uuid.UUID, page, limit int) (*DocumentListResponse, error) {
+// Gets all favorite documents for a user
+func (s *FavoriteService) GetUserFavorites(ctx context.Context, userID uuid.UUID, page, limit int) (*types.DocumentListResponse, error) {
 	offset := (page - 1) * limit
 
 	// Count total favorites
@@ -106,9 +107,9 @@ func (s *FavoriteService) GetUserFavorites(ctx context.Context, userID uuid.UUID
 	}
 
 	// Convert to response
-	documents := make([]DocumentResponse, len(favorites))
+	documents := make([]types.DocumentResponse, len(favorites))
 	for i, favorite := range favorites {
-		documents[i] = DocumentResponse{
+		documents[i] = types.DocumentResponse{
 			ID:               favorite.Document.ID,
 			Title:            favorite.Document.Title,
 			Description:      favorite.Document.Description,
@@ -133,7 +134,7 @@ func (s *FavoriteService) GetUserFavorites(ctx context.Context, userID uuid.UUID
 
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
 
-	return &DocumentListResponse{
+	return &types.DocumentListResponse{
 		Documents:  documents,
 		Total:      total,
 		Page:       page,
@@ -142,7 +143,7 @@ func (s *FavoriteService) GetUserFavorites(ctx context.Context, userID uuid.UUID
 	}, nil
 }
 
-// IsFavorited checks if a document is favorited by user
+// Checks if a document is favorited by user
 func (s *FavoriteService) IsFavorited(ctx context.Context, userID, documentID uuid.UUID) (bool, error) {
 	var favorite models.Favorite
 	err := s.db.Where("user_id = ? AND document_id = ?", userID, documentID).First(&favorite).Error
@@ -155,7 +156,7 @@ func (s *FavoriteService) IsFavorited(ctx context.Context, userID, documentID uu
 	return true, nil
 }
 
-// GetFavoriteCount gets the total number of times a document has been favorited
+// Gets the total number of times a document has been favorited
 func (s *FavoriteService) GetFavoriteCount(ctx context.Context, documentID uuid.UUID) (int64, error) {
 	var count int64
 	if err := s.db.Model(&models.Favorite{}).Where("document_id = ?", documentID).Count(&count).Error; err != nil {

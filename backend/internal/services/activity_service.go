@@ -23,7 +23,7 @@ func NewActivityService(db *gorm.DB) *ActivityService {
 	}
 }
 
-// ActivityContext holds context information for activity logging
+// Holds context information for activity logging
 type ActivityContext struct {
 	UserID     uuid.UUID
 	DocumentID uuid.UUID
@@ -32,7 +32,7 @@ type ActivityContext struct {
 	Source     string // "web", "mobile", "api"
 }
 
-// CreateActivityContext creates an ActivityContext from a Gin context
+// Creates an ActivityContext from a Gin context
 func (s *ActivityService) CreateActivityContext(c *gin.Context, documentID uuid.UUID) *ActivityContext {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -48,7 +48,7 @@ func (s *ActivityService) CreateActivityContext(c *gin.Context, documentID uuid.
 	}
 }
 
-// LogActivity logs a generic activity
+// Logs a generic activity
 func (s *ActivityService) LogActivity(ctx *ActivityContext, activityType models.ActivityType, description string, metadata models.ActivityMetadata) error {
 	if ctx == nil {
 		return fmt.Errorf("activity context is required")
@@ -335,7 +335,7 @@ func (s *ActivityService) LogError(ctx *ActivityContext, activityType models.Act
 
 // Helper methods
 
-// getClientIP extracts the real client IP address
+// Extracts the real client IP address
 func (s *ActivityService) getClientIP(c *gin.Context) string {
 	// Check X-Forwarded-For header first (for proxies)
 	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
@@ -365,7 +365,7 @@ func (s *ActivityService) getClientIP(c *gin.Context) string {
 	return c.ClientIP()
 }
 
-// detectSource detects the source of the request
+// Detects the source of the request
 func (s *ActivityService) detectSource(c *gin.Context) string {
 	userAgent := c.GetHeader("User-Agent")
 	userAgent = strings.ToLower(userAgent)
@@ -391,7 +391,7 @@ func (s *ActivityService) detectSource(c *gin.Context) string {
 	return "web"
 }
 
-// BulkLogActivities logs multiple activities in a single transaction
+// Logs multiple activities in a single transaction
 func (s *ActivityService) BulkLogActivities(activities []models.DocumentActivity) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		for _, activity := range activities {
@@ -403,7 +403,7 @@ func (s *ActivityService) BulkLogActivities(activities []models.DocumentActivity
 	})
 }
 
-// GetActivityStats gets quick stats for a user or document
+// Gets quick stats for a user or document
 func (s *ActivityService) GetActivityStats(userID *uuid.UUID, documentID *uuid.UUID, since *time.Time) (map[string]interface{}, error) {
 	query := s.db.Model(&models.DocumentActivity{})
 
@@ -444,7 +444,7 @@ func (s *ActivityService) GetActivityStats(userID *uuid.UUID, documentID *uuid.U
 	}, nil
 }
 
-// CleanupOldActivities removes activities older than the specified duration
+// Removes activities older than the specified duration
 func (s *ActivityService) CleanupOldActivities(olderThan time.Duration) error {
 	cutoff := time.Now().Add(-olderThan)
 

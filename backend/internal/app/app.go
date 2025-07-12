@@ -8,7 +8,6 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/postgres"
 	"github.com/eyuppastirmaci/noesis-forge/internal/router"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
-	"github.com/eyuppastirmaci/noesis-forge/internal/services/search"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -27,7 +26,6 @@ type App struct {
 	// Services
 	AuthService     *services.AuthService
 	DocumentService *services.DocumentService
-	SearchService   *search.SearchService
 	MinIOService    *services.MinIOService
 }
 
@@ -86,15 +84,14 @@ func New() (*App, error) {
 
 	authService := services.NewAuthService(db, cfg, rawRedisClient, minioService)
 	userShareService := services.NewUserShareService(db, customRedisClient)
-	searchService := search.NewSearchService(db)
 
 	// Initialize Document service with dependencies
 	documentService := services.NewDocumentService(
 		documentRepo,
 		documentSearchRepo,
-		searchService,
 		minioService,
 		userShareService,
+		db,
 	)
 
 	// Initialize router with services
@@ -114,7 +111,6 @@ func New() (*App, error) {
 		DocumentSearchRepo: documentSearchRepo,
 		AuthService:        authService,
 		DocumentService:    documentService,
-		SearchService:      searchService,
 		MinIOService:       minioService,
 	}, nil
 }

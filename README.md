@@ -100,7 +100,7 @@ Core document features work, but many AI capabilities are still being built. Con
 **Basic Search**
 - ✅ Search input component
 - ✅ Search results page (integrated in documents list)
-- ☐ PostgreSQL full-text search
+- ✅ PostgreSQL full-text search
 - ✅ Backend: Search service basics
 
 **Document Processing Pipeline**

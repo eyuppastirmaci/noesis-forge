@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
-	"github.com/eyuppastirmaci/noesis-forge/internal/models/search"
+	"github.com/eyuppastirmaci/noesis-forge/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -17,7 +17,7 @@ type DocumentRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	// Stats
-	GetUserStats(ctx context.Context, userID uuid.UUID) (*search.UserStatsResponse, error)
+	GetUserStats(ctx context.Context, userID uuid.UUID) (*types.UserStatsResponse, error)
 	GetRevisions(ctx context.Context, documentID uuid.UUID) ([]models.DocumentRevision, error)
 
 	// Count operations
@@ -27,6 +27,6 @@ type DocumentRepository interface {
 
 type DocumentSearchRepository interface {
 	// Search operations
-	SearchDocuments(ctx context.Context, req *search.SearchRequest) (*search.SearchResult, error)
-	CountSearchResults(ctx context.Context, req *search.SearchRequest) (int64, error)
+	SearchDocuments(ctx context.Context, req *types.SearchRequest) (*types.SearchResult, error)
+	CountSearchResults(ctx context.Context, req *types.SearchRequest) (int64, error)
 }

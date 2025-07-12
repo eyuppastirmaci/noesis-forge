@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/types"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -120,7 +120,7 @@ func ValidateDocumentUpload() gin.HandlerFunc {
 		}
 
 		// Create validated request
-		req := &services.UploadDocumentRequest{
+		req := &types.UploadDocumentRequest{
 			Title:       title,
 			Description: description,
 			Tags:        tags,
@@ -208,7 +208,7 @@ func ValidateDocumentUpdate() gin.HandlerFunc {
 		}
 
 		// Create validated request
-		req := &services.UpdateDocumentRequest{
+		req := &types.UpdateDocumentRequest{
 			Title:       title,
 			Description: description,
 			Tags:        tags,
@@ -303,7 +303,7 @@ func ValidateDocumentList() gin.HandlerFunc {
 		}
 
 		// Create validated request
-		req := &services.DocumentListRequest{
+		req := &types.DocumentListRequest{
 			Page:     page,
 			Limit:    limit,
 			Search:   search,
@@ -539,8 +539,6 @@ func ValidateBulkDownload() gin.HandlerFunc {
 	}
 }
 
-// Helper functions
-
 func validateUploadedFile(file *multipart.FileHeader) map[string]string {
 	errors := make(map[string]string)
 
@@ -740,17 +738,17 @@ func isValidTagName(tag string) bool {
 }
 
 // GetValidatedDocumentUpload retrieves the validated upload request from context
-func GetValidatedDocumentUpload(c *gin.Context) (*services.UploadDocumentRequest, bool) {
+func GetValidatedDocumentUpload(c *gin.Context) (*types.UploadDocumentRequest, bool) {
 	value, exists := c.Get(ValidatedDocumentUploadKey)
 	if !exists {
 		return nil, false
 	}
 
-	req, ok := value.(*services.UploadDocumentRequest)
+	req, ok := value.(*types.UploadDocumentRequest)
 	return req, ok
 }
 
-// GetValidatedBulkDocumentUpload retrieves the validated bulk upload request from context
+// Retrieves the validated bulk upload request from context
 func GetValidatedBulkDocumentUpload(c *gin.Context) (*BulkUploadDocumentRequest, bool) {
 	value, exists := c.Get(ValidatedBulkDocumentUploadKey)
 	if !exists {
@@ -761,18 +759,18 @@ func GetValidatedBulkDocumentUpload(c *gin.Context) (*BulkUploadDocumentRequest,
 	return req, ok
 }
 
-// GetValidatedDocumentList retrieves the validated list request from context
-func GetValidatedDocumentList(c *gin.Context) (*services.DocumentListRequest, bool) {
+// Retrieves the validated list request from context
+func GetValidatedDocumentList(c *gin.Context) (*types.DocumentListRequest, bool) {
 	value, exists := c.Get(ValidatedDocumentListKey)
 	if !exists {
 		return nil, false
 	}
 
-	req, ok := value.(*services.DocumentListRequest)
+	req, ok := value.(*types.DocumentListRequest)
 	return req, ok
 }
 
-// GetValidatedDocumentID retrieves the validated document ID from context
+// Retrieves the validated document ID from context
 func GetValidatedDocumentID(c *gin.Context) (uuid.UUID, bool) {
 	value, exists := c.Get(ValidatedDocumentIDKey)
 	if !exists {
@@ -783,7 +781,7 @@ func GetValidatedDocumentID(c *gin.Context) (uuid.UUID, bool) {
 	return id, ok
 }
 
-// GetValidatedBulkDelete retrieves the validated bulk delete request from context
+// Retrieves the validated bulk delete request from context
 func GetValidatedBulkDelete(c *gin.Context) (*BulkOperationRequest, bool) {
 	value, exists := c.Get(ValidatedBulkDeleteKey)
 	if !exists {
@@ -794,7 +792,7 @@ func GetValidatedBulkDelete(c *gin.Context) (*BulkOperationRequest, bool) {
 	return req, ok
 }
 
-// GetValidatedBulkDownload retrieves the validated bulk download request from context
+// Retrieves the validated bulk download request from context
 func GetValidatedBulkDownload(c *gin.Context) (*BulkOperationRequest, bool) {
 	value, exists := c.Get(ValidatedBulkDownloadKey)
 	if !exists {
@@ -805,13 +803,13 @@ func GetValidatedBulkDownload(c *gin.Context) (*BulkOperationRequest, bool) {
 	return req, ok
 }
 
-// GetValidatedDocumentUpdate retrieves the validated document update request from context
-func GetValidatedDocumentUpdate(c *gin.Context) (*services.UpdateDocumentRequest, bool) {
+// Retrieves the validated document update request from context
+func GetValidatedDocumentUpdate(c *gin.Context) (*types.UpdateDocumentRequest, bool) {
 	value, exists := c.Get(ValidatedDocumentUpdateKey)
 	if !exists {
 		return nil, false
 	}
 
-	req, ok := value.(*services.UpdateDocumentRequest)
+	req, ok := value.(*types.UpdateDocumentRequest)
 	return req, ok
 }

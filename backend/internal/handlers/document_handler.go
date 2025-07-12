@@ -16,6 +16,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/types"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
@@ -56,22 +57,29 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	// Get validated request from context (set by middleware)
+	// Get validated request from context
 	req, ok := validations.GetValidatedDocumentUpload(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
 		return
 	}
 
-	// Get file from form (already validated by middleware)
+	// Get file from form
 	file, err := c.FormFile("file")
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "FILE_REQUIRED", "File is required")
 		return
 	}
 
+	uploadReq := &services.UploadDocumentRequest{
+		Title:       req.Title,
+		Description: req.Description,
+		Tags:        req.Tags,
+		IsPublic:    req.IsPublic,
+	}
+
 	// Delegate business logic to service
-	document, err := h.documentService.UploadDocument(c.Request.Context(), userID, file, req)
+	document, err := h.documentService.UploadDocument(c.Request.Context(), userID, file, uploadReq)
 	if err != nil {
 		// Map service errors to HTTP status codes
 		status, code := h.mapServiceErrorToHTTP(err)
@@ -117,8 +125,17 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 		}
 	}
 
+	// Convert fts.UpdateDocumentRequest to services.UpdateDocumentRequest
+	updateReq := &services.UpdateDocumentRequest{
+		Title:       req.Title,
+		Description: req.Description,
+		Tags:        req.Tags,
+		IsPublic:    req.IsPublic,
+		HasNewFile:  req.HasNewFile,
+	}
+
 	// Delegate to service
-	document, err := h.documentService.UpdateDocument(c.Request.Context(), userID, documentID, file, req)
+	document, err := h.documentService.UpdateDocument(c.Request.Context(), userID, documentID, file, updateReq)
 	if err != nil {
 		status, code := h.mapServiceErrorToHTTP(err)
 		utils.ErrorResponse(c, status, code, err.Error())
@@ -146,8 +163,19 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		return
 	}
 
+	listReq := &types.DocumentListRequest{
+		Page:     req.Page,
+		Limit:    req.Limit,
+		Search:   req.Search,
+		FileType: req.FileType,
+		Status:   req.Status,
+		Tags:     req.Tags,
+		SortBy:   req.SortBy,
+		SortDir:  req.SortDir,
+	}
+
 	// Delegate to service (service handles search logic)
-	documents, err := h.documentService.GetDocuments(c.Request.Context(), userID, req)
+	documents, err := h.documentService.GetDocuments(c.Request.Context(), userID, listReq)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
 		return

@@ -16,7 +16,7 @@ const (
 	ValidatedUserKey ContextKey = "validatedUser"
 )
 
-// ValidateCreateUser is a middleware that validates user creation request
+// A middleware that validates user creation request
 func ValidateCreateUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.RegisterRequest
@@ -77,7 +77,7 @@ func ValidateCreateUser() gin.HandlerFunc {
 	}
 }
 
-// GetValidatedUser retrieves the validated user data from context
+// Retrieves the validated user data from context
 func GetValidatedUser(c *gin.Context) (*services.RegisterRequest, bool) {
 	value, exists := c.Get(string(ValidatedUserKey))
 	if !exists {
@@ -88,7 +88,7 @@ func GetValidatedUser(c *gin.Context) (*services.RegisterRequest, bool) {
 	return req, ok
 }
 
-// ValidateUpdateProfile validates profile update requests
+// Validates profile update requests
 func ValidateUpdateProfile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.UpdateProfileRequest
@@ -144,7 +144,7 @@ func ValidateUpdateProfile() gin.HandlerFunc {
 	}
 }
 
-// ValidateChangePassword validates password change requests
+// Validates password change requests
 func ValidateChangePassword() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.ChangePasswordRequest
@@ -185,7 +185,7 @@ func ValidateChangePassword() gin.HandlerFunc {
 	}
 }
 
-// ValidateLogin validates login requests
+// Validates login requests
 func ValidateLogin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req services.LoginRequest

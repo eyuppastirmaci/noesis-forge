@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserShareService handles user-based document sharing
+// Handles user-based document sharing
 type UserShareService struct {
 	db    *gorm.DB
 	redis *redis.Client
@@ -24,7 +24,7 @@ func NewUserShareService(db *gorm.DB, redisClient *redis.Client) *UserShareServi
 	return &UserShareService{db: db, redis: redisClient}
 }
 
-// CreateUserShare creates a new user-based share for a document
+// Creates a new user-based share for a document
 func (s *UserShareService) CreateUserShare(ctx context.Context, ownerID, documentID uuid.UUID, email string, accessLevel models.AccessLevel, expiresInDays int, message string) (*models.UserShare, error) {
 	// Check if the document exists and belongs to the owner
 	var document models.Document
@@ -100,7 +100,7 @@ func (s *UserShareService) CreateUserShare(ctx context.Context, ownerID, documen
 	return userShare, nil
 }
 
-// GetSharedWithMe returns documents shared with the specified user
+// Returns documents shared with the specified user
 func (s *UserShareService) GetSharedWithMe(ctx context.Context, userID uuid.UUID, email string) ([]models.UserShare, error) {
 	var shares []models.UserShare
 
@@ -124,7 +124,7 @@ func (s *UserShareService) GetSharedWithMe(ctx context.Context, userID uuid.UUID
 	return activeShares, nil
 }
 
-// GetSharedByMe returns documents shared by the specified user
+// Returns documents shared by the specified user
 func (s *UserShareService) GetSharedByMe(ctx context.Context, ownerID uuid.UUID) ([]models.UserShare, error) {
 	var shares []models.UserShare
 
@@ -139,7 +139,7 @@ func (s *UserShareService) GetSharedByMe(ctx context.Context, ownerID uuid.UUID)
 	return shares, nil
 }
 
-// RevokeUserShare revokes a user share
+// Revokes a user share
 func (s *UserShareService) RevokeUserShare(ctx context.Context, ownerID, shareID uuid.UUID) error {
 	result := s.db.WithContext(ctx).
 		Model(&models.UserShare{}).
@@ -160,7 +160,7 @@ func (s *UserShareService) RevokeUserShare(ctx context.Context, ownerID, shareID
 	return nil
 }
 
-// UpdateUserShareAccess updates the access level of a user share
+// Updates the access level of a user share
 func (s *UserShareService) UpdateUserShareAccess(ctx context.Context, ownerID, shareID uuid.UUID, accessLevel models.AccessLevel) error {
 	result := s.db.WithContext(ctx).
 		Model(&models.UserShare{}).
@@ -181,7 +181,7 @@ func (s *UserShareService) UpdateUserShareAccess(ctx context.Context, ownerID, s
 	return nil
 }
 
-// ValidateUserAccess validates if a user has access to a document
+// Validates if a user has access to a document
 func (s *UserShareService) ValidateUserAccess(ctx context.Context, userID uuid.UUID, documentID uuid.UUID, requiredAccess models.AccessLevel) (bool, error) {
 	logrus.Infof("[VALIDATE_ACCESS] Checking access for user %s to document %s, required level: %s", userID, documentID, requiredAccess)
 
@@ -231,7 +231,7 @@ func (s *UserShareService) ValidateUserAccess(ctx context.Context, userID uuid.U
 	}
 }
 
-// RecordAccess records when a user accesses a shared document
+// Records when a user accesses a shared document
 func (s *UserShareService) RecordAccess(ctx context.Context, userID uuid.UUID, documentID uuid.UUID, action string, ipAddress, userAgent string) error {
 	// Get user email to check both user ID and email-based shares
 	var user models.User
@@ -259,7 +259,7 @@ func (s *UserShareService) RecordAccess(ctx context.Context, userID uuid.UUID, d
 	return nil
 }
 
-// GetShareNotifications returns unread notifications for a user
+// Returns unread notifications for a user
 func (s *UserShareService) GetShareNotifications(ctx context.Context, userID uuid.UUID) ([]models.ShareNotification, error) {
 	var notifications []models.ShareNotification
 
@@ -275,7 +275,7 @@ func (s *UserShareService) GetShareNotifications(ctx context.Context, userID uui
 	return notifications, nil
 }
 
-// MarkNotificationAsRead marks a notification as read
+// Narks a notification as read
 func (s *UserShareService) MarkNotificationAsRead(ctx context.Context, userID, notificationID uuid.UUID) error {
 	result := s.db.WithContext(ctx).
 		Model(&models.ShareNotification{}).
@@ -292,8 +292,6 @@ func (s *UserShareService) MarkNotificationAsRead(ctx context.Context, userID, n
 
 	return nil
 }
-
-// Helper methods
 
 func (s *UserShareService) createShareInvitation(ctx context.Context, ownerID, documentID uuid.UUID, email string, accessLevel models.AccessLevel, expiresAt *time.Time, message string) error {
 	// Generate random token
@@ -341,7 +339,7 @@ func (s *UserShareService) createUserShareAuditLog(ctx context.Context, shareID,
 	s.db.WithContext(ctx).Create(&log)
 }
 
-// GetUserAccessLevel returns the user's access level for a document (empty string if no access)
+// Returns the user's access level for a document (empty string if no access)
 func (s *UserShareService) GetUserAccessLevel(ctx context.Context, userID uuid.UUID, documentID uuid.UUID) (string, error) {
 	logrus.Infof("[GET_ACCESS_LEVEL] Getting access level for user %s to document %s", userID, documentID)
 
