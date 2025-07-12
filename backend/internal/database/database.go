@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
+	"github.com/eyuppastirmaci/noesis-forge/internal/migrations"
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -12,8 +13,9 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// NewPostgresDB opens a PostgreSQL connection with configurable logging.
 func NewPostgresDB(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
-	// Parse log level
+	// Translate custom log level string to GORM’s logger level.
 	var logLevel logger.LogLevel
 	switch dbConfig.LogLevel {
 	case "silent":
@@ -28,20 +30,24 @@ func NewPostgresDB(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
 		logLevel = logger.Error
 	}
 
+	// Configure GORM with the chosen log level.
 	config := &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
 	}
 
+	// Open the database connection using the DSN.
 	db, err := gorm.Open(postgres.Open(dbConfig.DSN()), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Retrieve generic *sql.DB to fine-tune the connection pool.
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
+	// Apply connection-pool limits for optimal resource usage.
 	sqlDB.SetMaxIdleConns(dbConfig.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(dbConfig.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(dbConfig.ConnMaxLifetime)
@@ -50,9 +56,11 @@ func NewPostgresDB(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
+// RunMigrations performs schema migrations and full-text-search setup.
 func RunMigrations(db *gorm.DB) error {
 	logrus.Info("Running database migrations...")
 
+	// Auto-migrate all model structs to keep the schema up-to-date.
 	err := db.AutoMigrate(
 		&models.Permission{},
 		&models.Role{},
@@ -72,9 +80,14 @@ func RunMigrations(db *gorm.DB) error {
 		&models.DocumentComment{},
 		&models.DocumentActivity{},
 	)
-
 	if err != nil {
 		logrus.WithError(err).Error("Failed to run migrations")
+		return err
+	}
+
+	// Add tsvector column and trigger for full-text search if needed.
+	if err := migrations.AddFullTextSearchToDocuments(db); err != nil {
+		logrus.WithError(err).Error("Failed to add full-text search support")
 		return err
 	}
 
@@ -82,10 +95,11 @@ func RunMigrations(db *gorm.DB) error {
 	return nil
 }
 
+// SeedDefaultData ensures baseline permissions, roles, and an admin user exist.
 func SeedDefaultData(db *gorm.DB) error {
 	logrus.Info("Seeding default data...")
 
-	// Seed permissions
+	// Create missing default permissions.
 	for _, permission := range models.DefaultPermissions {
 		var existingPermission models.Permission
 		if err := db.Where("name = ?", permission.Name).First(&existingPermission).Error; err != nil {
@@ -100,7 +114,7 @@ func SeedDefaultData(db *gorm.DB) error {
 		}
 	}
 
-	// Seed roles
+	// Create missing default roles.
 	for _, role := range models.DefaultRoles {
 		var existingRole models.Role
 		if err := db.Where("name = ?", role.Name).First(&existingRole).Error; err != nil {
@@ -115,12 +129,12 @@ func SeedDefaultData(db *gorm.DB) error {
 		}
 	}
 
-	// Assign permissions to roles
+	// Attach predefined permissions to each role.
 	if err := seedRolePermissions(db); err != nil {
 		return err
 	}
 
-	// Create default admin user
+	// Insert an initial admin account with a hashed default password.
 	if err := seedDefaultAdmin(db); err != nil {
 		return err
 	}
@@ -129,6 +143,7 @@ func SeedDefaultData(db *gorm.DB) error {
 	return nil
 }
 
+// seedRolePermissions links roles and permissions according to the spec.
 func seedRolePermissions(db *gorm.DB) error {
 	rolePermissions := map[string][]string{
 		"admin": {
@@ -146,20 +161,22 @@ func seedRolePermissions(db *gorm.DB) error {
 	}
 
 	for roleName, permissionNames := range rolePermissions {
+		// Fetch role by name; skip silently if not found.
 		var role models.Role
 		if err := db.Where("name = ?", roleName).First(&role).Error; err != nil {
 			continue
 		}
 
+		// Retrieve all permissions matching the given names.
 		var permissions []models.Permission
 		if err := db.Where("name IN ?", permissionNames).Find(&permissions).Error; err != nil {
 			continue
 		}
 
+		// Replace any existing role-permission associations.
 		if err := db.Model(&role).Association("Permissions").Clear(); err != nil {
 			continue
 		}
-
 		if err := db.Model(&role).Association("Permissions").Append(&permissions); err != nil {
 			continue
 		}
@@ -170,15 +187,18 @@ func seedRolePermissions(db *gorm.DB) error {
 	return nil
 }
 
+// seedDefaultAdmin inserts a fallback admin user if none exists yet.
 func seedDefaultAdmin(db *gorm.DB) error {
 	var existingAdmin models.User
 	if err := db.Where("email = ?", "admin@example.com").First(&existingAdmin).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
+			// Locate admin role to bind to the new user.
 			var adminRole models.Role
 			if err := db.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
 				return err
 			}
 
+			// Securely hash the default admin password.
 			hashedPassword, err := utils.HashPassword("admin123")
 			if err != nil {
 				return err

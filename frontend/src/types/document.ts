@@ -21,8 +21,8 @@ export interface Document {
   id: string;
   title: string;
   description: string;
-  fileName: string; // UUID-based filename in storage
-  originalFileName: string; // Original filename from user
+  fileName: string;
+  originalFileName: string;
   fileSize: number;
   fileType: DocumentType;
   mimeType: string;
@@ -32,12 +32,14 @@ export interface Document {
   isPublic: boolean;
   viewCount: number;
   downloadCount: number;
+  pageCount?: number;
   userID: string;
   processedAt?: string;
   createdAt: string;
   updatedAt: string;
-  hasThumbnail: boolean; // Whether server-generated thumbnail exists
-  userAccessLevel: string; // Current user's access level (owner, edit, view)
+  hasThumbnail: boolean;
+  userAccessLevel: string;
+  searchScore?: number;
 }
 
 // Collection Interface (for future use)
@@ -264,13 +266,7 @@ export enum DocumentErrorCode {
 }
 
 // Helper Types
-export type DocumentSortField =
-  | "name"
-  | "date"
-  | "size"
-  | "views"
-  | "downloads"
-  | "title";
+export type DocumentSortField = "relevance" | "date" | "size" | "views" | "downloads" | "title";
 export type DocumentSortDirection = "asc" | "desc";
 export type DocumentFilterStatus = DocumentStatus | "all";
 export type DocumentFilterType = DocumentType | "all";

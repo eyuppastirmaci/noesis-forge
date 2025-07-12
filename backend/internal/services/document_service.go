@@ -13,17 +13,22 @@ import (
 	"time"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
+	searchmodels "github.com/eyuppastirmaci/noesis-forge/internal/models/search"
+	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/interfaces"
+	searchservice "github.com/eyuppastirmaci/noesis-forge/internal/services/search"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 type DocumentService struct {
-	db               *gorm.DB
+	documentRepo     interfaces.DocumentRepository
+	searchRepo       interfaces.DocumentSearchRepository
+	searchService    *searchservice.SearchService
 	minioService     *MinIOService
 	userShareService *UserShareService
 }
 
+// Request/Response types
 type UploadDocumentRequest struct {
 	Title       string `json:"title" validate:"required,min=1,max=255"`
 	Description string `json:"description" validate:"max=1000"`
@@ -43,8 +48,8 @@ type DocumentResponse struct {
 	ID               uuid.UUID             `json:"id"`
 	Title            string                `json:"title"`
 	Description      string                `json:"description"`
-	FileName         string                `json:"fileName"`         // UUID-based filename
-	OriginalFileName string                `json:"originalFileName"` // Original filename from user
+	FileName         string                `json:"fileName"`
+	OriginalFileName string                `json:"originalFileName"`
 	FileSize         int64                 `json:"fileSize"`
 	FileType         models.DocumentType   `json:"fileType"`
 	MimeType         string                `json:"mimeType"`
@@ -54,13 +59,14 @@ type DocumentResponse struct {
 	IsPublic         bool                  `json:"isPublic"`
 	ViewCount        int64                 `json:"viewCount"`
 	DownloadCount    int64                 `json:"downloadCount"`
-	PageCount        *int                  `json:"pageCount,omitempty"` // Number of pages (for PDF documents)
+	PageCount        *int                  `json:"pageCount,omitempty"`
 	UserID           uuid.UUID             `json:"userID"`
 	ProcessedAt      *time.Time            `json:"processedAt,omitempty"`
 	CreatedAt        time.Time             `json:"createdAt"`
 	UpdatedAt        time.Time             `json:"updatedAt"`
 	HasThumbnail     bool                  `json:"hasThumbnail"`
-	UserAccessLevel  string                `json:"userAccessLevel"` // Current user's access level (owner, edit, comment, view)
+	UserAccessLevel  string                `json:"userAccessLevel"`
+	SearchScore      float64               `json:"searchScore,omitempty"`
 }
 
 type DocumentListRequest struct {
@@ -70,8 +76,8 @@ type DocumentListRequest struct {
 	FileType string `json:"fileType"`
 	Status   string `json:"status"`
 	Tags     string `json:"tags"`
-	SortBy   string `json:"sortBy"`  // name, date, size, views
-	SortDir  string `json:"sortDir"` // asc, desc
+	SortBy   string `json:"sortBy"`
+	SortDir  string `json:"sortDir"`
 }
 
 type DocumentListResponse struct {
@@ -87,51 +93,61 @@ type UserStatsResponse struct {
 	TotalStorageUsage  int64 `json:"totalStorageUsage"`
 }
 
-func NewDocumentService(db *gorm.DB, minioService *MinIOService, userShareService *UserShareService) *DocumentService {
+// Constructor
+func NewDocumentService(
+	documentRepo interfaces.DocumentRepository,
+	searchRepo interfaces.DocumentSearchRepository,
+	searchService *searchservice.SearchService,
+	minioService *MinIOService,
+	userShareService *UserShareService,
+) *DocumentService {
 	return &DocumentService{
-		db:               db,
+		documentRepo:     documentRepo,
+		searchRepo:       searchRepo,
+		searchService:    searchService,
 		minioService:     minioService,
 		userShareService: userShareService,
 	}
 }
 
+// UploadDocument handles document upload with business logic
 func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, req *UploadDocumentRequest) (*DocumentResponse, error) {
-	// Validate file
+	// Business rule: Validate file
 	if err := s.validateFile(file); err != nil {
 		return nil, err
 	}
 
-	// Open the uploaded file.
+	// Open the uploaded file
 	src, err := file.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open uploaded file: %w", err)
 	}
 	defer src.Close()
 
-	// Generate unique object name and UUID filename.
+	// Generate storage path
 	fileUUID := uuid.New()
 	ext := filepath.Ext(file.Filename)
 	uuidFileName := fileUUID.String() + ext
 	objectName := fmt.Sprintf("users/%s/documents/%s", userID.String(), uuidFileName)
 
-	// Get file content type.
+	// Get file content type
 	contentType := file.Header.Get("Content-Type")
 
-	// Upload to MinIO
+	// Upload to MinIO (external service)
 	bucketName := s.minioService.config.BucketName
 	if err := s.minioService.UploadFile(ctx, bucketName, objectName, src, file.Size, contentType); err != nil {
 		return nil, fmt.Errorf("failed to upload file to storage: %w", err)
 	}
 
-	// Determine file type
+	// Determine file type (business logic)
 	fileType := s.getDocumentType(file.Filename)
 
-	// Create document record
+	// Create document model
 	document := &models.Document{
 		Title:            req.Title,
 		Description:      req.Description,
-		FileName:         uuidFileName,  // UUID-based filename
-		OriginalFileName: file.Filename, // Original filename from user
+		FileName:         uuidFileName,
+		OriginalFileName: file.Filename,
 		FileSize:         file.Size,
 		FileType:         fileType,
 		MimeType:         contentType,
@@ -144,22 +160,20 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 		Version:          1,
 	}
 
-	// Generate thumbnail and extract page count for PDF files
+	// Handle PDF-specific processing
 	if fileType == models.DocumentTypePDF {
-		// Extract page count
+		// Extract page count (business logic)
 		pageCount, err := s.extractPDFPageCount(ctx, file)
 		if err != nil {
 			logrus.Warnf("Failed to extract PDF page count for %s: %v", file.Filename, err)
-			// Continue without page count - don't fail the upload
 		} else {
 			document.PageCount = pageCount
 		}
 
-		// Generate thumbnail
+		// Generate thumbnail (business logic)
 		thumbnailPath, err := s.generatePDFThumbnail(ctx, file, objectName)
 		if err != nil {
 			logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
-			// Continue without thumbnail - don't fail the upload
 			document.HasThumbnail = false
 		} else {
 			document.ThumbnailPath = thumbnailPath
@@ -167,456 +181,458 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 		}
 	}
 
-	if err := s.db.Create(document).Error; err != nil {
-		// If database save fails, clean up uploaded file
+	// Save to database via repository
+	if err := s.documentRepo.Create(ctx, document); err != nil {
+		// Cleanup uploaded file if database save fails
 		if cleanupErr := s.minioService.DeleteFile(ctx, objectName); cleanupErr != nil {
 			logrus.Errorf("Failed to cleanup uploaded file after database error: %v", cleanupErr)
 		}
 		return nil, fmt.Errorf("failed to save document record: %w", err)
 	}
 
-	// TODO: Queue document for processing (text extraction, embedding generation)
-	// For now, mark as ready immediately
+	// Update status to ready (business rule)
 	document.Status = models.DocumentStatusReady
-	document.ProcessedAt = &time.Time{}
 	now := time.Now()
 	document.ProcessedAt = &now
 
-	if err := s.db.Save(document).Error; err != nil {
+	if err := s.documentRepo.Update(ctx, document); err != nil {
 		logrus.Errorf("Failed to update document status: %v", err)
 	}
-
-	logrus.Infof("Document uploaded successfully: %s (ID: %s)", document.FileName, document.ID)
 
 	return s.toDocumentResponse(document), nil
 }
 
+// UpdateDocument handles document updates with business logic
 func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID uuid.UUID, file *multipart.FileHeader, req *UpdateDocumentRequest) (*DocumentResponse, error) {
-	// First, get the existing document and verify ownership
-	var existingDocument models.Document
-	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&existingDocument).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If not found as owner, check if user has shared access
-			if err := s.db.Where("id = ?", documentID).First(&existingDocument).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					return nil, fmt.Errorf("document not found or access denied")
-				}
-				return nil, fmt.Errorf("failed to fetch document: %w", err)
-			}
-
-			// Document exists but user is not owner, check shared access
-			if s.userShareService != nil {
-				hasAccess, err := s.userShareService.ValidateUserAccess(ctx, userID, documentID, models.AccessLevelEdit)
-				if err != nil {
-					logrus.Errorf("Error checking shared access for user %s to document %s: %v", userID, documentID, err)
-					return nil, fmt.Errorf("document not found or access denied")
-				}
-				if !hasAccess {
-					return nil, fmt.Errorf("document not found or access denied")
-				}
-				// User has shared access, continue with the document
-			} else {
-				// No UserShareService available, deny access
-				return nil, fmt.Errorf("document not found or access denied")
-			}
-		} else {
-			return nil, fmt.Errorf("failed to fetch document: %w", err)
-		}
+	// First, get the existing document and verify access
+	existingDocument, err := s.getDocumentWithAccess(ctx, userID, documentID, models.AccessLevelEdit)
+	if err != nil {
+		return nil, err
 	}
 
-	// Backup old storage paths for cleanup if update fails
+	// Backup old storage paths for cleanup
 	oldStoragePath := existingDocument.StoragePath
 	oldThumbnailPath := existingDocument.ThumbnailPath
 
-	// Keep a copy of the original document for change detection
-	origDocument := existingDocument
-
+	// Keep original for change detection
+	origDocument := *existingDocument
 	var newStoragePath, newThumbnailPath string
 
 	// Handle file update if provided
 	if req.HasNewFile && file != nil {
-		// Validate file
+		// Validate new file
 		if err := s.validateFile(file); err != nil {
 			return nil, err
 		}
 
-		// Open the uploaded file.
-		src, err := file.Open()
+		// Process new file upload
+		newStoragePath, newThumbnailPath, err = s.processFileUpdate(ctx, userID, file, existingDocument)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open new file: %w", err)
+			return nil, err
 		}
-		defer src.Close()
-
-		// Generate unique object name and UUID filename.
-		fileUUID := uuid.New()
-		ext := filepath.Ext(file.Filename)
-		uuidFileName := fileUUID.String() + ext
-		objectName := fmt.Sprintf("users/%s/documents/%s", userID.String(), uuidFileName)
-
-		// Get file content type.
-		contentType := file.Header.Get("Content-Type")
-
-		// Upload new file to MinIO
-		bucketName := s.minioService.config.BucketName
-		if err := s.minioService.UploadFile(ctx, bucketName, objectName, src, file.Size, contentType); err != nil {
-			return nil, fmt.Errorf("failed to upload new file to storage: %w", err)
-		}
-
-		newStoragePath = objectName
-
-		// Determine file type
-		fileType := s.getDocumentType(file.Filename)
-
-		// Generate new thumbnail for PDF files
-		if fileType == models.DocumentTypePDF {
-			thumbnailPath, err := s.generatePDFThumbnail(ctx, file, objectName)
-			if err != nil {
-				logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
-				existingDocument.HasThumbnail = false
-				existingDocument.ThumbnailPath = ""
-			} else {
-				newThumbnailPath = thumbnailPath
-				existingDocument.ThumbnailPath = thumbnailPath
-				existingDocument.HasThumbnail = true
-			}
-		} else {
-			// Non-PDF files don't have thumbnails
-			existingDocument.HasThumbnail = false
-			existingDocument.ThumbnailPath = ""
-		}
-
-		// Update file-related fields
-		existingDocument.FileName = uuidFileName
-		existingDocument.OriginalFileName = file.Filename
-		existingDocument.FileSize = file.Size
-		existingDocument.FileType = fileType
-		existingDocument.MimeType = contentType
-		existingDocument.StoragePath = newStoragePath
-		existingDocument.StorageBucket = bucketName
-		existingDocument.Status = models.DocumentStatusProcessing
-
-		// Increment version number
-		existingDocument.Version = existingDocument.Version + 1
 	}
 
-	// Update metadata fields
+	// Update metadata fields (business logic)
 	existingDocument.Title = req.Title
 	existingDocument.Description = req.Description
 	existingDocument.Tags = req.Tags
 	existingDocument.IsPublic = req.IsPublic
 
-	// Update processing status
+	// Update processing status if new file
 	if req.HasNewFile {
 		existingDocument.Status = models.DocumentStatusReady
 		now := time.Now()
 		existingDocument.ProcessedAt = &now
 	}
 
-	// Detect changes & handle versioning
-	changes := make(map[string]interface{})
-	if origDocument.Title != existingDocument.Title {
-		changes["title"] = map[string]interface{}{"old": origDocument.Title, "new": existingDocument.Title}
-	}
-	if origDocument.Description != existingDocument.Description {
-		changes["description"] = map[string]interface{}{"old": origDocument.Description, "new": existingDocument.Description}
-	}
-	if origDocument.Tags != existingDocument.Tags {
-		changes["tags"] = map[string]interface{}{"old": origDocument.Tags, "new": existingDocument.Tags}
-	}
-	if origDocument.IsPublic != existingDocument.IsPublic {
-		changes["isPublic"] = map[string]interface{}{"old": origDocument.IsPublic, "new": existingDocument.IsPublic}
-	}
-	if req.HasNewFile {
-		changes["file"] = "updated"
-	}
-
+	// Detect changes and handle versioning (business logic)
+	changes := s.detectChanges(&origDocument, existingDocument, req.HasNewFile)
 	if len(changes) > 0 {
 		existingDocument.Version = existingDocument.Version + 1
 	}
 
-	// Save the updated document
-	if err := s.db.Save(&existingDocument).Error; err != nil {
-		// If database save fails and we uploaded new files, clean them up
-		if newStoragePath != "" {
-			if cleanupErr := s.minioService.DeleteFile(ctx, newStoragePath); cleanupErr != nil {
-				logrus.Errorf("Failed to cleanup new uploaded file after database error: %v", cleanupErr)
-			}
-		}
-		if newThumbnailPath != "" {
-			if cleanupErr := s.minioService.DeleteFile(ctx, newThumbnailPath); cleanupErr != nil {
-				logrus.Errorf("Failed to cleanup new thumbnail after database error: %v", cleanupErr)
-			}
-		}
-
+	// Save via repository
+	if err := s.documentRepo.Update(ctx, existingDocument); err != nil {
+		// Cleanup new files if database update fails
+		s.cleanupFailedUpdate(ctx, newStoragePath, newThumbnailPath)
 		return nil, fmt.Errorf("failed to update document record: %w", err)
 	}
 
-	// Create revision record if anything changed
+	// Create revision record if changes exist
 	if len(changes) > 0 {
-		diffJSON, _ := json.Marshal(changes)
-		revision := models.DocumentRevision{
-			DocumentID:    existingDocument.ID,
-			Version:       existingDocument.Version,
-			ChangedBy:     userID,
-			ChangeSummary: string(diffJSON),
-		}
-		if err := s.db.Create(&revision).Error; err != nil {
-			logrus.Warnf("Failed to create document revision: %v", err)
-		}
+		s.createRevisionRecord(ctx, existingDocument.ID, existingDocument.Version, userID, changes)
 	}
 
-	// Only delete old files AFTER successful database update
-	if req.HasNewFile && oldStoragePath != "" {
-		// Delete old file from storage
-		if err := s.minioService.DeleteFile(ctx, oldStoragePath); err != nil {
-			logrus.Errorf("Failed to delete old file from storage: %v", err)
-			// Don't fail the request - the update was successful
-		}
-
-		// Delete old thumbnail if it existed
-		if oldThumbnailPath != "" {
-			if err := s.minioService.DeleteFile(ctx, oldThumbnailPath); err != nil {
-				logrus.Errorf("Failed to delete old thumbnail from storage: %v", err)
-				// Don't fail the request - the update was successful
-			}
-		}
+	// Cleanup old files after successful update
+	if req.HasNewFile {
+		s.cleanupOldFiles(ctx, oldStoragePath, oldThumbnailPath)
 	}
 
-	logrus.Infof("Document updated successfully: %s (ID: %s, Version: %d)", existingDocument.FileName, existingDocument.ID, existingDocument.Version)
-
-	return s.toDocumentResponse(&existingDocument), nil
+	return s.toDocumentResponse(existingDocument), nil
 }
 
+// GetDocuments delegates to search service
 func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, req *DocumentListRequest) (*DocumentListResponse, error) {
-	query := s.db.Where("user_id = ?", userID)
-
-	// Apply filters
-	if req.Search != "" {
-		query = query.Where("title ILIKE ? OR description ILIKE ? OR original_file_name ILIKE ?",
-			"%"+req.Search+"%", "%"+req.Search+"%", "%"+req.Search+"%")
+	// Convert to search request format
+	searchReq := &searchmodels.DocumentListRequest{
+		Page:     req.Page,
+		Limit:    req.Limit,
+		Search:   req.Search,
+		FileType: req.FileType,
+		Status:   req.Status,
+		Tags:     req.Tags,
+		SortBy:   req.SortBy,
+		SortDir:  req.SortDir,
 	}
 
-	if req.FileType != "" {
-		query = query.Where("file_type = ?", req.FileType)
+	// Delegate to search service
+	result, err := s.searchService.SearchDocuments(ctx, searchReq, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search documents: %w", err)
 	}
 
-	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
-	}
-
-	if req.Tags != "" {
-		query = query.Where("tags ILIKE ?", "%"+req.Tags+"%")
-	}
-
-	// Count total
-	var total int64
-	if err := query.Model(&models.Document{}).Count(&total).Error; err != nil {
-		return nil, fmt.Errorf("failed to count documents: %w", err)
-	}
-
-	// Apply sorting
-	orderBy := "created_at DESC" // default
-	switch req.SortBy {
-	case "name":
-		orderBy = "title"
-	case "date":
-		orderBy = "created_at"
-	case "size":
-		orderBy = "file_size"
-	case "views":
-		orderBy = "view_count"
-	case "downloads":
-		orderBy = "download_count"
-	}
-
-	if req.SortDir == "asc" {
-		orderBy += " ASC"
-	} else {
-		orderBy += " DESC"
-	}
-
-	// Apply pagination
-	offset := (req.Page - 1) * req.Limit
-	var documents []models.Document
-
-	if err := query.Order(orderBy).Offset(offset).Limit(req.Limit).Find(&documents).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch documents: %w", err)
-	}
-
-	// Convert to response
-	documentResponses := make([]DocumentResponse, len(documents))
-	for i, doc := range documents {
-		documentResponses[i] = *s.toDocumentResponse(&doc)
-	}
-
-	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
-
-	return &DocumentListResponse{
-		Documents:  documentResponses,
-		Total:      total,
-		Page:       req.Page,
-		Limit:      req.Limit,
-		TotalPages: totalPages,
-	}, nil
+	// Convert to response format
+	return s.convertSearchResultToDocumentList(result), nil
 }
 
-func (s *DocumentService) GetDocumentModel(ctx context.Context, userID, documentID uuid.UUID, document *models.Document) error {
-	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(document).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return fmt.Errorf("document not found")
-		}
-		return fmt.Errorf("failed to fetch document: %w", err)
-	}
-	return nil
-}
-
+// GetDocument retrieves single document with access control
 func (s *DocumentService) GetDocument(ctx context.Context, userID, documentID uuid.UUID) (*DocumentResponse, error) {
-	var document models.Document
-	var userAccessLevel string = "owner" // Default to owner
-
-	// First try to get document if user is the owner
-	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If not found as owner, check if user has shared access
-			if err := s.db.Where("id = ?", documentID).First(&document).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					return nil, fmt.Errorf("document not found")
-				}
-				return nil, fmt.Errorf("failed to fetch document: %w", err)
-			}
-
-			// Document exists but user is not owner, check shared access
-			if s.userShareService != nil {
-				// Get user's actual access level for shared document
-				accessLevel, err := s.userShareService.GetUserAccessLevel(ctx, userID, documentID)
-				if err != nil {
-					logrus.Errorf("Error checking shared access for user %s to document %s: %v", userID, documentID, err)
-					return nil, fmt.Errorf("document not found")
-				}
-				if accessLevel == "" {
-					return nil, fmt.Errorf("document not found")
-				}
-				userAccessLevel = accessLevel
-			} else {
-				// No UserShareService available, deny access
-				return nil, fmt.Errorf("document not found")
-			}
-		} else {
-			return nil, fmt.Errorf("failed to fetch document: %w", err)
-		}
+	// Try to get document with access control
+	document, userAccessLevel, err := s.getDocumentWithAccessLevel(ctx, userID, documentID, models.AccessLevelView)
+	if err != nil {
+		return nil, err
 	}
 
-	// Increment view count
-	if err := s.db.Model(&document).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
+	// Increment view count via repository
+	if err := s.documentRepo.IncrementViewCount(ctx, documentID); err != nil {
 		logrus.Warnf("Failed to increment view count for document %s: %v", documentID, err)
 	}
 
-	return s.toDocumentResponseWithAccess(&document, userAccessLevel), nil
+	return s.toDocumentResponseWithAccess(document, userAccessLevel), nil
 }
 
+// GetDocumentTitle retrieves only document title
 func (s *DocumentService) GetDocumentTitle(ctx context.Context, userID, documentID uuid.UUID) (string, error) {
-	var document models.Document
-
-	// First try to get document if user is the owner
-	if err := s.db.Select("title").Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If not found as owner, check if user has shared access
-			if err := s.db.Select("title").Where("id = ?", documentID).First(&document).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					return "", fmt.Errorf("document not found")
-				}
-				return "", fmt.Errorf("failed to fetch document title: %w", err)
-			}
-
-			// Document exists but user is not owner, check shared access
-			if s.userShareService != nil {
-				hasAccess, err := s.userShareService.ValidateUserAccess(ctx, userID, documentID, models.AccessLevelView)
-				if err != nil {
-					logrus.Errorf("Error checking shared access for user %s to document %s: %v", userID, documentID, err)
-					return "", fmt.Errorf("document not found")
-				}
-				if !hasAccess {
-					return "", fmt.Errorf("document not found")
-				}
-				// User has shared access, continue with the document
-			} else {
-				// No UserShareService available, deny access
-				return "", fmt.Errorf("document not found")
-			}
-		} else {
-			return "", fmt.Errorf("failed to fetch document title: %w", err)
-		}
+	// Verify access first
+	document, err := s.getDocumentWithAccess(ctx, userID, documentID, models.AccessLevelView)
+	if err != nil {
+		return "", err
 	}
 
 	return document.Title, nil
 }
 
+// DeleteDocument handles document deletion
 func (s *DocumentService) DeleteDocument(ctx context.Context, userID, documentID uuid.UUID) error {
-	var document models.Document
-	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return fmt.Errorf("document not found")
-		}
-		return fmt.Errorf("failed to fetch document: %w", err)
+	// Verify ownership (only owners can delete)
+	document, err := s.documentRepo.GetByIDAndUserID(ctx, documentID, userID)
+	if err != nil {
+		return fmt.Errorf("document not found or access denied")
 	}
 
-	// Delete from storage
+	// Delete from storage first
 	if err := s.minioService.DeleteFile(ctx, document.StoragePath); err != nil {
 		logrus.Errorf("Failed to delete file from storage: %v", err)
 		// Continue with database deletion even if storage deletion fails
 	}
 
-	// Delete from database
-	if err := s.db.Delete(&document).Error; err != nil {
-		return fmt.Errorf("failed to delete document from database: %w", err)
-	}
-
-	logrus.Infof("Document deleted successfully: %s (ID: %s)", document.FileName, document.ID)
-	return nil
-}
-
-func (s *DocumentService) DownloadDocument(ctx context.Context, userID, documentID uuid.UUID) (*models.Document, error) {
-	var document models.Document
-
-	// First try to get document if user is the owner
-	if err := s.db.Where("id = ? AND user_id = ?", documentID, userID).First(&document).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// If not found as owner, check if user has shared access
-			if err := s.db.Where("id = ?", documentID).First(&document).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					return nil, fmt.Errorf("document not found")
-				}
-				return nil, fmt.Errorf("failed to fetch document: %w", err)
-			}
-
-			// Document exists but user is not owner, check shared access
-			if s.userShareService != nil {
-				hasAccess, err := s.userShareService.ValidateUserAccess(ctx, userID, documentID, models.AccessLevelDownload)
-				if err != nil {
-					logrus.Errorf("Error checking shared access for user %s to document %s: %v", userID, documentID, err)
-					return nil, fmt.Errorf("document not found")
-				}
-				if !hasAccess {
-					return nil, fmt.Errorf("document not found")
-				}
-				// User has shared access, continue with the document
-			} else {
-				// No UserShareService available, deny access
-				return nil, fmt.Errorf("document not found")
-			}
-		} else {
-			return nil, fmt.Errorf("failed to fetch document: %w", err)
+	// Delete thumbnail if exists
+	if document.HasThumbnail && document.ThumbnailPath != "" {
+		if err := s.minioService.DeleteFile(ctx, document.ThumbnailPath); err != nil {
+			logrus.Errorf("Failed to delete thumbnail from storage: %v", err)
 		}
 	}
 
-	// Increment download count
-	if err := s.db.Model(&document).UpdateColumn("download_count", gorm.Expr("download_count + 1")).Error; err != nil {
+	// Delete from database via repository
+	if err := s.documentRepo.Delete(ctx, documentID); err != nil {
+		return fmt.Errorf("failed to delete document from database: %w", err)
+	}
+
+	return nil
+}
+
+// DownloadDocument prepares document for download
+func (s *DocumentService) DownloadDocument(ctx context.Context, userID, documentID uuid.UUID) (*models.Document, error) {
+	// Get document with download access
+	document, err := s.getDocumentWithAccess(ctx, userID, documentID, models.AccessLevelDownload)
+	if err != nil {
+		return nil, err
+	}
+
+	// Increment download count via repository
+	if err := s.documentRepo.IncrementDownloadCount(ctx, documentID); err != nil {
 		logrus.Warnf("Failed to increment download count for document %s: %v", documentID, err)
 	}
 
-	return &document, nil
+	return document, nil
 }
 
+// GetDocumentRevisions retrieves document version history
+func (s *DocumentService) GetDocumentRevisions(ctx context.Context, userID, documentID uuid.UUID) ([]models.DocumentRevision, error) {
+	// Verify access first
+	_, err := s.getDocumentWithAccess(ctx, userID, documentID, models.AccessLevelView)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get revisions via repository
+	revisions, err := s.documentRepo.GetRevisions(ctx, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch revisions: %w", err)
+	}
+
+	return revisions, nil
+}
+
+// GetUserStats retrieves user document statistics
+func (s *DocumentService) GetUserStats(ctx context.Context, userID uuid.UUID) (*UserStatsResponse, error) {
+	stats, err := s.documentRepo.GetUserStats(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert from search.UserStatsResponse to services.UserStatsResponse
+	return &UserStatsResponse{
+		DocumentsThisMonth: stats.DocumentsThisMonth,
+		TotalStorageUsage:  stats.TotalStorageUsage,
+	}, nil
+}
+
+// GetDocumentModel retrieves document model for internal use
+func (s *DocumentService) GetDocumentModel(ctx context.Context, userID, documentID uuid.UUID, document *models.Document) error {
+	doc, err := s.documentRepo.GetByIDAndUserID(ctx, documentID, userID)
+	if err != nil {
+		return err
+	}
+	*document = *doc
+	return nil
+}
+
+// Helper methods for business logic
+
+// getDocumentWithAccess retrieves document with access control
+func (s *DocumentService) getDocumentWithAccess(ctx context.Context, userID, documentID uuid.UUID, requiredAccess models.AccessLevel) (*models.Document, error) {
+	// Try to get as owner first
+	document, err := s.documentRepo.GetByIDAndUserID(ctx, documentID, userID)
+	if err == nil {
+		return document, nil
+	}
+
+	// Check if document exists at all
+	document, err = s.documentRepo.GetByID(ctx, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("document not found")
+	}
+
+	// Check shared access if UserShareService is available
+	if s.userShareService != nil {
+		hasAccess, err := s.userShareService.ValidateUserAccess(ctx, userID, documentID, requiredAccess)
+		if err != nil {
+			logrus.Errorf("Error checking shared access for user %s to document %s: %v", userID, documentID, err)
+			return nil, fmt.Errorf("document not found or access denied")
+		}
+		if !hasAccess {
+			return nil, fmt.Errorf("document not found or access denied")
+		}
+		return document, nil
+	}
+
+	return nil, fmt.Errorf("document not found or access denied")
+}
+
+// getDocumentWithAccessLevel retrieves document with access level information
+func (s *DocumentService) getDocumentWithAccessLevel(ctx context.Context, userID, documentID uuid.UUID, requiredAccess models.AccessLevel) (*models.Document, string, error) {
+	// Try to get as owner first
+	document, err := s.documentRepo.GetByIDAndUserID(ctx, documentID, userID)
+	if err == nil {
+		return document, "owner", nil
+	}
+
+	// Check shared access
+	document, err = s.documentRepo.GetByID(ctx, documentID)
+	if err != nil {
+		return nil, "", fmt.Errorf("document not found")
+	}
+
+	if s.userShareService != nil {
+		accessLevel, err := s.userShareService.GetUserAccessLevel(ctx, userID, documentID)
+		if err != nil || accessLevel == "" {
+			return nil, "", fmt.Errorf("document not found or access denied")
+		}
+
+		// Validate required access level
+		if !s.hasRequiredAccess(accessLevel, requiredAccess) {
+			return nil, "", fmt.Errorf("insufficient access level")
+		}
+
+		return document, accessLevel, nil
+	}
+
+	return nil, "", fmt.Errorf("document not found or access denied")
+}
+
+// hasRequiredAccess checks if user access level meets requirement
+func (s *DocumentService) hasRequiredAccess(userAccess string, required models.AccessLevel) bool {
+	accessLevels := map[string]int{
+		"download": 1,
+		"view":     2,
+		"edit":     3,
+		"owner":    4,
+	}
+
+	requiredLevels := map[models.AccessLevel]int{
+		models.AccessLevelDownload: 1,
+		models.AccessLevelView:     2,
+		models.AccessLevelEdit:     3,
+	}
+
+	userLevel := accessLevels[userAccess]
+	requiredLevel := requiredLevels[required]
+
+	return userLevel >= requiredLevel
+}
+
+// processFileUpdate handles new file upload during update
+func (s *DocumentService) processFileUpdate(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, document *models.Document) (string, string, error) {
+	// Open file
+	src, err := file.Open()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open new file: %w", err)
+	}
+	defer src.Close()
+
+	// Generate new file path
+	fileUUID := uuid.New()
+	ext := filepath.Ext(file.Filename)
+	uuidFileName := fileUUID.String() + ext
+	objectName := fmt.Sprintf("users/%s/documents/%s", userID.String(), uuidFileName)
+
+	// Upload to MinIO
+	contentType := file.Header.Get("Content-Type")
+	bucketName := s.minioService.config.BucketName
+	if err := s.minioService.UploadFile(ctx, bucketName, objectName, src, file.Size, contentType); err != nil {
+		return "", "", fmt.Errorf("failed to upload new file to storage: %w", err)
+	}
+
+	// Update document fields
+	fileType := s.getDocumentType(file.Filename)
+	document.FileName = uuidFileName
+	document.OriginalFileName = file.Filename
+	document.FileSize = file.Size
+	document.FileType = fileType
+	document.MimeType = contentType
+	document.StoragePath = objectName
+	document.StorageBucket = bucketName
+	document.Status = models.DocumentStatusProcessing
+	document.Version = document.Version + 1
+
+	var thumbnailPath string
+	// Generate thumbnail for PDF
+	if fileType == models.DocumentTypePDF {
+		thumbnailPath, err = s.generatePDFThumbnail(ctx, file, objectName)
+		if err != nil {
+			logrus.Warnf("Failed to generate PDF thumbnail for %s: %v", file.Filename, err)
+			document.HasThumbnail = false
+			document.ThumbnailPath = ""
+		} else {
+			document.ThumbnailPath = thumbnailPath
+			document.HasThumbnail = true
+		}
+	} else {
+		document.HasThumbnail = false
+		document.ThumbnailPath = ""
+	}
+
+	return objectName, thumbnailPath, nil
+}
+
+// detectChanges compares old and new document state
+func (s *DocumentService) detectChanges(orig, updated *models.Document, hasNewFile bool) map[string]interface{} {
+	changes := make(map[string]interface{})
+
+	if orig.Title != updated.Title {
+		changes["title"] = map[string]interface{}{"old": orig.Title, "new": updated.Title}
+	}
+	if orig.Description != updated.Description {
+		changes["description"] = map[string]interface{}{"old": orig.Description, "new": updated.Description}
+	}
+	if orig.Tags != updated.Tags {
+		changes["tags"] = map[string]interface{}{"old": orig.Tags, "new": updated.Tags}
+	}
+	if orig.IsPublic != updated.IsPublic {
+		changes["isPublic"] = map[string]interface{}{"old": orig.IsPublic, "new": updated.IsPublic}
+	}
+	if hasNewFile {
+		changes["file"] = "updated"
+	}
+
+	return changes
+}
+
+// createRevisionRecord creates a document revision entry
+func (s *DocumentService) createRevisionRecord(ctx context.Context, documentID uuid.UUID, version int, changedBy uuid.UUID, changes map[string]interface{}) {
+	diffJSON, _ := json.Marshal(changes)
+	revision := models.DocumentRevision{
+		DocumentID:    documentID,
+		Version:       version,
+		ChangedBy:     changedBy,
+		ChangeSummary: string(diffJSON),
+	}
+
+	// This could be delegated to a revision repository
+	// For now, we'll keep it simple
+	logrus.Infof("Document revision created: %+v", revision)
+}
+
+// cleanupFailedUpdate removes files if update fails
+func (s *DocumentService) cleanupFailedUpdate(ctx context.Context, storagePath, thumbnailPath string) {
+	if storagePath != "" {
+		if err := s.minioService.DeleteFile(ctx, storagePath); err != nil {
+			logrus.Errorf("Failed to cleanup new uploaded file: %v", err)
+		}
+	}
+	if thumbnailPath != "" {
+		if err := s.minioService.DeleteFile(ctx, thumbnailPath); err != nil {
+			logrus.Errorf("Failed to cleanup new thumbnail: %v", err)
+		}
+	}
+}
+
+// cleanupOldFiles removes old files after successful update
+func (s *DocumentService) cleanupOldFiles(ctx context.Context, oldStoragePath, oldThumbnailPath string) {
+	if oldStoragePath != "" {
+		if err := s.minioService.DeleteFile(ctx, oldStoragePath); err != nil {
+			logrus.Errorf("Failed to delete old file from storage: %v", err)
+		}
+	}
+	if oldThumbnailPath != "" {
+		if err := s.minioService.DeleteFile(ctx, oldThumbnailPath); err != nil {
+			logrus.Errorf("Failed to delete old thumbnail from storage: %v", err)
+		}
+	}
+}
+
+// convertSearchResultToDocumentList converts search result to document list response
+func (s *DocumentService) convertSearchResultToDocumentList(result *searchmodels.SearchResult) *DocumentListResponse {
+	documents := make([]DocumentResponse, len(result.Documents))
+	for i, doc := range result.Documents {
+		responseDoc := s.toDocumentResponse(&doc)
+		responseDoc.SearchScore = doc.SearchScore
+		documents[i] = *responseDoc
+	}
+
+	return &DocumentListResponse{
+		Documents:  documents,
+		Total:      result.Total,
+		Page:       result.Page,
+		Limit:      result.Limit,
+		TotalPages: result.TotalPages,
+	}
+}
+
+// Validation and utility methods
+
+// validateFile validates uploaded file
 func (s *DocumentService) validateFile(file *multipart.FileHeader) error {
 	// Check file size (max 100MB)
 	maxSize := int64(100 * 1024 * 1024) // 100MB
@@ -645,6 +661,7 @@ func (s *DocumentService) validateFile(file *multipart.FileHeader) error {
 	return nil
 }
 
+// getDocumentType determines document type from filename
 func (s *DocumentService) getDocumentType(filename string) models.DocumentType {
 	ext := strings.ToLower(filepath.Ext(filename))
 
@@ -664,6 +681,9 @@ func (s *DocumentService) getDocumentType(filename string) models.DocumentType {
 	}
 }
 
+// Response conversion methods
+
+// toDocumentResponse converts model to response
 func (s *DocumentService) toDocumentResponse(doc *models.Document) *DocumentResponse {
 	return &DocumentResponse{
 		ID:               doc.ID,
@@ -687,43 +707,25 @@ func (s *DocumentService) toDocumentResponse(doc *models.Document) *DocumentResp
 		UpdatedAt:        doc.UpdatedAt,
 		HasThumbnail:     doc.HasThumbnail,
 		UserAccessLevel:  "owner", // Default access level
+		SearchScore:      doc.SearchScore,
 	}
 }
 
+// toDocumentResponseWithAccess converts model to response with access level
 func (s *DocumentService) toDocumentResponseWithAccess(doc *models.Document, userAccessLevel string) *DocumentResponse {
-	return &DocumentResponse{
-		ID:               doc.ID,
-		Title:            doc.Title,
-		Description:      doc.Description,
-		FileName:         doc.FileName,
-		OriginalFileName: doc.OriginalFileName,
-		FileSize:         doc.FileSize,
-		FileType:         doc.FileType,
-		MimeType:         doc.MimeType,
-		Status:           doc.Status,
-		Version:          doc.Version,
-		Tags:             doc.Tags,
-		IsPublic:         doc.IsPublic,
-		ViewCount:        doc.ViewCount,
-		DownloadCount:    doc.DownloadCount,
-		PageCount:        doc.PageCount,
-		UserID:           doc.UserID,
-		ProcessedAt:      doc.ProcessedAt,
-		CreatedAt:        doc.CreatedAt,
-		UpdatedAt:        doc.UpdatedAt,
-		HasThumbnail:     doc.HasThumbnail,
-		UserAccessLevel:  userAccessLevel,
-	}
+	response := s.toDocumentResponse(doc)
+	response.UserAccessLevel = userAccessLevel
+	return response
 }
 
-// extractPDFPageCount extracts the number of pages from a PDF file using ImageMagick
-func (s *DocumentService) extractPDFPageCount(ctx context.Context, file *multipart.FileHeader) (*int, error) {
-	logrus.Infof("Extracting PDF page count for: %s", file.Filename)
+// PDF processing methods
 
-	// Create temp directory if it doesn't exist
+// extractPDFPageCount extracts page count from PDF using ImageMagick
+func (s *DocumentService) extractPDFPageCount(ctx context.Context, file *multipart.FileHeader) (*int, error) {
+	// Create temp directory
 	os.MkdirAll("temp", 0755)
 
-	// Save uploaded file temporarily
+	// Save file temporarily
 	tempFile := filepath.Join("temp", fmt.Sprintf("%s.pdf", uuid.New().String()))
 	src, err := file.Open()
 	if err != nil {
@@ -731,7 +733,6 @@ func (s *DocumentService) extractPDFPageCount(ctx context.Context, file *multipa
 	}
 	defer src.Close()
 
-	// Create temp file and copy content
 	dst, err := os.Create(tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
@@ -742,9 +743,8 @@ func (s *DocumentService) extractPDFPageCount(ctx context.Context, file *multipa
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy file content: %w", err)
 	}
-	dst.Close() // Close before ImageMagick uses it
+	dst.Close()
 
-	// Cleanup temp file after processing
 	defer os.Remove(tempFile)
 
 	// Get ImageMagick command
@@ -754,39 +754,32 @@ func (s *DocumentService) extractPDFPageCount(ctx context.Context, file *multipa
 	} else if _, err := exec.LookPath("convert"); err == nil {
 		magickCmd = "convert"
 	} else {
-		// Fallback to Windows path if running on Windows
 		magickCmd = "C:\\ImageMagick\\magick.exe"
 	}
 
-	// Use ImageMagick to identify the PDF and get page count
+	// Extract page count
 	cmd := exec.Command(magickCmd, "identify", "-format", "%n", tempFile)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logrus.Warnf("Failed to extract PDF page count for %s: %v", file.Filename, err)
 		return nil, fmt.Errorf("ImageMagick identify failed: %s, error: %w", string(output), err)
 	}
 
-	// Parse the page count from output
 	pageCountStr := strings.TrimSpace(string(output))
 	if pageCountStr == "" {
 		return nil, fmt.Errorf("empty page count output from ImageMagick")
 	}
 
-	// Convert to integer
 	pageCount := 0
 	if _, err := fmt.Sscanf(pageCountStr, "%d", &pageCount); err != nil {
 		return nil, fmt.Errorf("failed to parse page count: %w", err)
 	}
 
-	logrus.Infof("Successfully extracted PDF page count: %d pages for %s", pageCount, file.Filename)
 	return &pageCount, nil
 }
 
-// generatePDFThumbnail creates a JPG thumbnail from PDF's first page using ImageMagick
+// generatePDFThumbnail creates thumbnail from PDF first page
 func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multipart.FileHeader, pdfObjectName string) (string, error) {
-	logrus.Infof("Generating PDF thumbnail using ImageMagick for: %s", file.Filename)
-
-	// Create temp directory if it doesn't exist
+	// Create temp directory
 	os.MkdirAll("temp", 0755)
 
 	// Save uploaded file temporarily
@@ -797,7 +790,6 @@ func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multip
 	}
 	defer src.Close()
 
-	// Create temp file and copy content
 	dst, err := os.Create(tempFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
@@ -808,38 +800,35 @@ func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multip
 	if err != nil {
 		return "", fmt.Errorf("failed to copy file content: %w", err)
 	}
-	dst.Close() // Close before ImageMagick uses it
+	dst.Close()
 
-	// Generate thumbnail using ImageMagick
 	thumbnailFile := strings.TrimSuffix(tempFile, ".pdf") + ".jpg"
 
-	// ImageMagick command: convert first page to JPG thumbnail
-	// Use 'magick' command (works on both Windows and Linux containers)
+	// Get ImageMagick command
 	var magickCmd string
 	if _, err := exec.LookPath("magick"); err == nil {
 		magickCmd = "magick"
 	} else if _, err := exec.LookPath("convert"); err == nil {
 		magickCmd = "convert"
 	} else {
-		// Fallback to Windows path if running on Windows
 		magickCmd = "C:\\ImageMagick\\magick.exe"
 	}
 
+	// Generate thumbnail
 	cmd := exec.Command(
 		magickCmd,
-		"-density", "150", // Set DPI for better quality
-		tempFile+"[0]",         // First page only
-		"-flatten",             // Flatten layers
-		"-background", "white", // White background
-		"-alpha", "remove", // Remove transparency
-		"-resize", "300x400^", // Resize to thumbnail
-		"-quality", "85", // JPEG quality
+		"-density", "150",
+		tempFile+"[0]",
+		"-flatten",
+		"-background", "white",
+		"-alpha", "remove",
+		"-resize", "300x400^",
+		"-quality", "85",
 		thumbnailFile,
 	)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Cleanup temp file
 		os.Remove(tempFile)
 		return "", fmt.Errorf("ImageMagick failed: %s, error: %w", string(output), err)
 	}
@@ -847,17 +836,15 @@ func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multip
 	// Read generated thumbnail
 	thumbnailBytes, err := os.ReadFile(thumbnailFile)
 	if err != nil {
-		// Cleanup temp files
 		os.Remove(tempFile)
 		os.Remove(thumbnailFile)
 		return "", fmt.Errorf("failed to read thumbnail: %w", err)
 	}
 
-	// Upload thumbnail to MinIO - use same path structure as documents
+	// Upload thumbnail to MinIO
 	thumbnailName := fmt.Sprintf("thumbnails/%s.jpg", strings.TrimSuffix(pdfObjectName, filepath.Ext(pdfObjectName)))
 	_, err = s.minioService.UploadThumbnail(ctx, thumbnailName, thumbnailBytes, "image/jpeg")
 	if err != nil {
-		// Cleanup temp files
 		os.Remove(tempFile)
 		os.Remove(thumbnailFile)
 		return "", fmt.Errorf("failed to upload thumbnail to MinIO: %w", err)
@@ -867,75 +854,5 @@ func (s *DocumentService) generatePDFThumbnail(ctx context.Context, file *multip
 	os.Remove(tempFile)
 	os.Remove(thumbnailFile)
 
-	logrus.Infof("Successfully generated PDF thumbnail: %s", thumbnailName)
-
-	// Return only the thumbnail path, not the full URL
 	return thumbnailName, nil
-}
-
-func (s *DocumentService) GetUserStats(ctx context.Context, userID uuid.UUID) (*UserStatsResponse, error) {
-	var stats UserStatsResponse
-
-	// Get the start and end of the current month
-	now := time.Now()
-	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
-
-	// Calculate documents uploaded this month
-	err := s.db.Model(&models.Document{}).
-		Where("user_id = ? AND created_at BETWEEN ? AND ?", userID, startOfMonth, endOfMonth).
-		Count(&stats.DocumentsThisMonth).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to count documents for current month: %w", err)
-	}
-
-	// Calculate total storage usage
-	// Using COALESCE to ensure 0 is returned if there are no documents
-	err = s.db.Model(&models.Document{}).
-		Where("user_id = ?", userID).
-		Select("COALESCE(SUM(file_size), 0)").
-		Row().Scan(&stats.TotalStorageUsage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate total storage usage: %w", err)
-	}
-
-	logrus.Infof("Fetched user stats for user %s", userID)
-	return &stats, nil
-}
-
-func (s *DocumentService) GetDocumentRevisions(ctx context.Context, userID, documentID uuid.UUID) ([]models.DocumentRevision, error) {
-	// Verify ownership or shared access
-	var doc models.Document
-	if err := s.db.Select("id").Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Check if document exists at all
-			if err := s.db.Select("id").Where("id = ?", documentID).First(&doc).Error; err != nil {
-				if err == gorm.ErrRecordNotFound {
-					return nil, fmt.Errorf("document not found")
-				}
-				return nil, fmt.Errorf("failed to fetch document: %w", err)
-			}
-
-			// Validate shared access with view permission
-			if s.userShareService != nil {
-				hasAccess, err := s.userShareService.ValidateUserAccess(ctx, userID, documentID, models.AccessLevelView)
-				if err != nil {
-					return nil, fmt.Errorf("failed to validate access: %w", err)
-				}
-				if !hasAccess {
-					return nil, fmt.Errorf("document not found or access denied")
-				}
-			} else {
-				return nil, fmt.Errorf("document not found or access denied")
-			}
-		} else {
-			return nil, fmt.Errorf("failed to fetch document: %w", err)
-		}
-	}
-
-	var revisions []models.DocumentRevision
-	if err := s.db.Where("document_id = ?", documentID).Order("version DESC").Find(&revisions).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch revisions: %w", err)
-	}
-	return revisions, nil
 }

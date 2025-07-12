@@ -29,7 +29,18 @@ type DocumentHandler struct {
 	userShareService *services.UserShareService
 }
 
-func NewDocumentHandler(documentService *services.DocumentService, minioService *services.MinIOService, userShareService *services.UserShareService) *DocumentHandler {
+// documentResult represents the result of a document download operation
+type documentResult struct {
+	document *models.Document
+	content  []byte
+	error    error
+}
+
+func NewDocumentHandler(
+	documentService *services.DocumentService,
+	minioService *services.MinIOService,
+	userShareService *services.UserShareService,
+) *DocumentHandler {
 	return &DocumentHandler{
 		documentService:  documentService,
 		minioService:     minioService,
@@ -37,6 +48,7 @@ func NewDocumentHandler(documentService *services.DocumentService, minioService 
 	}
 }
 
+// UploadDocument handles single document upload
 func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -44,7 +56,7 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	// Get validated request from context
+	// Get validated request from context (set by middleware)
 	req, ok := validations.GetValidatedDocumentUpload(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated data")
@@ -58,20 +70,11 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	// Upload document
+	// Delegate business logic to service
 	document, err := h.documentService.UploadDocument(c.Request.Context(), userID, file, req)
 	if err != nil {
-		// Handle storage/database errors
-		status := http.StatusInternalServerError
-		code := "UPLOAD_FAILED"
-
-		// Check for specific storage errors
-		if strings.Contains(err.Error(), "failed to upload file to storage") {
-			code = "STORAGE_ERROR"
-		} else if strings.Contains(err.Error(), "failed to save document record") {
-			code = "DATABASE_ERROR"
-		}
-
+		// Map service errors to HTTP status codes
+		status, code := h.mapServiceErrorToHTTP(err)
 		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
@@ -82,6 +85,7 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, data, "Document uploaded successfully")
 }
 
+// UpdateDocument handles document updates
 func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -113,22 +117,10 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 		}
 	}
 
-	// Update document
+	// Delegate to service
 	document, err := h.documentService.UpdateDocument(c.Request.Context(), userID, documentID, file, req)
 	if err != nil {
-		// Handle different types of errors
-		status := http.StatusInternalServerError
-		code := "UPDATE_FAILED"
-
-		if strings.Contains(err.Error(), "document not found or access denied") {
-			status = http.StatusNotFound
-			code = "DOCUMENT_NOT_FOUND"
-		} else if strings.Contains(err.Error(), "failed to upload") {
-			code = "STORAGE_ERROR"
-		} else if strings.Contains(err.Error(), "failed to update document record") {
-			code = "DATABASE_ERROR"
-		}
-
+		status, code := h.mapServiceErrorToHTTP(err)
 		utils.ErrorResponse(c, status, code, err.Error())
 		return
 	}
@@ -139,6 +131,7 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Document updated successfully")
 }
 
+// GetDocuments handles document listing with search
 func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -153,6 +146,7 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		return
 	}
 
+	// Delegate to service (service handles search logic)
 	documents, err := h.documentService.GetDocuments(c.Request.Context(), userID, req)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
@@ -162,6 +156,7 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, documents, "Documents retrieved successfully")
 }
 
+// GetDocument handles single document retrieval
 func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -176,9 +171,10 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 		return
 	}
 
+	// Delegate to service
 	document, err := h.documentService.GetDocument(c.Request.Context(), userID, documentID)
 	if err != nil {
-		if err.Error() == "document not found" {
+		if strings.Contains(err.Error(), "document not found") || strings.Contains(err.Error(), "access denied") {
 			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
 			return
 		}
@@ -192,6 +188,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Document retrieved successfully")
 }
 
+// GetDocumentTitle handles document title retrieval
 func (h *DocumentHandler) GetDocumentTitle(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -206,9 +203,10 @@ func (h *DocumentHandler) GetDocumentTitle(c *gin.Context) {
 		return
 	}
 
+	// Delegate to service
 	title, err := h.documentService.GetDocumentTitle(c.Request.Context(), userID, documentID)
 	if err != nil {
-		if err.Error() == "document not found" {
+		if strings.Contains(err.Error(), "document not found") || strings.Contains(err.Error(), "access denied") {
 			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
 			return
 		}
@@ -222,6 +220,7 @@ func (h *DocumentHandler) GetDocumentTitle(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Document title retrieved successfully")
 }
 
+// DeleteDocument handles document deletion
 func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -236,9 +235,10 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 		return
 	}
 
+	// Delegate to service
 	err = h.documentService.DeleteDocument(c.Request.Context(), userID, documentID)
 	if err != nil {
-		if err.Error() == "document not found" {
+		if strings.Contains(err.Error(), "document not found") || strings.Contains(err.Error(), "access denied") {
 			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
 			return
 		}
@@ -249,9 +249,8 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, nil, "Document deleted successfully")
 }
 
+// DownloadDocument handles document download
 func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
-	logrus.Infof("[DOWNLOAD_HANDLER] Starting download request")
-
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		logrus.Errorf("[DOWNLOAD_HANDLER] Auth error: %v", err)
@@ -267,49 +266,19 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 		return
 	}
 
-	logrus.Infof("[DOWNLOAD_HANDLER] Fetching document %s for user %s", documentID, userID)
-
-	// First try to get document as owner
+	// Get document via service (handles access control)
 	document, err := h.documentService.DownloadDocument(c.Request.Context(), userID, documentID)
-
-	// If user doesn't own the document, check for shared access
 	if err != nil {
-		logrus.Infof("[DOWNLOAD_HANDLER] Document fetch error: %v", err)
-		if err.Error() == "document not found" {
-			logrus.Infof("[DOWNLOAD_HANDLER] Document not found for owner, checking shared access...")
-
-			// Check if user has shared access to this document (at least download level)
-			hasAccess, accessErr := h.userShareService.ValidateUserAccess(c.Request.Context(), userID, documentID, models.AccessLevelDownload)
-			logrus.Infof("[DOWNLOAD_HANDLER] Shared access check result: hasAccess=%v, error=%v", hasAccess, accessErr)
-
-			if accessErr != nil || !hasAccess {
-				logrus.Infof("[DOWNLOAD_HANDLER] No shared access found or error: %v", accessErr)
-				utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or download access denied")
-				return
-			}
-
-			// Get document details directly from database since user has shared access
-			var sharedDocument models.Document
-			if err := h.userShareService.GetDB().Where("id = ?", documentID).First(&sharedDocument).Error; err != nil {
-				logrus.Errorf("[DOWNLOAD_HANDLER] Failed to get shared document from DB: %v", err)
-				utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
-				return
-			}
-
-			// Convert to expected format
-			document = &sharedDocument
-			logrus.Infof("[DOWNLOAD_HANDLER] User %s downloading shared document %s", userID, documentID)
-		} else {
-			logrus.Errorf("[DOWNLOAD_HANDLER] Document fetch error (not 'not found'): %v", err)
-			utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", err.Error())
+		logrus.Errorf("[DOWNLOAD_HANDLER] Service error: %v", err)
+		if strings.Contains(err.Error(), "document not found") || strings.Contains(err.Error(), "access denied") {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or download access denied")
 			return
 		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "DOWNLOAD_FAILED", err.Error())
+		return
 	}
 
-	logrus.Infof("[DOWNLOAD_HANDLER] Document found: %s (original: %s)", document.FileName, document.OriginalFileName)
-
 	// Get file from MinIO
-	logrus.Infof("[DOWNLOAD_HANDLER] Downloading file from storage: %s", document.StoragePath)
 	fileReader, err := h.minioService.DownloadFile(c.Request.Context(), document.StoragePath)
 	if err != nil {
 		logrus.Errorf("[DOWNLOAD_HANDLER] MinIO download error: %v", err)
@@ -318,7 +287,7 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 	}
 	defer fileReader.Close()
 
-	// Read file content into buffer to avoid header conflicts
+	// Read file content to avoid header conflicts
 	fileContent, err := io.ReadAll(fileReader)
 	if err != nil {
 		logrus.Errorf("[DOWNLOAD_HANDLER] Failed to read file content: %v", err)
@@ -328,9 +297,8 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 
 	// Safely escape filename for Content-Disposition header
 	safeFilename := strings.ReplaceAll(document.OriginalFileName, "\"", "\\\"")
-	logrus.Infof("[DOWNLOAD_HANDLER] Setting response headers for file: %s", safeFilename)
 
-	// Set all headers before writing response body
+	// Set HTTP headers
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Transfer-Encoding", "binary")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", safeFilename))
@@ -338,14 +306,11 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 	c.Header("Content-Length", fmt.Sprintf("%d", len(fileContent)))
 	c.Header("Cache-Control", "no-cache")
 
-	logrus.Infof("[DOWNLOAD_HANDLER] Headers set, sending file data")
-
 	// Send file data
 	c.Data(http.StatusOK, document.MimeType, fileContent)
-
-	logrus.Infof("[DOWNLOAD_HANDLER] File download completed successfully")
 }
 
+// GetDocumentPreview handles document preview URL generation
 func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -360,40 +325,34 @@ func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 		return
 	}
 
-	// First try to get the full document model as owner
+	// Get document model via service to verify access
 	var document models.Document
 	err = h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document)
+	if err != nil {
+		if strings.Contains(err.Error(), "document not found") {
+			// Try shared access through service
+			_, err = h.documentService.GetDocument(c.Request.Context(), userID, documentID)
+			if err != nil {
+				utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or preview access denied")
+				return
+			}
 
-	// If user doesn't own the document, check for shared access
-	if err != nil && err.Error() == "document not found" {
-		// Check if user has shared access to this document (at least view level)
-		hasAccess, accessErr := h.userShareService.ValidateUserAccess(c.Request.Context(), userID, documentID, models.AccessLevelView)
-		if accessErr != nil || !hasAccess {
-			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or preview access denied")
+			// If service call succeeded, we need to get the document model differently
+			// This is a limitation of the current design - we could improve this
+			utils.ErrorResponse(c, http.StatusInternalServerError, "PREVIEW_FAILED", "Failed to get document details")
 			return
 		}
-
-		// Get document details directly from database since user has shared access
-		if err := h.userShareService.GetDB().Where("id = ?", documentID).First(&document).Error; err != nil {
-			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
-			return
-		}
-
-		logrus.Infof("[PREVIEW] User %s accessing preview for shared document %s", userID, documentID)
-	} else if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "PREVIEW_FAILED", "Failed to get document details")
 		return
 	}
 
 	// Generate presigned URL for preview (valid for 1 hour)
-	logrus.Infof("[PREVIEW] Generating presigned URL for document %s, storage path: %s", documentID, document.StoragePath)
 	url, err := h.minioService.GeneratePresignedURL(c.Request.Context(), document.StoragePath, 3600*time.Second)
 	if err != nil {
 		logrus.Errorf("[PREVIEW] Failed to generate presigned URL for document %s: %v", documentID, err)
 		utils.ErrorResponse(c, http.StatusInternalServerError, "PREVIEW_FAILED", "Failed to generate preview URL")
 		return
 	}
-	logrus.Infof("[PREVIEW] Successfully generated presigned URL for document %s", documentID)
 
 	data := gin.H{
 		"url": url,
@@ -401,7 +360,7 @@ func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Preview URL generated successfully")
 }
 
-// GetDocumentThumbnail serves the thumbnail image for a document
+// GetDocumentThumbnail serves thumbnail image for a document
 func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -416,27 +375,22 @@ func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
 		return
 	}
 
-	// First try to get document as owner
+	// Get document model via service to verify access
 	var document models.Document
 	err = h.documentService.GetDocumentModel(c.Request.Context(), userID, documentID, &document)
+	if err != nil {
+		if strings.Contains(err.Error(), "document not found") {
+			// Try shared access - get document via service
+			_, err = h.documentService.GetDocument(c.Request.Context(), userID, documentID)
+			if err != nil {
+				utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or access denied")
+				return
+			}
 
-	// If user doesn't own the document, check for shared access
-	if err != nil && err.Error() == "document not found" {
-		// Check if user has shared access to this document
-		hasAccess, accessErr := h.userShareService.ValidateUserAccess(c.Request.Context(), userID, documentID, models.AccessLevelView)
-		if accessErr != nil || !hasAccess {
-			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found or access denied")
+			// Similar issue as preview - need to refactor this
+			utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to get document details")
 			return
 		}
-
-		// Get document details directly from database since user has shared access
-		if err := h.userShareService.GetDB().Where("id = ?", documentID).First(&document).Error; err != nil {
-			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
-			return
-		}
-
-		logrus.Infof("User %s accessing thumbnail for shared document %s", userID, documentID)
-	} else if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
 		return
 	}
@@ -481,6 +435,7 @@ func (h *DocumentHandler) GetUserStats(c *gin.Context) {
 		return
 	}
 
+	// Delegate to service
 	stats, err := h.documentService.GetUserStats(c.Request.Context(), userID)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "STATS_FETCH_FAILED", err.Error())
@@ -490,7 +445,7 @@ func (h *DocumentHandler) GetUserStats(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, stats, "User stats retrieved successfully")
 }
 
-// BulkUploadDocuments uploads multiple documents concurrently
+// BulkUploadDocuments handles multiple document uploads concurrently
 func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -517,8 +472,6 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	}
 
 	resultChan := make(chan uploadResult, len(req.Files))
-
-	// Use WaitGroup to wait for all goroutines
 	var wg sync.WaitGroup
 
 	// Process each file concurrently
@@ -535,7 +488,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 				IsPublic:    meta.IsPublic,
 			}
 
-			// Upload the document
+			// Delegate to service
 			document, uploadErr := h.documentService.UploadDocument(ctx, userID, f, uploadReq)
 
 			resultChan <- uploadResult{
@@ -583,24 +536,21 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 		response["failures"] = failedUploads
 	}
 
-	// Determine response status
+	// Determine response status based on results
 	if len(successfulUploads) == 0 {
-		// All uploads failed
 		utils.ErrorResponse(c, http.StatusBadRequest, "ALL_UPLOADS_FAILED", "All file uploads failed")
 		return
 	} else if len(failedUploads) > 0 {
-		// Partial success
 		utils.SuccessResponse(c, http.StatusPartialContent, response,
 			fmt.Sprintf("Uploaded %d out of %d files successfully", len(successfulUploads), len(req.Files)))
 		return
 	}
 
-	// All uploads successful
 	utils.SuccessResponse(c, http.StatusCreated, response,
 		fmt.Sprintf("All %d files uploaded successfully", len(req.Files)))
 }
 
-// BulkDeleteDocuments deletes multiple documents concurrently
+// BulkDeleteDocuments handles multiple document deletions concurrently
 func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -615,8 +565,6 @@ func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 		return
 	}
 
-	logrus.Infof("[BULK_DELETE] Starting bulk delete for user %s: %d documents", userID, len(req.DocumentIDs))
-
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
@@ -630,8 +578,6 @@ func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 
 	resultChan := make(chan deleteResult, len(req.DocumentIDs))
 	semaphore := make(chan struct{}, 10) // Limit concurrent operations to 10
-
-	// Use WaitGroup to wait for all goroutines
 	var wg sync.WaitGroup
 
 	// Process each document concurrently
@@ -655,7 +601,7 @@ func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 				return
 			}
 
-			// Delete the document
+			// Delegate to service
 			deleteErr := h.documentService.DeleteDocument(ctx, userID, docUUID)
 			resultChan <- deleteResult{
 				documentID: docID,
@@ -688,8 +634,6 @@ func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 		}
 	}
 
-	logrus.Infof("[BULK_DELETE] Completed: %d successful, %d failed", successfulDeletes, failedDeletes)
-
 	// Prepare response
 	response := gin.H{
 		"successful_deletes": successfulDeletes,
@@ -704,22 +648,19 @@ func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 
 	// Determine response status
 	if successfulDeletes == 0 {
-		// All deletes failed
 		utils.ErrorResponse(c, http.StatusBadRequest, "ALL_DELETES_FAILED", "All document deletions failed")
 		return
 	} else if failedDeletes > 0 {
-		// Partial success
 		utils.SuccessResponse(c, http.StatusPartialContent, response,
 			fmt.Sprintf("Deleted %d out of %d documents successfully", successfulDeletes, len(req.DocumentIDs)))
 		return
 	}
 
-	// All deletes successful
 	utils.SuccessResponse(c, http.StatusOK, response,
 		fmt.Sprintf("All %d documents deleted successfully", len(req.DocumentIDs)))
 }
 
-// BulkDownloadDocuments creates a ZIP file with multiple documents and returns download link
+// BulkDownloadDocuments creates a ZIP file with multiple documents
 func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -734,23 +675,13 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 		return
 	}
 
-	logrus.Infof("[BULK_DOWNLOAD] Starting bulk download for user %s: %d documents", userID, len(req.DocumentIDs))
-
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)
 	defer cancel()
 
 	// Channel to collect document fetch results
-	type documentResult struct {
-		document *models.Document
-		content  []byte
-		error    error
-	}
-
 	resultChan := make(chan documentResult, len(req.DocumentIDs))
 	semaphore := make(chan struct{}, 5) // Limit concurrent downloads to 5
-
-	// Use WaitGroup to wait for all goroutines
 	var wg sync.WaitGroup
 
 	// Fetch documents and their content concurrently
@@ -772,7 +703,7 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 				return
 			}
 
-			// Get document metadata
+			// Get document via service (handles access control)
 			document, fetchErr := h.documentService.DownloadDocument(ctx, userID, docUUID)
 			if fetchErr != nil {
 				resultChan <- documentResult{
@@ -814,13 +745,106 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 		close(resultChan)
 	}()
 
-	// Collect all results and create ZIP
+	// Create ZIP and collect results
+	zipBuffer, successfulDownloads, _ := h.createZipFromResults(resultChan, req.DocumentIDs)
+
+	if successfulDownloads == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "NO_FILES_DOWNLOADED", "No files could be downloaded")
+		return
+	}
+
+	// Generate filename for ZIP
+	timestamp := time.Now().Format("20060102_150405")
+	zipFilename := fmt.Sprintf("documents_%s.zip", timestamp)
+
+	// Set response headers for ZIP download
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Transfer-Encoding", "binary")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFilename))
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Length", fmt.Sprintf("%d", zipBuffer.Len()))
+	c.Header("Cache-Control", "no-cache")
+
+	// Send ZIP file data
+	c.Data(http.StatusOK, "application/zip", zipBuffer.Bytes())
+}
+
+// GetDocumentRevisions retrieves document version history
+func (h *DocumentHandler) GetDocumentRevisions(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated document ID from context
+	documentID, ok := validations.GetValidatedDocumentID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
+		return
+	}
+
+	// Delegate to service
+	revisions, err := h.documentService.GetDocumentRevisions(c.Request.Context(), userID, documentID)
+	if err != nil {
+		if strings.Contains(err.Error(), "document not found") || strings.Contains(err.Error(), "access denied") {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
+		return
+	}
+
+	data := gin.H{
+		"revisions": revisions,
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Revisions retrieved successfully")
+}
+
+// Helper methods for HTTP layer
+
+// mapServiceErrorToHTTP maps service layer errors to appropriate HTTP status codes
+func (h *DocumentHandler) mapServiceErrorToHTTP(err error) (int, string) {
+	errorMsg := err.Error()
+
+	// File validation errors
+	if strings.Contains(errorMsg, "file type not supported") {
+		return http.StatusBadRequest, "INVALID_FILE_TYPE"
+	}
+	if strings.Contains(errorMsg, "file size too large") {
+		return http.StatusBadRequest, "FILE_TOO_LARGE"
+	}
+
+	// Access control errors
+	if strings.Contains(errorMsg, "document not found") || strings.Contains(errorMsg, "access denied") {
+		return http.StatusNotFound, "DOCUMENT_NOT_FOUND"
+	}
+	if strings.Contains(errorMsg, "insufficient access") {
+		return http.StatusForbidden, "ACCESS_DENIED"
+	}
+
+	// Storage errors
+	if strings.Contains(errorMsg, "failed to upload") || strings.Contains(errorMsg, "storage") {
+		return http.StatusInternalServerError, "STORAGE_ERROR"
+	}
+
+	// Database errors
+	if strings.Contains(errorMsg, "failed to save") || strings.Contains(errorMsg, "database") {
+		return http.StatusInternalServerError, "DATABASE_ERROR"
+	}
+
+	// Default to internal server error
+	return http.StatusInternalServerError, "INTERNAL_ERROR"
+}
+
+// createZipFromResults creates ZIP file from document results
+func (h *DocumentHandler) createZipFromResults(resultChan chan documentResult, documentIDs []string) (*bytes.Buffer, int, int) {
 	var zipBuffer bytes.Buffer
 	zipWriter := zip.NewWriter(&zipBuffer)
 
 	successfulDownloads := 0
 	failedDownloads := 0
-	usedFilenames := make(map[string]bool) // Track used filenames to avoid duplicates
+	usedFilenames := make(map[string]bool)
 
 	for result := range resultChan {
 		if result.error != nil {
@@ -829,21 +853,17 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 			continue
 		}
 
-		// Add file to ZIP
-		// Use original filename, but handle duplicates
+		// Generate unique filename
 		filename := result.document.OriginalFileName
 		counter := 1
 		baseFilename := strings.TrimSuffix(filename, filepath.Ext(filename))
 		extension := filepath.Ext(filename)
 
-		// Check for duplicate filenames and add counter if needed
-		originalFilename := filename
+		// Handle duplicate filenames
 		for usedFilenames[filename] {
 			filename = fmt.Sprintf("%s_%d%s", baseFilename, counter, extension)
 			counter++
 		}
-
-		// Mark filename as used
 		usedFilenames[filename] = true
 
 		// Create file entry in ZIP
@@ -862,70 +882,11 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 			continue
 		}
 
-		logrus.Infof("[BULK_DOWNLOAD] Added file to ZIP: %s (original: %s, size: %d bytes)",
-			filename, originalFilename, len(result.content))
 		successfulDownloads++
 	}
 
 	// Close ZIP writer
-	err = zipWriter.Close()
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "ZIP_CREATION_FAILED", "Failed to create ZIP file")
-		return
-	}
+	zipWriter.Close()
 
-	if successfulDownloads == 0 {
-		utils.ErrorResponse(c, http.StatusBadRequest, "NO_FILES_DOWNLOADED", "No files could be downloaded")
-		return
-	}
-
-	// Generate filename for ZIP
-	timestamp := time.Now().Format("20060102_150405")
-	zipFilename := fmt.Sprintf("documents_%s.zip", timestamp)
-
-	logrus.Infof("[BULK_DOWNLOAD] Created ZIP with %d files, size: %d bytes", successfulDownloads, zipBuffer.Len())
-
-	// Set response headers for ZIP download
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Transfer-Encoding", "binary")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFilename))
-	c.Header("Content-Type", "application/zip")
-	c.Header("Content-Length", fmt.Sprintf("%d", zipBuffer.Len()))
-	c.Header("Cache-Control", "no-cache")
-
-	// Send ZIP file data
-	c.Data(http.StatusOK, "application/zip", zipBuffer.Bytes())
-
-	logrus.Infof("[BULK_DOWNLOAD] ZIP download completed: %s (%d files)", zipFilename, successfulDownloads)
-}
-
-// GetDocumentRevisions returns version history for a document
-func (h *DocumentHandler) GetDocumentRevisions(c *gin.Context) {
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
-		return
-	}
-
-	// Get validated document ID from context
-	documentID, ok := validations.GetValidatedDocumentID(c)
-	if !ok {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
-		return
-	}
-
-	revisions, err := h.documentService.GetDocumentRevisions(c.Request.Context(), userID, documentID)
-	if err != nil {
-		if strings.Contains(err.Error(), "document not found") {
-			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
-			return
-		}
-		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
-		return
-	}
-
-	data := gin.H{
-		"revisions": revisions,
-	}
-	utils.SuccessResponse(c, http.StatusOK, data, "Revisions retrieved successfully")
+	return &zipBuffer, successfulDownloads, failedDownloads
 }

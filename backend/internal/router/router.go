@@ -9,7 +9,6 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/gin-gonic/gin"
-	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -27,7 +26,14 @@ type Router struct {
 	userShareService *services.UserShareService
 }
 
-func New(cfg *config.Config, db *gorm.DB) *Router {
+func New(
+	cfg *config.Config,
+	db *gorm.DB,
+	documentService *services.DocumentService,
+	authService *services.AuthService,
+	userShareService *services.UserShareService,
+	minioService *services.MinIOService,
+) *Router {
 	// Setup Gin mode
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -35,43 +41,19 @@ func New(cfg *config.Config, db *gorm.DB) *Router {
 
 	engine := gin.New()
 
-	// Initialize Redis client using our Redis package
+	// Initialize Redis client
 	var redisClient *redis.Client
 	var err error
 
 	redisClient, err = redis.NewClient(cfg.Redis)
 	if err != nil {
-		// Log warning but don't fail - Redis is optional
 		logrus.Warnf("Redis connection failed in router, some features disabled: %v", err)
 		redisClient = nil
 	}
 
-	// Initialize MinIO service first as AuthService depends on it
-	minioService, err := services.NewMinIOService(&cfg.MinIO)
-	if err != nil {
-		// Handle MinIO initialization error
-		panic("Failed to initialize MinIO service: " + err.Error())
-	}
-
-	// Initialize services with proper Redis client types
-	var rawRedisClient *goredis.Client = nil
-	if redisClient != nil {
-		rawRedisClient = redisClient.Client
-	}
-
-	authService := services.NewAuthService(db, cfg, rawRedisClient, minioService)
+	// Initialize other services
 	roleService := services.NewRoleService(db)
-
-	// Initialize Share service with our custom Redis client
 	shareService := services.NewShareService(db, redisClient)
-
-	// Initialize User Share service
-	userShareService := services.NewUserShareService(db, redisClient)
-
-	// Initialize Document service (depends on UserShareService)
-	documentService := services.NewDocumentService(db, minioService, userShareService)
-
-	// Initialize Favorite service
 	favoriteService := services.NewFavoriteService(db)
 
 	return &Router{
@@ -99,7 +81,6 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	// CORS with environment-specific settings
 	var allowedOrigins []string
 	if r.config.Environment == "production" {
-		// Production domain will be added here in the future.
 		allowedOrigins = []string{"https://yourdomain.com"}
 	}
 	r.engine.Use(middleware.CORS(r.config.Environment, allowedOrigins))
@@ -121,12 +102,9 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	api := r.engine.Group("/api/v1")
 	api.Use(middleware.APISecurityHeaders())
 
-	// Register routes
+	// Register routes - now dependencies are injected properly
 	RegisterHealthRoutes(api, db)
-
-	// For auth routes, we pass our custom Redis client
 	RegisterAuthRoutes(api, r.authService, r.redisClient)
-
 	RegisterRoleRoutes(api, r.roleService, r.authService)
 	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
@@ -135,9 +113,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 
 	// Share routes
 	shareHandler := handlers.NewShareHandler(r.shareService, r.minioService, r.config)
-	// public download
 	r.engine.GET("/share/:token", shareHandler.DownloadShared)
-	// creation under api group
 	RegisterShareRoutes(api, r.shareService, r.minioService, r.authService, r.config)
 
 	// User Share routes

@@ -564,9 +564,9 @@ export default function ProfilePage() {
           }
         }}
         title="Remove Avatar"
-        description="Are you sure you want to remove your avatar? This action cannot be undone."
+        message="Are you sure you want to remove your avatar? This action cannot be undone."
         confirmText="Remove"
-        confirmVariant="error"
+        variant="danger"
         isLoading={isRemoving}
       />
     </div>

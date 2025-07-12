@@ -4,8 +4,6 @@ import React, {
   useState,
   useMemo,
   useCallback,
-  useEffect,
-  useDeferredValue,
   useTransition,
 } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -55,9 +53,8 @@ const DocumentsPage: React.FC = () => {
   const [isPending, startTransition] = useTransition();
 
   // State for filters and pagination
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const deferredSearchInput = useDeferredValue(searchInput);
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortBy, setSortBy] = useState<DocumentSortField>("date");
@@ -68,7 +65,9 @@ const DocumentsPage: React.FC = () => {
   );
 
   // Multi-select state
-  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(
+    new Set()
+  );
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   // Select options
@@ -105,68 +104,85 @@ const DocumentsPage: React.FC = () => {
   ];
 
   const sortOptions: SelectOption[] = [
-    { 
-      value: "date", 
-      label: "Date Created", 
-      icon: <ArrowUpDown className="w-4 h-4" /> 
+    {
+      value: "relevance",
+      label: "Relevance",
+      icon: <ArrowUpDown className="w-4 h-4" />,
     },
-    { 
-      value: "size", 
-      label: "File Size", 
-      icon: <ArrowUpDown className="w-4 h-4" /> 
+    {
+      value: "date",
+      label: "Date Created",
+      icon: <ArrowUpDown className="w-4 h-4" />,
     },
-    { 
-      value: "views", 
-      label: "View Count", 
-      icon: <ArrowUpDown className="w-4 h-4" /> 
+    {
+      value: "size",
+      label: "File Size",
+      icon: <ArrowUpDown className="w-4 h-4" />,
     },
-    { 
-      value: "downloads", 
-      label: "Download Count", 
-      icon: <ArrowUpDown className="w-4 h-4" /> 
+    {
+      value: "views",
+      label: "View Count",
+      icon: <ArrowUpDown className="w-4 h-4" />,
     },
-    { 
-      value: "title", 
-      label: "Title", 
-      icon: <ArrowUpDown className="w-4 h-4" /> 
+    {
+      value: "downloads",
+      label: "Download Count",
+      icon: <ArrowUpDown className="w-4 h-4" />,
+    },
+    {
+      value: "title",
+      label: "Title",
+      icon: <ArrowUpDown className="w-4 h-4" />,
     },
   ];
 
   const sortDirectionOptions: SelectOption[] = [
-    { 
-      value: "desc", 
-      label: "Descending", 
-      icon: <ArrowDown className="w-4 h-4" /> 
+    {
+      value: "desc",
+      label: "Descending",
+      icon: <ArrowDown className="w-4 h-4" />,
     },
-    { 
-      value: "asc", 
-      label: "Ascending", 
-      icon: <ArrowUp className="w-4 h-4" /> 
+    {
+      value: "asc",
+      label: "Ascending",
+      icon: <ArrowUp className="w-4 h-4" />,
     },
   ];
 
+  // Debounced search function
   const debouncedSearch = useCallback(
     debounce((query: string) => {
       startTransition(() => {
         setSearchQuery(query);
         setCurrentPage(1);
+
+        if (query) {
+          if (sortBy !== "relevance") {
+            setSortBy("relevance");
+            setSortDir("desc");
+          }
+        } else {
+          if (sortBy === "relevance") {
+            setSortBy("date");
+            setSortDir("desc");
+          }
+        }
       });
     }, 700),
-    []
+    [sortBy]
   );
-
-  useEffect(() => {
-    debouncedSearch(deferredSearchInput);
-  }, [deferredSearchInput, debouncedSearch]);
 
   const handleSearchInputChange = useCallback((value: string) => {
     setSearchInput(value);
-  }, []);
+    debouncedSearch(value);
+  }, [debouncedSearch]);
 
   const handleSearchClear = useCallback(() => {
     setSearchInput("");
     startTransition(() => {
       setSearchQuery("");
+      setSortBy("date");
+      setSortDir("desc");
       setCurrentPage(1);
     });
   }, []);
@@ -256,34 +272,34 @@ const DocumentsPage: React.FC = () => {
     [deleteMutation]
   );
 
-  const handlePreviewDocument = useCallback(
-    async (document: Document) => {
-      try {
-        const response = await documentService.getDocumentPreview(document.id);
-        const previewUrl = response.data.url;
-        
-        // Open preview in new tab
-        window.open(previewUrl, '_blank', 'noopener,noreferrer');
-      } catch (error) {
-        console.error("Preview failed:", error);
-        alert(`Failed to preview document: ${getErrorMessage(error)}`);
-      }
+  const handlePreviewDocument = useCallback(async (document: Document) => {
+    try {
+      const response = await documentService.getDocumentPreview(document.id);
+      const previewUrl = response.data.url;
+
+      // Open preview in new tab
+      window.open(previewUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Preview failed:", error);
+      alert(`Failed to preview document: ${getErrorMessage(error)}`);
+    }
+  }, []);
+
+  // Multi-select handlers
+  const handleDocumentSelect = useCallback(
+    (documentId: string, selected: boolean) => {
+      setSelectedDocuments((prev) => {
+        const newSet = new Set(prev);
+        if (selected) {
+          newSet.add(documentId);
+        } else {
+          newSet.delete(documentId);
+        }
+        return newSet;
+      });
     },
     []
   );
-
-  // Multi-select handlers
-  const handleDocumentSelect = useCallback((documentId: string, selected: boolean) => {
-    setSelectedDocuments(prev => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(documentId);
-      } else {
-        newSet.delete(documentId);
-      }
-      return newSet;
-    });
-  }, []);
 
   // Memoized document data to prevent unnecessary re-renders
   const documents = useMemo(
@@ -301,21 +317,21 @@ const DocumentsPage: React.FC = () => {
 
   const handleSelectAll = useCallback(() => {
     if (!documents.length) return;
-    
-    const allSelected = documents.every(doc => selectedDocuments.has(doc.id));
-    
+
+    const allSelected = documents.every((doc) => selectedDocuments.has(doc.id));
+
     if (allSelected) {
       // Deselect all
       setSelectedDocuments(new Set());
     } else {
       // Select all
-      setSelectedDocuments(new Set(documents.map(doc => doc.id)));
+      setSelectedDocuments(new Set(documents.map((doc) => doc.id)));
     }
   }, [documents, selectedDocuments]);
 
   const handleBulkDownload = useCallback(async () => {
     if (selectedDocuments.size === 0) return;
-    
+
     try {
       const documentIds = Array.from(selectedDocuments);
       await bulkDownloadMutation.mutateAsync({ documentIds });
@@ -343,7 +359,11 @@ const DocumentsPage: React.FC = () => {
     try {
       const documentIds = Array.from(selectedDocuments);
       await bulkDeleteMutation.mutateAsync({ documentIds });
-      toast.success(`${selectedDocuments.size} document${selectedDocuments.size > 1 ? 's' : ''} deleted successfully.`);
+      toast.success(
+        `${selectedDocuments.size} document${
+          selectedDocuments.size > 1 ? "s" : ""
+        } deleted successfully.`
+      );
       setShowBulkDeleteModal(false);
     } catch (error) {
       console.error("Bulk delete failed:", error);
@@ -352,7 +372,9 @@ const DocumentsPage: React.FC = () => {
   }, [selectedDocuments, bulkDeleteMutation, toast]);
 
   // Check if all documents are selected
-  const allSelected = documents.length > 0 && documents.every(doc => selectedDocuments.has(doc.id));
+  const allSelected =
+    documents.length > 0 &&
+    documents.every((doc) => selectedDocuments.has(doc.id));
   const someSelected = selectedDocuments.size > 0 && !allSelected;
 
   // Toggle selection mode handler
@@ -423,6 +445,7 @@ const DocumentsPage: React.FC = () => {
                   }
                   className="min-w-[140px]"
                   aria-label="Sort by field"
+                  disabled={!searchQuery && sortBy === "relevance"}
                 />
 
                 {/* Sort Direction */}
@@ -437,6 +460,7 @@ const DocumentsPage: React.FC = () => {
                   }
                   className="min-w-[120px]"
                   aria-label="Sort direction"
+                  disabled={sortBy === "relevance"}
                 />
               </div>
             </div>
@@ -452,27 +476,32 @@ const DocumentsPage: React.FC = () => {
         {isSelectionMode && selectedDocuments.size > 0 && (
           <div className="mb-4 p-3 bg-background-secondary border border-border rounded-lg flex items-center justify-between">
             <span className="text-sm text-foreground-secondary">
-              {selectedDocuments.size} document{selectedDocuments.size > 1 ? 's' : ''} selected
+              {selectedDocuments.size} document
+              {selectedDocuments.size > 1 ? "s" : ""} selected
             </span>
             <div className="flex items-center gap-2">
-                             <Button
-                 onClick={handleBulkDownload}
-                 disabled={bulkDownloadMutation.isPending}
-                 size="sm"
-                 variant="ghost"
-               >
-                 <Download className="w-4 h-4 mr-2" />
-                 {bulkDownloadMutation.isPending ? "Downloading..." : "Download Selected"}
-               </Button>
-               <Button
-                 onClick={handleBulkDeleteOpen}
-                 disabled={bulkDeleteMutation.isPending}
-                 size="sm"
-                 variant="error"
-               >
-                 <Trash2 className="w-4 h-4 mr-2" />
-                 {bulkDeleteMutation.isPending ? "Deleting..." : "Delete Selected"}
-               </Button>
+              <Button
+                onClick={handleBulkDownload}
+                disabled={bulkDownloadMutation.isPending}
+                size="sm"
+                variant="ghost"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {bulkDownloadMutation.isPending
+                  ? "Downloading..."
+                  : "Download Selected"}
+              </Button>
+              <Button
+                onClick={handleBulkDeleteOpen}
+                disabled={bulkDeleteMutation.isPending}
+                size="sm"
+                variant="error"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {bulkDeleteMutation.isPending
+                  ? "Deleting..."
+                  : "Delete Selected"}
+              </Button>
             </div>
           </div>
         )}
@@ -493,15 +522,19 @@ const DocumentsPage: React.FC = () => {
                       onChange={handleSelectAll}
                       className="sr-only"
                     />
-                    <div className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${
-                      allSelected 
-                        ? 'bg-blue-600 border-blue-600' 
-                        : someSelected 
-                        ? 'bg-blue-100 border-blue-600' 
-                        : 'border-gray-300 hover:border-blue-400'
-                    }`}>
+                    <div
+                      className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${
+                        allSelected
+                          ? "bg-blue-600 border-blue-600"
+                          : someSelected
+                          ? "bg-blue-100 border-blue-600"
+                          : "border-gray-300 hover:border-blue-400"
+                      }`}
+                    >
                       {allSelected && <Check className="w-3 h-3 text-white" />}
-                      {someSelected && !allSelected && <div className="w-2 h-2 bg-blue-600 rounded-sm" />}
+                      {someSelected && !allSelected && (
+                        <div className="w-2 h-2 bg-blue-600 rounded-sm" />
+                      )}
                     </div>
                   </div>
                   <span className="ml-2 text-sm text-foreground-secondary">
@@ -510,7 +543,7 @@ const DocumentsPage: React.FC = () => {
                 </label>
               </div>
             )}
-            
+
             <div className="flex items-center gap-3">
               <div className="text-sm text-foreground-secondary">
                 {isLoading ? (
@@ -521,7 +554,7 @@ const DocumentsPage: React.FC = () => {
                   </span>
                 )}
               </div>
-              
+
               <Button
                 onClick={toggleSelectionMode}
                 variant={isSelectionMode ? "secondary" : "ghost"}
@@ -656,15 +689,16 @@ const DocumentsPage: React.FC = () => {
           closeOnOverlayClick={!bulkDeleteMutation.isPending}
           closeOnEscape={!bulkDeleteMutation.isPending}
         >
-          <Modal.Header>
-            Delete Documents
-          </Modal.Header>
+          <Modal.Header>Delete Documents</Modal.Header>
           <Modal.Content>
             <p className="mb-4">
-              Are you sure you want to delete <strong>{selectedDocuments.size}</strong> selected document{selectedDocuments.size > 1 ? 's' : ''}?
+              Are you sure you want to delete{" "}
+              <strong>{selectedDocuments.size}</strong> selected document
+              {selectedDocuments.size > 1 ? "s" : ""}?
             </p>
             <p className="text-sm text-foreground-secondary">
-              This action cannot be undone. The documents will be permanently removed from your account.
+              This action cannot be undone. The documents will be permanently
+              removed from your account.
             </p>
           </Modal.Content>
           <Modal.Footer>

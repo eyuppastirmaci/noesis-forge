@@ -8,11 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterDocumentRoutes(r *gin.RouterGroup, documentService *services.DocumentService, minioService *services.MinIOService, authService *services.AuthService, userShareService *services.UserShareService) {
+func RegisterDocumentRoutes(
+	r *gin.RouterGroup,
+	documentService *services.DocumentService,
+	minioService *services.MinIOService,
+	authService *services.AuthService,
+	userShareService *services.UserShareService,
+) {
 	documentHandler := handlers.NewDocumentHandler(documentService, minioService, userShareService)
 
 	documents := r.Group("/documents")
-
 	documents.Use(middleware.AuthMiddleware(authService))
 	{
 		// Document CRUD operations with validation middleware

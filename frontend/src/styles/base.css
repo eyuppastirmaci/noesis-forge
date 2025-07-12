@@ -13,7 +13,7 @@ body {
     color: var(--primary);
     background-color: var(--accent);
   }
-  
+
   /* PDF.js text layer styles */
   .textLayer {
     font-family: sans-serif;
@@ -26,13 +26,13 @@ body {
     bottom: 0;
     overflow: hidden;
     opacity: 1;
-    line-height: 1.0;
+    line-height: 1;
     pointer-events: auto;
     user-select: text;
     cursor: text;
     z-index: 10;
   }
-  
+
   .textLayer span {
     color: transparent;
     position: absolute;
@@ -43,17 +43,17 @@ body {
     pointer-events: auto;
     background: transparent;
   }
-  
+
   .textLayer span:hover {
     color: transparent;
     background: rgba(0, 0, 255, 0.1);
   }
-  
+
   .textLayer span::selection {
     background: rgba(0, 0, 255, 0.3);
     color: transparent;
   }
-  
+
   .textLayer span::-moz-selection {
     background: rgba(0, 0, 255, 0.3);
     color: transparent;
@@ -64,4 +64,5 @@ body {
     cursor: crosshair !important;
     pointer-events: none !important;
   }
+
 }

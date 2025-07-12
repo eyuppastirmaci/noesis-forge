@@ -42,7 +42,7 @@ type Document struct {
 	StorageBucket string `json:"-" gorm:"not null"` // MinIO bucket name
 
 	// Thumbnail info (server-generated thumbnails)
-	ThumbnailPath string `json:"-" gorm:""`                         // Path to thumbnail file in storage (e.g., "uuid.jpg")
+	ThumbnailPath string `json:"-" gorm:""`                         // Path to thumbnail file in storage
 	HasThumbnail  bool   `json:"hasThumbnail" gorm:"default:false"` // Whether thumbnail exists
 
 	// Processing info
@@ -60,6 +60,8 @@ type Document struct {
 	ViewCount     int64  `json:"viewCount" gorm:"default:0"`
 	DownloadCount int64  `json:"downloadCount" gorm:"default:0"`
 	PageCount     *int   `json:"pageCount,omitempty"` // Number of pages (for PDF documents)
+
+	SearchScore float64 `json:"-" gorm:"-"` // Dynamic search score
 
 	// Relations
 	UserID uuid.UUID `json:"userID" gorm:"type:uuid;not null"`

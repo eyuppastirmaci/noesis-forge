@@ -236,11 +236,9 @@ const DocumentCard = memo(
           <div className="p-4 flex flex-col h-full">
             {/* Header with icon and actions */}
             <div className="flex items-start justify-between mb-3">
-              {/* Document Type Icon or PDF Thumbnail */}
               <div className={`flex-shrink-0 ${isSelectionMode ? "ml-8" : ""}`}>
                 {document.fileType === DocumentType.PDF &&
                 document.hasThumbnail ? (
-                  // Server-generated thumbnail (preferred) - clickable for PDF viewer
                   <div
                     className="relative w-16 h-16 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={handlePDFViewerOpen}
@@ -257,7 +255,6 @@ const DocumentCard = memo(
                       height={64}
                       className="w-full h-full object-cover rounded border border-border shadow-sm"
                       onError={(e) => {
-                        // Fallback to placeholder if thumbnail fails to load
                         const target = e.target as HTMLImageElement;
                         target.style.display = "none";
                         const placeholder =
@@ -268,7 +265,6 @@ const DocumentCard = memo(
                     />
                   </div>
                 ) : document.fileType === DocumentType.PDF ? (
-                  // PDF placeholder when no thumbnail available - clickable for PDF viewer
                   <div
                     className="relative w-16 h-16 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={handlePDFViewerOpen}
@@ -283,7 +279,6 @@ const DocumentCard = memo(
                     </div>
                   </div>
                 ) : (
-                  // Non-PDF documents – clicking opens preview in a new tab
                   <div
                     className="relative w-16 h-16 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={(e) => {
@@ -387,13 +382,11 @@ const DocumentCard = memo(
               )}
             </div>
 
-            {/* Document title */}
-            <h3 className="text-sm font-medium mb-2 line-clamp-2 flex-grow text-foreground">
+            <h3 className="text-sm font-medium mb-1 line-clamp-2 text-foreground">
               {document.title}
             </h3>
 
-            {/* Document metadata */}
-            <div className="space-y-1.5 text-xs mt-auto text-foreground-secondary">
+            <div className="space-y-1.5 text-xs mt-auto text-foreground-secondary flex-grow flex flex-col justify-end">
               <div className="flex justify-between items-center">
                 <span>{formatFileSize(document.fileSize)}</span>
                 <span>{formatDate(document.createdAt)}</span>
@@ -451,8 +444,8 @@ const DocumentCard = memo(
           isOpen={showDeleteModal}
           onClose={handleDeleteCancel}
           size="md"
-          closeOnOverlayClick={true}
-          closeOnEscape={true}
+          closeOnOverlayClick={!isDeleting}
+          closeOnEscape={!isDeleting}
         >
           <Modal.Header>Delete Document</Modal.Header>
 

@@ -4,8 +4,11 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/database"
 	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
+	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/interfaces"
+	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/postgres"
 	"github.com/eyuppastirmaci/noesis-forge/internal/router"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/services/search"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -16,9 +19,15 @@ type App struct {
 	DB     *gorm.DB
 	Router *router.Router
 	Redis  *redis.Client
+
+	// Repositories
+	DocumentRepo       interfaces.DocumentRepository
+	DocumentSearchRepo interfaces.DocumentSearchRepository
+
 	// Services
 	AuthService     *services.AuthService
 	DocumentService *services.DocumentService
+	SearchService   *search.SearchService
 	MinIOService    *services.MinIOService
 }
 
@@ -51,10 +60,9 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	// Initialize Redis client using config
+	// Initialize Redis client
 	customRedisClient, err := redis.NewClient(cfg.Redis)
 	if err != nil {
-		// Log warning but don't fail - Redis is optional
 		logrus.Warnf("Redis connection failed, token blacklisting disabled: %v", err)
 		customRedisClient = nil
 	}
@@ -66,21 +74,31 @@ func New() (*App, error) {
 		return nil, err
 	}
 
-	// Initialize services
+	// Initialize Repositories
+	documentRepo := postgres.NewDocumentRepository(db)
+	documentSearchRepo := postgres.NewDocumentSearchRepository(db)
+
+	// Initialize Services
 	var rawRedisClient *goredis.Client = nil
 	if customRedisClient != nil {
 		rawRedisClient = customRedisClient.Client
 	}
+
 	authService := services.NewAuthService(db, cfg, rawRedisClient, minioService)
-
-	// Initialize User Share service
 	userShareService := services.NewUserShareService(db, customRedisClient)
+	searchService := search.NewSearchService(db)
 
-	// Initialize Document service (depends on UserShareService)
-	documentService := services.NewDocumentService(db, minioService, userShareService)
+	// Initialize Document service with dependencies
+	documentService := services.NewDocumentService(
+		documentRepo,
+		documentSearchRepo,
+		searchService,
+		minioService,
+		userShareService,
+	)
 
-	// Initialize router (router will also initialize its own services)
-	r := router.New(cfg, db)
+	// Initialize router with services
+	r := router.New(cfg, db, documentService, authService, userShareService, minioService)
 	r.SetupRoutes(db)
 
 	logrus.Info("Application initialized successfully")
@@ -88,13 +106,16 @@ func New() (*App, error) {
 	logrus.Infof("MinIO bucket: %s", cfg.MinIO.BucketName)
 
 	return &App{
-		Config:          cfg,
-		DB:              db,
-		Router:          r,
-		Redis:           customRedisClient,
-		AuthService:     authService,
-		DocumentService: documentService,
-		MinIOService:    minioService,
+		Config:             cfg,
+		DB:                 db,
+		Router:             r,
+		Redis:              customRedisClient,
+		DocumentRepo:       documentRepo,
+		DocumentSearchRepo: documentSearchRepo,
+		AuthService:        authService,
+		DocumentService:    documentService,
+		SearchService:      searchService,
+		MinIOService:       minioService,
 	}, nil
 }
 
