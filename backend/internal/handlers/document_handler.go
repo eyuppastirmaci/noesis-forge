@@ -30,7 +30,7 @@ type DocumentHandler struct {
 	userShareService *services.UserShareService
 }
 
-// documentResult represents the result of a document download operation
+// Rrepresents the result of a document download operation
 type documentResult struct {
 	document *models.Document
 	content  []byte
@@ -49,7 +49,7 @@ func NewDocumentHandler(
 	}
 }
 
-// UploadDocument handles single document upload
+// Handles single document upload
 func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -71,7 +71,7 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
-	uploadReq := &services.UploadDocumentRequest{
+	uploadReq := &types.UploadDocumentRequest{
 		Title:       req.Title,
 		Description: req.Description,
 		Tags:        req.Tags,
@@ -93,7 +93,7 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusCreated, data, "Document uploaded successfully")
 }
 
-// UpdateDocument handles document updates
+// Handles document updates
 func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -126,7 +126,7 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	}
 
 	// Convert fts.UpdateDocumentRequest to services.UpdateDocumentRequest
-	updateReq := &services.UpdateDocumentRequest{
+	updateReq := &types.UpdateDocumentRequest{
 		Title:       req.Title,
 		Description: req.Description,
 		Tags:        req.Tags,
@@ -148,7 +148,7 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Document updated successfully")
 }
 
-// GetDocuments handles document listing with search
+// Handles document listing with search
 func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -184,7 +184,7 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, documents, "Documents retrieved successfully")
 }
 
-// GetDocument handles single document retrieval
+// Handles single document retrieval
 func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -216,7 +216,7 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Document retrieved successfully")
 }
 
-// GetDocumentTitle handles document title retrieval
+// Handles document title retrieval
 func (h *DocumentHandler) GetDocumentTitle(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -248,7 +248,7 @@ func (h *DocumentHandler) GetDocumentTitle(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Document title retrieved successfully")
 }
 
-// DeleteDocument handles document deletion
+// Handles document deletion
 func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -277,7 +277,7 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, nil, "Document deleted successfully")
 }
 
-// DownloadDocument handles document download
+// Handles document download
 func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -338,7 +338,7 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 	c.Data(http.StatusOK, document.MimeType, fileContent)
 }
 
-// GetDocumentPreview handles document preview URL generation
+// Handles document preview URL generation
 func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -388,7 +388,7 @@ func (h *DocumentHandler) GetDocumentPreview(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, data, "Preview URL generated successfully")
 }
 
-// GetDocumentThumbnail serves thumbnail image for a document
+// Serves thumbnail image for a document
 func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -455,7 +455,7 @@ func (h *DocumentHandler) GetDocumentThumbnail(c *gin.Context) {
 	c.Data(http.StatusOK, "image/jpeg", thumbnailData)
 }
 
-// GetUserStats retrieves user document statistics
+// Retrieves user document statistics
 func (h *DocumentHandler) GetUserStats(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -473,7 +473,7 @@ func (h *DocumentHandler) GetUserStats(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, stats, "User stats retrieved successfully")
 }
 
-// BulkUploadDocuments handles multiple document uploads concurrently
+// Handles multiple document uploads concurrently
 func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -495,7 +495,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 	// Channel to collect results
 	type uploadResult struct {
 		index    int
-		document *services.DocumentResponse
+		document *types.DocumentResponse
 		err      error
 	}
 
@@ -509,7 +509,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 			defer wg.Done()
 
 			// Create individual request for each file using its metadata
-			uploadReq := &services.UploadDocumentRequest{
+			uploadReq := &types.UploadDocumentRequest{
 				Title:       meta.Title,
 				Description: meta.Description,
 				Tags:        meta.Tags,
@@ -535,7 +535,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 
 	// Collect all results
 	results := make([]uploadResult, len(req.Files))
-	successfulUploads := []*services.DocumentResponse{}
+	successfulUploads := []*types.DocumentResponse{}
 	failedUploads := []map[string]interface{}{}
 
 	for result := range resultChan {
@@ -578,7 +578,7 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 		fmt.Sprintf("All %d files uploaded successfully", len(req.Files)))
 }
 
-// BulkDeleteDocuments handles multiple document deletions concurrently
+// Handles multiple document deletions concurrently
 func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -688,7 +688,7 @@ func (h *DocumentHandler) BulkDeleteDocuments(c *gin.Context) {
 		fmt.Sprintf("All %d documents deleted successfully", len(req.DocumentIDs)))
 }
 
-// BulkDownloadDocuments creates a ZIP file with multiple documents
+// Creates a ZIP file with multiple documents
 func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -797,7 +797,7 @@ func (h *DocumentHandler) BulkDownloadDocuments(c *gin.Context) {
 	c.Data(http.StatusOK, "application/zip", zipBuffer.Bytes())
 }
 
-// GetDocumentRevisions retrieves document version history
+// Retrieves document version history
 func (h *DocumentHandler) GetDocumentRevisions(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -865,7 +865,7 @@ func (h *DocumentHandler) mapServiceErrorToHTTP(err error) (int, string) {
 	return http.StatusInternalServerError, "INTERNAL_ERROR"
 }
 
-// createZipFromResults creates ZIP file from document results
+// Creates ZIP file from document results
 func (h *DocumentHandler) createZipFromResults(resultChan chan documentResult, documentIDs []string) (*bytes.Buffer, int, int) {
 	var zipBuffer bytes.Buffer
 	zipWriter := zip.NewWriter(&zipBuffer)

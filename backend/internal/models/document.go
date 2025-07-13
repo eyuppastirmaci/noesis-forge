@@ -61,8 +61,6 @@ type Document struct {
 	DownloadCount int64  `json:"downloadCount" gorm:"default:0"`
 	PageCount     *int   `json:"pageCount,omitempty"` // Number of pages (for PDF documents)
 
-	SearchScore float64 `json:"-" gorm:"-"` // Dynamic search score
-
 	// Relations
 	UserID uuid.UUID `json:"userID" gorm:"type:uuid;not null"`
 	User   User      `json:"user,omitempty" gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`

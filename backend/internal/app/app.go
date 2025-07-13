@@ -49,7 +49,7 @@ func New() (*App, error) {
 	}
 
 	// Run migrations
-	if err := database.RunMigrations(db); err != nil {
+	if err := database.RunMigrations(db, cfg.Database.Database); err != nil {
 		return nil, err
 	}
 

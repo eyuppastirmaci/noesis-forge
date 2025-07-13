@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -25,64 +24,10 @@ import (
 type DocumentService struct {
 	documentRepo     interfaces.DocumentRepository
 	searchRepo       interfaces.DocumentSearchRepository
-	searchStrategies []fts.SearchStrategy
+	searchStrategies []types.SearchStrategy
 	minioService     *MinIOService
 	userShareService *UserShareService
 	db               *gorm.DB
-}
-
-// Request/Response types
-type UploadDocumentRequest struct {
-	Title       string `json:"title" validate:"required,min=1,max=255"`
-	Description string `json:"description" validate:"max=1000"`
-	Tags        string `json:"tags" validate:"max=500"`
-	IsPublic    bool   `json:"isPublic"`
-}
-
-type UpdateDocumentRequest struct {
-	Title       string `json:"title" validate:"required,min=1,max=255"`
-	Description string `json:"description" validate:"max=1000"`
-	Tags        string `json:"tags" validate:"max=500"`
-	IsPublic    bool   `json:"isPublic"`
-	HasNewFile  bool   `json:"hasNewFile"`
-}
-
-type DocumentResponse struct {
-	ID               uuid.UUID             `json:"id"`
-	Title            string                `json:"title"`
-	Description      string                `json:"description"`
-	FileName         string                `json:"fileName"`
-	OriginalFileName string                `json:"originalFileName"`
-	FileSize         int64                 `json:"fileSize"`
-	FileType         models.DocumentType   `json:"fileType"`
-	MimeType         string                `json:"mimeType"`
-	Status           models.DocumentStatus `json:"status"`
-	Version          int                   `json:"version"`
-	Tags             string                `json:"tags"`
-	IsPublic         bool                  `json:"isPublic"`
-	ViewCount        int64                 `json:"viewCount"`
-	DownloadCount    int64                 `json:"downloadCount"`
-	PageCount        *int                  `json:"pageCount,omitempty"`
-	UserID           uuid.UUID             `json:"userID"`
-	ProcessedAt      *time.Time            `json:"processedAt,omitempty"`
-	CreatedAt        time.Time             `json:"createdAt"`
-	UpdatedAt        time.Time             `json:"updatedAt"`
-	HasThumbnail     bool                  `json:"hasThumbnail"`
-	UserAccessLevel  string                `json:"userAccessLevel"`
-	SearchScore      float64               `json:"searchScore,omitempty"`
-}
-
-type DocumentListResponse struct {
-	Documents  []DocumentResponse `json:"documents"`
-	Total      int64              `json:"total"`
-	Page       int                `json:"page"`
-	Limit      int                `json:"limit"`
-	TotalPages int                `json:"totalPages"`
-}
-
-type UserStatsResponse struct {
-	DocumentsThisMonth int64 `json:"documentsThisMonth"`
-	TotalStorageUsage  int64 `json:"totalStorageUsage"`
 }
 
 func NewDocumentService(
@@ -92,12 +37,11 @@ func NewDocumentService(
 	userShareService *UserShareService,
 	db *gorm.DB,
 ) *DocumentService {
-	// Initialize search strategies
-	searchStrategies := []fts.SearchStrategy{
-		fts.NewExactFTSStrategy(db),
-		fts.NewFuzzyFTSStrategy(db),
-		fts.NewTrigramStrategy(db),
-		fts.NewPatternStrategy(db),
+	searchStrategies := []types.SearchStrategy{
+		fts.NewExactFTSStrategy(db), // Will catch only advanced queries
+		fts.NewFuzzyFTSStrategy(db), // Will handle most of the remaining queries
+		fts.NewTrigramStrategy(db),  // Fallback
+		fts.NewPatternStrategy(db),  // Last-resort fallback
 	}
 
 	return &DocumentService{
@@ -111,12 +55,12 @@ func NewDocumentService(
 }
 
 // Handles document search with multiple strategies
-func (s *DocumentService) SearchDocuments(ctx context.Context, req *types.DocumentListRequest, userID uuid.UUID) (*fts.SearchResult, error) {
+func (s *DocumentService) SearchDocuments(ctx context.Context, req *types.DocumentListRequest, userID uuid.UUID) (*types.SearchResult, error) {
 	// Preprocess search query
 	cleanSearch, tokens := utils.PreprocessQuery(req.Search)
 	useSearch := cleanSearch != ""
 
-	searchReq := &fts.SearchRequest{
+	searchReq := &types.SearchRequest{
 		UserID:   userID,
 		Query:    cleanSearch,
 		Tokens:   tokens,
@@ -151,7 +95,8 @@ func (s *DocumentService) SearchDocuments(ctx context.Context, req *types.Docume
 			}
 		}
 		// No search results found
-		return &fts.SearchResult{}, nil
+		logrus.Warnf("No strategy could find results for query: '%s'", searchReq.Query)
+		return &types.SearchResult{}, nil
 	}
 
 	// Normal listing (no search) - use basic repository
@@ -174,7 +119,7 @@ func (s *DocumentService) SearchDocuments(ctx context.Context, req *types.Docume
 
 	totalPages := int((total + int64(searchReq.Limit) - 1) / int64(searchReq.Limit))
 
-	return &fts.SearchResult{
+	return &types.SearchResult{
 		Documents:  docs,
 		Total:      total,
 		Page:       searchReq.Page,
@@ -183,7 +128,7 @@ func (s *DocumentService) SearchDocuments(ctx context.Context, req *types.Docume
 	}, nil
 }
 
-func (s *DocumentService) applyFilters(q *gorm.DB, req *fts.SearchRequest) *gorm.DB {
+func (s *DocumentService) applyFilters(q *gorm.DB, req *types.SearchRequest) *gorm.DB {
 	if req.FileType != "" && req.FileType != "all" {
 		q = q.Where("file_type = ?", req.FileType)
 	}
@@ -202,7 +147,7 @@ func (s *DocumentService) applyFilters(q *gorm.DB, req *fts.SearchRequest) *gorm
 	return q
 }
 
-func (s *DocumentService) buildOrderBy(req *fts.SearchRequest) string {
+func (s *DocumentService) buildOrderBy(req *types.SearchRequest) string {
 	sortableCols := map[string]string{
 		"date":      "created_at",
 		"title":     "LOWER(title)",
@@ -225,7 +170,7 @@ func (s *DocumentService) buildOrderBy(req *fts.SearchRequest) string {
 }
 
 // Handles document upload with business logic
-func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, req *UploadDocumentRequest) (*DocumentResponse, error) {
+func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, file *multipart.FileHeader, req *types.UploadDocumentRequest) (*types.DocumentResponse, error) {
 	// Business rule: Validate file
 	if err := s.validateFile(file); err != nil {
 		return nil, err
@@ -317,7 +262,7 @@ func (s *DocumentService) UploadDocument(ctx context.Context, userID uuid.UUID, 
 }
 
 // Gandles document updates with business logic
-func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID uuid.UUID, file *multipart.FileHeader, req *UpdateDocumentRequest) (*DocumentResponse, error) {
+func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID uuid.UUID, file *multipart.FileHeader, req *types.UpdateDocumentRequest) (*types.DocumentResponse, error) {
 	// First, get the existing document and verify access
 	existingDocument, err := s.getDocumentWithAccess(ctx, userID, documentID, models.AccessLevelEdit)
 	if err != nil {
@@ -372,11 +317,6 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		return nil, fmt.Errorf("failed to update document record: %w", err)
 	}
 
-	// Create revision record if changes exist
-	if len(changes) > 0 {
-		s.createRevisionRecord(ctx, existingDocument.ID, existingDocument.Version, userID, changes)
-	}
-
 	// Cleanup old files after successful update
 	if req.HasNewFile {
 		s.cleanupOldFiles(ctx, oldStoragePath, oldThumbnailPath)
@@ -386,7 +326,7 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 }
 
 // Delegates to search service
-func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, req *types.DocumentListRequest) (*DocumentListResponse, error) {
+func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, req *types.DocumentListRequest) (*types.DocumentListResponse, error) {
 	// Convert to search request format
 	searchReq := &types.DocumentListRequest{
 		Page:     req.Page,
@@ -410,7 +350,7 @@ func (s *DocumentService) GetDocuments(ctx context.Context, userID uuid.UUID, re
 }
 
 // Retrieves single document with access control
-func (s *DocumentService) GetDocument(ctx context.Context, userID, documentID uuid.UUID) (*DocumentResponse, error) {
+func (s *DocumentService) GetDocument(ctx context.Context, userID, documentID uuid.UUID) (*types.DocumentResponse, error) {
 	// Try to get document with access control
 	document, userAccessLevel, err := s.getDocumentWithAccessLevel(ctx, userID, documentID, models.AccessLevelView)
 	if err != nil {
@@ -499,14 +439,14 @@ func (s *DocumentService) GetDocumentRevisions(ctx context.Context, userID, docu
 }
 
 // Retrieves user document statistics
-func (s *DocumentService) GetUserStats(ctx context.Context, userID uuid.UUID) (*UserStatsResponse, error) {
+func (s *DocumentService) GetUserStats(ctx context.Context, userID uuid.UUID) (*types.UserStatsResponse, error) {
 	stats, err := s.documentRepo.GetUserStats(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert from fts.UserStatsResponse to services.UserStatsResponse
-	return &UserStatsResponse{
+	return &types.UserStatsResponse{
 		DocumentsThisMonth: stats.DocumentsThisMonth,
 		TotalStorageUsage:  stats.TotalStorageUsage,
 	}, nil
@@ -683,21 +623,6 @@ func (s *DocumentService) detectChanges(orig, updated *models.Document, hasNewFi
 	return changes
 }
 
-// Creates a document revision entry
-func (s *DocumentService) createRevisionRecord(ctx context.Context, documentID uuid.UUID, version int, changedBy uuid.UUID, changes map[string]interface{}) {
-	diffJSON, _ := json.Marshal(changes)
-	revision := models.DocumentRevision{
-		DocumentID:    documentID,
-		Version:       version,
-		ChangedBy:     changedBy,
-		ChangeSummary: string(diffJSON),
-	}
-
-	// This could be delegated to a revision repository
-	// For now, we'll keep it simple
-	logrus.Infof("Document revision created: %+v", revision)
-}
-
 // Removes files if update fails
 func (s *DocumentService) cleanupFailedUpdate(ctx context.Context, storagePath, thumbnailPath string) {
 	if storagePath != "" {
@@ -727,15 +652,14 @@ func (s *DocumentService) cleanupOldFiles(ctx context.Context, oldStoragePath, o
 }
 
 // Converts search result to document list response
-func (s *DocumentService) convertSearchResultToDocumentList(result *fts.SearchResult) *DocumentListResponse {
-	documents := make([]DocumentResponse, len(result.Documents))
+func (s *DocumentService) convertSearchResultToDocumentList(result *types.SearchResult) *types.DocumentListResponse {
+	documents := make([]types.DocumentResponse, len(result.Documents))
 	for i, doc := range result.Documents {
 		responseDoc := s.toDocumentResponse(&doc)
-		responseDoc.SearchScore = doc.SearchScore
 		documents[i] = *responseDoc
 	}
 
-	return &DocumentListResponse{
+	return &types.DocumentListResponse{
 		Documents:  documents,
 		Total:      result.Total,
 		Page:       result.Page,
@@ -798,8 +722,8 @@ func (s *DocumentService) getDocumentType(filename string) models.DocumentType {
 // Response conversion methods
 
 // Converts model to response
-func (s *DocumentService) toDocumentResponse(doc *models.Document) *DocumentResponse {
-	return &DocumentResponse{
+func (s *DocumentService) toDocumentResponse(doc *models.Document) *types.DocumentResponse {
+	return &types.DocumentResponse{
 		ID:               doc.ID,
 		Title:            doc.Title,
 		Description:      doc.Description,
@@ -820,13 +744,12 @@ func (s *DocumentService) toDocumentResponse(doc *models.Document) *DocumentResp
 		CreatedAt:        doc.CreatedAt,
 		UpdatedAt:        doc.UpdatedAt,
 		HasThumbnail:     doc.HasThumbnail,
-		UserAccessLevel:  "owner", // Default access level
-		SearchScore:      doc.SearchScore,
+		UserAccessLevel:  "owner",
 	}
 }
 
 // Converts model to response with access level
-func (s *DocumentService) toDocumentResponseWithAccess(doc *models.Document, userAccessLevel string) *DocumentResponse {
+func (s *DocumentService) toDocumentResponseWithAccess(doc *models.Document, userAccessLevel string) *types.DocumentResponse {
 	response := s.toDocumentResponse(doc)
 	response.UserAccessLevel = userAccessLevel
 	return response

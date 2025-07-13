@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// NewPostgresDB opens a PostgreSQL connection with configurable logging.
+// Opens a PostgreSQL connection with configurable logging.
 func NewPostgresDB(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
 	// Translate custom log level string to GORM’s logger level.
 	var logLevel logger.LogLevel
@@ -56,8 +56,8 @@ func NewPostgresDB(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
-// RunMigrations performs schema migrations and full-text-search setup.
-func RunMigrations(db *gorm.DB) error {
+// Performs schema migrations and full-text-search setup.
+func RunMigrations(db *gorm.DB, dbName string) error {
 	logrus.Info("Running database migrations...")
 
 	// Auto-migrate all model structs to keep the schema up-to-date.
@@ -86,7 +86,7 @@ func RunMigrations(db *gorm.DB) error {
 	}
 
 	// Add tsvector column and trigger for full-text search if needed.
-	if err := migrations.AddFullTextSearchToDocuments(db); err != nil {
+	if err := migrations.AddFullTextSearchToDocuments(db, dbName); err != nil {
 		logrus.WithError(err).Error("Failed to add full-text search support")
 		return err
 	}
@@ -95,7 +95,7 @@ func RunMigrations(db *gorm.DB) error {
 	return nil
 }
 
-// SeedDefaultData ensures baseline permissions, roles, and an admin user exist.
+// Ensures baseline permissions, roles, and an admin user exist.
 func SeedDefaultData(db *gorm.DB) error {
 	logrus.Info("Seeding default data...")
 
@@ -143,7 +143,7 @@ func SeedDefaultData(db *gorm.DB) error {
 	return nil
 }
 
-// seedRolePermissions links roles and permissions according to the spec.
+// Links roles and permissions according to the spec.
 func seedRolePermissions(db *gorm.DB) error {
 	rolePermissions := map[string][]string{
 		"admin": {
@@ -187,7 +187,7 @@ func seedRolePermissions(db *gorm.DB) error {
 	return nil
 }
 
-// seedDefaultAdmin inserts a fallback admin user if none exists yet.
+// Inserts a fallback admin user if none exists yet.
 func seedDefaultAdmin(db *gorm.DB) error {
 	var existingAdmin models.User
 	if err := db.Where("email = ?", "admin@example.com").First(&existingAdmin).Error; err != nil {
