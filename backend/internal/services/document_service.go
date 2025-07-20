@@ -291,7 +291,7 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		}
 	}
 
-	// Update metadata fields (business logic)
+	// Update metadata fields
 	existingDocument.Title = req.Title
 	existingDocument.Description = req.Description
 	existingDocument.Tags = req.Tags
@@ -304,7 +304,7 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, userID, documentID
 		existingDocument.ProcessedAt = &now
 	}
 
-	// Detect changes and handle versioning (business logic)
+	// Detect changes and handle versioning
 	changes := s.detectChanges(&origDocument, existingDocument, req.HasNewFile)
 	if len(changes) > 0 {
 		existingDocument.Version = existingDocument.Version + 1
@@ -461,8 +461,6 @@ func (s *DocumentService) GetDocumentModel(ctx context.Context, userID, document
 	*document = *doc
 	return nil
 }
-
-// Helper methods for business logic
 
 // Retrieves document with access control
 func (s *DocumentService) getDocumentWithAccess(ctx context.Context, userID, documentID uuid.UUID, requiredAccess models.AccessLevel) (*models.Document, error) {
@@ -745,6 +743,7 @@ func (s *DocumentService) toDocumentResponse(doc *models.Document) *types.Docume
 		UpdatedAt:        doc.UpdatedAt,
 		HasThumbnail:     doc.HasThumbnail,
 		UserAccessLevel:  "owner",
+		StoragePath:      doc.StoragePath,
 	}
 }
 

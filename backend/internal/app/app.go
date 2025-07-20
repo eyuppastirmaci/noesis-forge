@@ -1,8 +1,12 @@
 package app
 
 import (
+	"log"
+	"os"
+
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/database"
+	"github.com/eyuppastirmaci/noesis-forge/internal/queue"
 	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/interfaces"
 	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/postgres"
@@ -94,8 +98,18 @@ func New() (*App, error) {
 		db,
 	)
 
+	// Initialize RabbitMQ publisher
+	rabbitMQURL := os.Getenv("RABBITMQ_URL")
+	if rabbitMQURL == "" {
+		rabbitMQURL = "amqp://admin:admin123@localhost:5672"
+	}
+	queuePublisher, err := queue.NewPublisher(rabbitMQURL)
+	if err != nil {
+		log.Fatal("Failed to initialize queue publisher:", err)
+	}
+
 	// Initialize router with services
-	r := router.New(cfg, db, documentService, authService, userShareService, minioService)
+	r := router.New(cfg, db, documentService, authService, userShareService, minioService, queuePublisher)
 	r.SetupRoutes(db)
 
 	logrus.Info("Application initialized successfully")

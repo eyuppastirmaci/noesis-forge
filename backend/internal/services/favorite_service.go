@@ -129,6 +129,7 @@ func (s *FavoriteService) GetUserFavorites(ctx context.Context, userID uuid.UUID
 			CreatedAt:        favorite.Document.CreatedAt,
 			UpdatedAt:        favorite.Document.UpdatedAt,
 			HasThumbnail:     favorite.Document.HasThumbnail,
+			StoragePath:      favorite.Document.StoragePath,
 		}
 	}
 

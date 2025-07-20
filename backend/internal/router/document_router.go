@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
+	"github.com/eyuppastirmaci/noesis-forge/internal/queue"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/eyuppastirmaci/noesis-forge/internal/validations"
 	"github.com/gin-gonic/gin"
@@ -14,8 +15,9 @@ func RegisterDocumentRoutes(
 	minioService *services.MinIOService,
 	authService *services.AuthService,
 	userShareService *services.UserShareService,
+	queuePublisher *queue.Publisher,
 ) {
-	documentHandler := handlers.NewDocumentHandler(documentService, minioService, userShareService)
+	documentHandler := handlers.NewDocumentHandler(documentService, minioService, userShareService, queuePublisher)
 
 	documents := r.Group("/documents")
 	documents.Use(middleware.AuthMiddleware(authService))

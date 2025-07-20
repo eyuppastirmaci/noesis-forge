@@ -15,6 +15,7 @@ import (
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
 	"github.com/eyuppastirmaci/noesis-forge/internal/models"
+	"github.com/eyuppastirmaci/noesis-forge/internal/queue"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/eyuppastirmaci/noesis-forge/internal/types"
 	"github.com/eyuppastirmaci/noesis-forge/internal/utils"
@@ -28,6 +29,7 @@ type DocumentHandler struct {
 	documentService  *services.DocumentService
 	minioService     *services.MinIOService
 	userShareService *services.UserShareService
+	queuePublisher   *queue.Publisher
 }
 
 // Rrepresents the result of a document download operation
@@ -41,16 +43,20 @@ func NewDocumentHandler(
 	documentService *services.DocumentService,
 	minioService *services.MinIOService,
 	userShareService *services.UserShareService,
+	queuePublisher *queue.Publisher,
 ) *DocumentHandler {
 	return &DocumentHandler{
 		documentService:  documentService,
 		minioService:     minioService,
 		userShareService: userShareService,
+		queuePublisher:   queuePublisher,
 	}
 }
 
 // Handles single document upload
 func (h *DocumentHandler) UploadDocument(c *gin.Context) {
+	fmt.Println("1...")
+
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
@@ -85,6 +91,17 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		status, code := h.mapServiceErrorToHTTP(err)
 		utils.ErrorResponse(c, status, code, err.Error())
 		return
+	}
+
+	if h.queuePublisher != nil {
+		logrus.Infof("Publishing document %s to processing queue with storage path", document.ID.String())
+		if err := h.queuePublisher.PublishDocumentForProcessing(document.ID.String(), document.StoragePath); err != nil {
+			logrus.Errorf("Failed to queue document for processing: %v", err)
+		} else {
+			logrus.Infof("Successfully queued document %s for processing", document.ID.String())
+		}
+	} else {
+		logrus.Warn("Queue publisher is nil, skipping document processing")
 	}
 
 	data := gin.H{
@@ -475,6 +492,8 @@ func (h *DocumentHandler) GetUserStats(c *gin.Context) {
 
 // Handles multiple document uploads concurrently
 func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
+	fmt.Println("Bulk Upload Here...")
+
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
@@ -518,6 +537,15 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 
 			// Delegate to service
 			document, uploadErr := h.documentService.UploadDocument(ctx, userID, f, uploadReq)
+
+			if uploadErr == nil && document != nil && h.queuePublisher != nil {
+				logrus.Infof("Publishing document %s to processing queue", document.ID)
+				if err := h.queuePublisher.PublishDocumentForProcessing(document.ID.String(), document.StoragePath); err != nil {
+					logrus.Errorf("Failed to queue document %s for processing: %v", document.ID, err)
+				} else {
+					logrus.Infof("Successfully queued document %s for processing", document.ID)
+				}
+			}
 
 			resultChan <- uploadResult{
 				index:    idx,

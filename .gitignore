@@ -50,3 +50,10 @@ frontend/.vercel
 # typescript
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
+
+# ==================================
+# ===      WORKERS RULES        ===
+# ==================================
+
+workers/node_modules
+workers/models/*

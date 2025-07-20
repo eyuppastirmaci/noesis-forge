@@ -6,6 +6,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/handlers"
 	"github.com/eyuppastirmaci/noesis-forge/internal/middleware"
+	"github.com/eyuppastirmaci/noesis-forge/internal/queue"
 	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,7 @@ type Router struct {
 	redisClient      *redis.Client
 	shareService     *services.ShareService
 	userShareService *services.UserShareService
+	queuePublisher   *queue.Publisher
 }
 
 func New(
@@ -33,6 +35,7 @@ func New(
 	authService *services.AuthService,
 	userShareService *services.UserShareService,
 	minioService *services.MinIOService,
+	queuePublisher *queue.Publisher,
 ) *Router {
 	// Setup Gin mode
 	if cfg.Environment == "production" {
@@ -67,6 +70,7 @@ func New(
 		redisClient:      redisClient,
 		shareService:     shareService,
 		userShareService: userShareService,
+		queuePublisher:   queuePublisher,
 	}
 }
 
@@ -106,7 +110,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterHealthRoutes(api, db)
 	RegisterAuthRoutes(api, r.authService, r.redisClient)
 	RegisterRoleRoutes(api, r.roleService, r.authService)
-	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService)
+	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService, r.queuePublisher)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
 	RegisterCommentRoutes(api, db, r.authService, r.redisClient)
 	RegisterActivityRoutes(api, db, r.authService)

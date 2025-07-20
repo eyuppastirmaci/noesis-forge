@@ -63,6 +63,7 @@ type DocumentResponse struct {
 	UpdatedAt        time.Time             `json:"updatedAt"`
 	HasThumbnail     bool                  `json:"hasThumbnail"`
 	UserAccessLevel  string                `json:"userAccessLevel"`
+	StoragePath      string                `json:"storagePath"`
 }
 
 // Represents the response for document listing
