@@ -2,7 +2,6 @@ package app
 
 import (
 	"log"
-	"os"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
 	"github.com/eyuppastirmaci/noesis-forge/internal/database"
@@ -98,12 +97,7 @@ func New() (*App, error) {
 		db,
 	)
 
-	// Initialize RabbitMQ publisher
-	rabbitMQURL := os.Getenv("RABBITMQ_URL")
-	if rabbitMQURL == "" {
-		rabbitMQURL = "amqp://admin:admin123@localhost:5672"
-	}
-	queuePublisher, err := queue.NewPublisher(rabbitMQURL)
+	queuePublisher, err := queue.NewPublisher(cfg.RabbitMQ.URL)
 	if err != nil {
 		log.Fatal("Failed to initialize queue publisher:", err)
 	}

@@ -2,14 +2,15 @@ import { RabbitMQConnection } from "../utils/rabbitmq.js";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { ModelManager } from "../utils/model-manager.js";
 import { MinIOClient } from "../utils/minio-client.js";
+import logger from "../utils/logger.js";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.min.mjs";
 import crypto from "crypto";
-
-// Set up global polyfills for pdfjs
+import path from "path";
 import { createRequire } from "module";
+
 const require = createRequire(import.meta.url);
 
-// Create minimal DOM polyfills if needed
+// Setup DOMMatrix polyfill for PDF.js compatibility
 if (typeof globalThis.DOMMatrix === "undefined") {
   globalThis.DOMMatrix = class DOMMatrix {
     constructor() {
@@ -20,11 +21,9 @@ if (typeof globalThis.DOMMatrix === "undefined") {
       this.e = 0;
       this.f = 0;
     }
-
     scale(x, y = x) {
       return this;
     }
-
     translate(x, y) {
       return this;
     }
@@ -43,212 +42,252 @@ class TextEmbeddingWorker {
   }
 
   async initialize() {
-    console.log("Initializing Text Embedding Worker...");
+    logger.info("Initializing text embedding worker");
 
     try {
       // Load BGE-M3 model for text embeddings
+      logger.info("Loading BGE-M3 text embedding model");
       this.extractor = await this.modelManager.ensureModel(
         "feature-extraction",
         "Xenova/bge-m3",
         { quantized: true }
       );
+      logger.info("BGE-M3 model loaded successfully");
 
-      console.log("BGE-M3 model ready");
-
-      // Ensure Qdrant collection exists
       await this.ensureQdrantCollection();
+      logger.info("Text embedding worker initialization completed");
     } catch (error) {
-      console.error("Failed to initialize Text Embedding Worker:", error);
+      logger.error(
+        { error: error.message },
+        "Failed to initialize text embedding worker"
+      );
       throw error;
     }
   }
 
   async ensureQdrantCollection() {
     try {
-      // Check if collection exists
+      const collectionName = "documents_text";
+      const vectorSize = 1024;
+
+      logger.debug(
+        { collectionName, vectorSize },
+        "Checking Qdrant collection"
+      );
+
       const collections = await this.qdrantClient.getCollections();
       const collectionExists = collections.collections.some(
-        (col) => col.name === "documents_text"
+        (col) => col.name === collectionName
       );
 
       if (!collectionExists) {
-        console.log("Creating Qdrant collection: documents_text");
-        await this.qdrantClient.createCollection("documents_text", {
-          vectors: {
-            size: 1024, // BGE-M3 embedding size
-            distance: "Cosine",
-          },
+        logger.info(
+          { collectionName, vectorSize },
+          "Creating new Qdrant collection"
+        );
+        await this.qdrantClient.createCollection(collectionName, {
+          vectors: { size: vectorSize, distance: "Cosine" },
         });
-        console.log("Qdrant collection created successfully");
+        logger.info(
+          { collectionName },
+          "Qdrant collection created successfully"
+        );
       } else {
-        console.log("Qdrant collection documents_text already exists");
+        logger.debug({ collectionName }, "Qdrant collection already exists");
       }
     } catch (error) {
-      console.error("Error ensuring Qdrant collection:", error);
+      logger.error(
+        { error: error.message },
+        "Error ensuring Qdrant collection"
+      );
     }
   }
 
   async start() {
+    logger.info("Starting text embedding worker");
+
     await this.initialize();
     await this.rabbitmq.connect();
     await this.rabbitmq.consumeQueue(
       "document.text.embedding",
       this.processDocument.bind(this)
     );
+
+    logger.info("Worker started and listening for text embedding messages");
   }
 
   async processDocument({ document_id, storage_path, bucket_name, chunks }) {
-    console.log(`Processing document ${document_id} for text embeddings`);
+    logger.info(
+      { document_id, storage_path },
+      "Processing document for text embeddings"
+    );
 
     try {
       let chunksToProcess = chunks;
 
-      // If no chunks provided, extract from file using storage path
       if (!chunks && storage_path) {
-        console.log(`Downloading and extracting text from MinIO: ${storage_path}`);
+        logger.debug({ document_id }, "Extracting text from storage");
         chunksToProcess = await this.extractTextFromMinIO(storage_path);
       }
 
       if (!chunksToProcess || chunksToProcess.length === 0) {
-        console.log("No text chunks to process");
+        logger.warn({ document_id }, "No text chunks found to process");
         return;
       }
 
-      console.log(
-        `Creating embeddings for document ${document_id} with ${chunksToProcess.length} chunks`
+      logger.info(
+        { document_id, chunkCount: chunksToProcess.length },
+        "Found text chunks to process"
       );
 
-      const batchSize = 8;
+      // Process chunks in batches to optimize performance
+      const batchSize = 16;
+      const totalBatches = Math.ceil(chunksToProcess.length / batchSize);
+
       for (let i = 0; i < chunksToProcess.length; i += batchSize) {
         const batch = chunksToProcess.slice(i, i + batchSize);
-        console.log(
-          `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(
-            chunksToProcess.length / batchSize
-          )}`
-        );
+        const batchIndex = Math.floor(i / batchSize) + 1;
 
+        logger.debug(
+          { document_id, batchIndex, totalBatches },
+          "Processing text batch"
+        );
         await this.processBatch(document_id, batch, i);
       }
 
-      console.log(
-        `Successfully processed all ${chunksToProcess.length} chunks for document ${document_id}`
+      logger.info(
+        { document_id, totalChunks: chunksToProcess.length },
+        "Document text processing completed"
       );
     } catch (error) {
-      console.error(`Error embedding document ${document_id}:`, error);
+      logger.error(
+        { document_id, error: error.message },
+        "Error processing document text embeddings"
+      );
       throw error;
     }
   }
 
   async extractTextFromMinIO(storagePath) {
     try {
-      // Download file from MinIO
+      logger.debug({ storagePath }, "Downloading file from MinIO");
       const fileBuffer = await this.minioClient.downloadFile(storagePath);
-      
-      // Determine file type from storage path
       const pathname = storagePath.toLowerCase();
-      
-      if (pathname.endsWith('.pdf')) {
+
+      if (pathname.endsWith(".pdf")) {
+        logger.debug({ storagePath }, "Extracting text from PDF");
         return await this.extractTextFromPDF(fileBuffer);
-      } else if (pathname.endsWith('.txt')) {
-        const text = fileBuffer.toString('utf-8');
+      } else if (pathname.endsWith(".txt")) {
+        logger.debug({ storagePath }, "Processing text file");
+        const text = fileBuffer.toString("utf-8");
         return this.chunkText(text);
       } else {
-        console.log('Unsupported file type for text extraction');
+        logger.warn(
+          { storagePath },
+          "Unsupported file type for text extraction"
+        );
         return [];
       }
     } catch (error) {
-      console.error("Error extracting text from MinIO:", error);
+      logger.error(
+        { storagePath, error: error.message },
+        "Error extracting text from storage"
+      );
       return [];
     }
   }
 
   async extractTextFromPDF(pdfBuffer) {
     try {
-      console.log("Extracting text from PDF...");
+      logger.debug("Starting PDF text extraction");
 
-      // Load PDF document using legacy build
+      // Configure PDF.js font path
+      const pdfjsDistRoot = path.dirname(
+        require.resolve("pdfjs-dist/package.json")
+      );
+      const standardFontDataUrl = path.join(pdfjsDistRoot, "standard_fonts/");
+
       const pdfDocument = await getDocument({
         data: new Uint8Array(pdfBuffer),
-        useSystemFonts: true,
-        disableFontFace: true,
-        standardFontDataUrl: null,
+        standardFontDataUrl: standardFontDataUrl,
       }).promise;
 
       const chunks = [];
       const numPages = pdfDocument.numPages;
-      console.log(`PDF has ${numPages} pages`);
+      logger.info({ numPages }, "PDF loaded successfully for text extraction");
 
-      // Process each page
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         try {
           const page = await pdfDocument.getPage(pageNum);
           const textContent = await page.getTextContent();
-
-          // Extract text from page
           const pageText = textContent.items
             .map((item) => item.str)
             .join(" ")
             .trim();
 
           if (pageText.length > 0) {
-            // Split page text into smaller chunks
             const pageChunks = this.chunkText(pageText, pageNum);
             chunks.push(...pageChunks);
-          }
 
-          console.log(
-            `Processed page ${pageNum}/${numPages}: ${pageText.length} characters`
-          );
+            if (pageNum % 10 === 0) {
+              logger.debug(
+                { pageNum, totalPages: numPages },
+                "PDF text extraction progress"
+              );
+            }
+          }
         } catch (pageError) {
-          console.error(`Error processing page ${pageNum}:`, pageError);
+          logger.warn(
+            { pageNum, error: pageError.message },
+            "Error processing PDF page"
+          );
         }
       }
 
-      console.log(`Extracted ${chunks.length} text chunks from PDF`);
+      logger.info(
+        { extractedChunks: chunks.length, totalPages: numPages },
+        "PDF text extraction completed"
+      );
       return chunks;
     } catch (error) {
-      console.error("Error extracting text from PDF:", error);
+      logger.error({ error: error.message }, "PDF text extraction failed");
       return [];
     }
   }
 
   chunkText(text, pageNumber = null) {
-    // Simple text chunking strategy
-    const maxChunkSize = 512; // Characters per chunk
+    const maxChunkSize = 512;
     const chunks = [];
 
-    // Split by sentences first
+    // Split text into sentences for better semantic chunks
     const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
-
     let currentChunk = "";
     let chunkIndex = 0;
 
     for (const sentence of sentences) {
       const trimmedSentence = sentence.trim();
 
-      // If adding this sentence would exceed the chunk size, save current chunk
+      // Check if adding sentence would exceed chunk size
       if (
         currentChunk.length + trimmedSentence.length + 1 > maxChunkSize &&
         currentChunk.length > 0
       ) {
         chunks.push({
           text: currentChunk.trim(),
-          pageNumber: pageNumber,
+          pageNumber,
           size: currentChunk.length,
           chunkIndex: chunkIndex++,
         });
         currentChunk = "";
       }
 
-      // Add sentence to current chunk
       if (currentChunk.length > 0) {
         currentChunk += " ";
       }
       currentChunk += trimmedSentence;
 
-      // If this single sentence is too long, split it further
+      // Handle very long sentences by splitting on words
       if (currentChunk.length > maxChunkSize) {
-        // Split by words
         const words = currentChunk.split(" ");
         let wordChunk = "";
 
@@ -259,7 +298,7 @@ class TextEmbeddingWorker {
           ) {
             chunks.push({
               text: wordChunk.trim(),
-              pageNumber: pageNumber,
+              pageNumber,
               size: wordChunk.length,
               chunkIndex: chunkIndex++,
             });
@@ -271,16 +310,15 @@ class TextEmbeddingWorker {
           }
           wordChunk += word;
         }
-
         currentChunk = wordChunk;
       }
     }
 
-    // Add remaining text as the last chunk
+    // Add remaining text as final chunk
     if (currentChunk.trim().length > 0) {
       chunks.push({
         text: currentChunk.trim(),
-        pageNumber: pageNumber,
+        pageNumber,
         size: currentChunk.length,
         chunkIndex: chunkIndex++,
       });
@@ -297,14 +335,17 @@ class TextEmbeddingWorker {
       const chunkIndex = startIndex + i;
 
       try {
-        // Generate embedding for chunk text
+        logger.debug(
+          { document_id, chunkIndex },
+          "Creating embedding for text chunk"
+        );
+
+        // Generate embedding using BGE-M3 model
         const output = await this.extractor(chunk.text, {
           pooling: "mean",
           normalize: true,
         });
         const embedding = Array.from(output.data);
-
-        // Create a proper UUID for the point ID
         const pointId = crypto.randomUUID();
 
         points.push({
@@ -321,40 +362,42 @@ class TextEmbeddingWorker {
           },
         });
       } catch (chunkError) {
-        console.error(`Error processing chunk ${chunkIndex}:`, chunkError);
-        // Continue with next chunk
+        logger.error(
+          { document_id, chunkIndex, error: chunkError.message },
+          "Error processing text chunk"
+        );
       }
     }
 
     if (points.length === 0) {
-      console.log("No chunks were successfully processed in this batch");
+      logger.warn({ document_id }, "No embeddings created for text batch");
       return;
     }
 
-    // Upsert to Qdrant
-    console.log(`Upserting ${points.length} embeddings to Qdrant...`);
-    await this.qdrantClient.upsert("documents_text", {
-      wait: true,
-      points,
-    });
-
-    console.log(`Successfully embedded ${points.length} chunks in batch`);
+    // Insert text embeddings into vector database
+    logger.debug(
+      { document_id, pointCount: points.length },
+      "Inserting text embeddings into Qdrant"
+    );
+    await this.qdrantClient.upsert("documents_text", { wait: true, points });
+    logger.info(
+      { document_id, inserted: points.length },
+      "Text batch embeddings inserted successfully"
+    );
   }
 
   async stop() {
-    console.log("Stopping Text Embedding Worker...");
-
+    logger.info("Stopping text embedding worker");
     if (this.rabbitmq) {
       await this.rabbitmq.close();
     }
-
-    console.log("Text Embedding Worker stopped");
+    logger.info("Text embedding worker stopped successfully");
   }
 }
 
-// Handle graceful shutdown
+// Graceful shutdown handlers
 process.on("SIGINT", async () => {
-  console.log("Received SIGINT, shutting down gracefully...");
+  logger.info("Received SIGINT, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }
@@ -362,16 +405,18 @@ process.on("SIGINT", async () => {
 });
 
 process.on("SIGTERM", async () => {
-  console.log("Received SIGTERM, shutting down gracefully...");
+  logger.info("Received SIGTERM, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }
   process.exit(0);
 });
 
-// Start worker
 const worker = new TextEmbeddingWorker();
 worker.start().catch((error) => {
-  console.error("Failed to start Text Embedding Worker:", error);
+  logger.error(
+    { error: error.message },
+    "Failed to start text embedding worker"
+  );
   process.exit(1);
 });

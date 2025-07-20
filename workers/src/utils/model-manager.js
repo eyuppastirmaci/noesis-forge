@@ -1,45 +1,58 @@
-import { pipeline } from '@huggingface/transformers';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { pipeline } from "@huggingface/transformers";
+import logger from "./logger.js";
+import fs from "fs/promises";
+import path from "path";
 
 export class ModelManager {
   constructor() {
-    this.modelsPath = process.env.MODELS_PATH || '/app/models';
-    this.loadedModels = new Map(); // Cache for loaded models
-    this.loadingPromises = new Map(); // Track loading promises to avoid duplicate downloads
+    this.modelsPath = process.env.MODELS_PATH || "/app/models";
+    this.loadedModels = new Map();
+    this.loadingPromises = new Map();
     this.maxRetries = 3;
-    this.retryDelay = 5000; // 5 seconds
+    this.retryDelay = 5000;
+
+    logger.info(
+      {
+        modelsPath: this.modelsPath,
+        maxRetries: this.maxRetries,
+        retryDelay: this.retryDelay,
+      },
+      "Model manager initialized"
+    );
   }
 
   async ensureModel(task, modelName, options = {}) {
     const cacheKey = `${task}-${modelName}`;
-    
-    // Return cached model if available
+
+    // Return cached model if already loaded
     if (this.loadedModels.has(cacheKey)) {
-      console.log(`Model ${modelName} already loaded in memory for task ${task}`);
+      logger.debug({ task, modelName }, "Model found in cache");
       return this.loadedModels.get(cacheKey);
     }
 
-    // If model is currently being loaded, wait for it
+    // Wait for ongoing loading process if exists
     if (this.loadingPromises.has(cacheKey)) {
-      console.log(`Model ${modelName} is currently being loaded, waiting...`);
+      logger.debug(
+        { task, modelName },
+        "Model is currently loading, waiting for completion"
+      );
       return await this.loadingPromises.get(cacheKey);
     }
 
-    // Start loading the model
+    logger.info({ task, modelName }, "Starting model loading process");
     const loadingPromise = this.loadModel(task, modelName, options);
     this.loadingPromises.set(cacheKey, loadingPromise);
 
     try {
       const model = await loadingPromise;
       this.loadedModels.set(cacheKey, model);
-      console.log(`Model ${modelName} successfully loaded and cached`);
+      logger.info({ task, modelName }, "Model loaded and cached successfully");
       return model;
     } catch (error) {
-      console.error(`Failed to load model ${modelName}:`, error);
+      logger.error(
+        { task, modelName, error: error.message },
+        "Failed to load model"
+      );
       throw error;
     } finally {
       this.loadingPromises.delete(cacheKey);
@@ -47,70 +60,98 @@ export class ModelManager {
   }
 
   async loadModel(task, modelName, options = {}) {
-    const modelPath = path.join(this.modelsPath, modelName.replace('/', '_'));
-    
+    const modelPath = path.join(this.modelsPath, modelName);
     let retryCount = 0;
-    
+
     while (retryCount <= this.maxRetries) {
       try {
-        // First try to load from local cache
+        // First attempt: load from local cache
         try {
           await fs.access(modelPath);
-          console.log(`Model ${modelName} found locally at ${modelPath}`);
-          
+          logger.debug(
+            { task, modelName, modelPath },
+            "Attempting to load model from local cache"
+          );
+
           const model = await pipeline(task, modelPath, {
             ...options,
             local_files_only: true,
-            cache_dir: this.modelsPath
+            cache_dir: this.modelsPath,
           });
-          
-          console.log(`Model ${modelName} loaded from local cache`);
+
+          logger.info(
+            { task, modelName },
+            "Model loaded successfully from local cache"
+          );
           return model;
         } catch (localError) {
-          console.log(`Local model not found or failed to load: ${localError.message}`);
-          // Fall through to download
+          logger.debug(
+            { task, modelName, error: localError.message },
+            "Local model not found, downloading from remote"
+          );
         }
 
-        // Download model
-        console.log(`Downloading model ${modelName} (attempt ${retryCount + 1}/${this.maxRetries + 1})...`);
-        
-        // Ensure models directory exists
+        // Second attempt: download from remote
         await fs.mkdir(this.modelsPath, { recursive: true });
-        
+        logger.info(
+          { task, modelName },
+          "Downloading model from remote repository"
+        );
+
         const model = await pipeline(task, modelName, {
           ...options,
           cache_dir: this.modelsPath,
-          local_files_only: false
+          local_files_only: false,
         });
 
-        console.log(`Model ${modelName} downloaded and loaded successfully`);
+        logger.info(
+          { task, modelName },
+          "Model downloaded and loaded successfully"
+        );
         return model;
-        
       } catch (error) {
         retryCount++;
-        
+        logger.warn(
+          {
+            task,
+            modelName,
+            retryCount,
+            maxRetries: this.maxRetries,
+            error: error.message,
+          },
+          "Model loading attempt failed"
+        );
+
         if (retryCount > this.maxRetries) {
-          console.error(`Failed to download model ${modelName} after ${this.maxRetries + 1} attempts:`, error);
-          
-          // Try to use a fallback model for the task
-          console.log(`Attempting to use default model for task: ${task}`);
-          
+          logger.warn(
+            { task },
+            "Max retries exceeded, attempting fallback model"
+          );
+
           try {
+            // Fallback: load default model for the task
             const fallbackModel = await pipeline(task, null, {
               ...options,
-              cache_dir: this.modelsPath
+              cache_dir: this.modelsPath,
             });
-            
-            console.log(`Fallback model loaded for task: ${task}`);
+
+            logger.info({ task }, "Fallback model loaded successfully");
             return fallbackModel;
-            
           } catch (fallbackError) {
-            console.error(`Fallback model also failed:`, fallbackError);
-            throw new Error(`Failed to load both specific model (${modelName}) and fallback model for task ${task}. Last error: ${error.message}`);
+            const errorMessage = `Failed to load both specific model (${modelName}) and fallback model for task ${task}. Last error: ${error.message}`;
+            logger.error(
+              { task, modelName, error: errorMessage },
+              "All model loading attempts failed"
+            );
+            throw new Error(errorMessage);
           }
         }
-        
-        console.log(`Retrying in ${this.retryDelay/1000} seconds...`);
+
+        // Wait before retry
+        logger.debug(
+          { task, modelName, retryDelay: this.retryDelay },
+          "Waiting before retry"
+        );
         await this.sleep(this.retryDelay);
       }
     }
@@ -118,68 +159,114 @@ export class ModelManager {
 
   getModel(task, modelName) {
     const cacheKey = `${task}-${modelName}`;
-    return this.loadedModels.get(cacheKey);
+    const model = this.loadedModels.get(cacheKey);
+
+    if (model) {
+      logger.debug({ task, modelName }, "Model retrieved from cache");
+    } else {
+      logger.debug({ task, modelName }, "Model not found in cache");
+    }
+
+    return model;
   }
 
   hasModel(task, modelName) {
     const cacheKey = `${task}-${modelName}`;
-    return this.loadedModels.has(cacheKey);
+    const exists = this.loadedModels.has(cacheKey);
+
+    logger.debug({ task, modelName, exists }, "Model existence check");
+    return exists;
   }
 
   clearModel(task, modelName) {
     const cacheKey = `${task}-${modelName}`;
     const removed = this.loadedModels.delete(cacheKey);
-    
+
     if (removed) {
-      console.log(`Model ${modelName} removed from cache`);
+      logger.info({ task, modelName }, "Model removed from cache");
+    } else {
+      logger.debug({ task, modelName }, "Model was not in cache");
     }
-    
+
     return removed;
   }
 
   clearAllModels() {
-    const count = this.loadedModels.size;
+    const modelCount = this.loadedModels.size;
     this.loadedModels.clear();
-    console.log(`Cleared ${count} models from cache`);
+
+    logger.info({ clearedModels: modelCount }, "All models cleared from cache");
   }
 
   listModels() {
-    return Array.from(this.loadedModels.keys());
+    const models = Array.from(this.loadedModels.keys());
+    logger.debug({ modelCount: models.length }, "Listed all cached models");
+    return models;
   }
 
   getLoadingStatus() {
-    return {
+    const status = {
       loaded: Array.from(this.loadedModels.keys()),
-      loading: Array.from(this.loadingPromises.keys())
+      loading: Array.from(this.loadingPromises.keys()),
     };
+
+    logger.debug(
+      {
+        loadedCount: status.loaded.length,
+        loadingCount: status.loading.length,
+      },
+      "Model loading status requested"
+    );
+
+    return status;
   }
 
   getMemoryUsage() {
-    return {
+    const usage = {
       loadedModelsCount: this.loadedModels.size,
       loadingModelsCount: this.loadingPromises.size,
-      modelsPath: this.modelsPath
+      modelsPath: this.modelsPath,
     };
+
+    logger.debug(usage, "Memory usage information requested");
+    return usage;
   }
 
   async preloadModels(modelsToLoad = []) {
-    console.log(`Preloading ${modelsToLoad.length} models...`);
-    
-    const loadPromises = modelsToLoad.map(({ task, modelName, options }) => 
-      this.ensureModel(task, modelName, options).catch(error => {
-        console.error(`Failed to preload model ${modelName}:`, error);
+    logger.info(
+      { modelCount: modelsToLoad.length },
+      "Starting model preloading"
+    );
+
+    // Load multiple models concurrently
+    const loadPromises = modelsToLoad.map(({ task, modelName, options }) =>
+      this.ensureModel(task, modelName, options).catch((error) => {
+        logger.error(
+          { task, modelName, error: error.message },
+          "Failed to preload model"
+        );
         return null;
       })
     );
-    
+
     const results = await Promise.allSettled(loadPromises);
-    const successful = results.filter(result => result.status === 'fulfilled' && result.value !== null).length;
-    
-    console.log(`Preloaded ${successful}/${modelsToLoad.length} models successfully`);
+    const successful = results.filter(
+      (result) => result.status === "fulfilled" && result.value !== null
+    ).length;
+
+    logger.info(
+      {
+        successful,
+        total: modelsToLoad.length,
+        failed: modelsToLoad.length - successful,
+      },
+      "Model preloading completed"
+    );
+
     return { successful, total: modelsToLoad.length };
   }
 
   sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

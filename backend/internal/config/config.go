@@ -16,7 +16,7 @@ type Config struct {
 	JWT      JWTConfig
 	MinIO    MinIOConfig
 	Redis    RedisConfig
-	// RabbitMQ RabbitMQConfig
+	RabbitMQ RabbitMQConfig
 	// Qdrant   QdrantConfig
 	// Ollama   OllamaConfig
 	// Email    EmailConfig

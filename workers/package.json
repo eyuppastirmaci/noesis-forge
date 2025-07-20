@@ -3,16 +3,8 @@
   "version": "1.0.0",
   "description": "Document processing workers for Noesis Forge",
   "type": "module",
-  "main": "src/text-extraction/index.js",
   "scripts": {
-    "start": "node src/text-extraction/index.js",
-    "start:extraction": "node src/text-extraction/index.js",
-    "start:text-embedding": "node src/text-embedding/index.js", 
-    "start:image-embedding": "node src/image-embedding/index.js",
-    "start:summarization": "node src/summarization/index.js",
-    "start:all": "concurrently \"npm:start:extraction\" \"npm:start:text-embedding\" \"npm:start:image-embedding\" \"npm:start:summarization\"",
-    "download-models": "node scripts/download-models.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "download-models": "node scripts/download-models.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.6.3",
@@ -26,6 +18,8 @@
     "ollama": "^0.5.16",
     "onnxruntime-node": "^1.22.0-rev",
     "pdfjs-dist": "^5.3.93",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
     "redis": "^5.6.0",
     "sharp": "^0.34.3"
   },
@@ -38,7 +32,7 @@
   },
   "keywords": [
     "document-processing",
-    "embeddings", 
+    "embeddings",
     "pdf",
     "vector-search"
   ]
