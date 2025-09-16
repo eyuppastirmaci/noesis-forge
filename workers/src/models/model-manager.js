@@ -1,5 +1,5 @@
 import { pipeline } from "@huggingface/transformers";
-import logger from "./logger.js";
+import logger from "../logging/logger.js";
 import fs from "fs/promises";
 import path from "path";
 

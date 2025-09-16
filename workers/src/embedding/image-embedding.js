@@ -1,8 +1,9 @@
 import { env, pipeline, RawImage } from "@huggingface/transformers";
-import { RabbitMQConnection } from "../utils/rabbitmq.js";
+import { RabbitMQConnection } from "../messaging/rabbitmq.js";
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { MinIOClient } from "../utils/minio-client.js";
-import logger from "../utils/logger.js";
+import { MinIOClient } from "../storage/minio-client.js";
+import BackendClient from "../api/backend-client.js";
+import logger from "../logging/logger.js";
 import sharp from "sharp";
 import crypto from "crypto";
 import {
@@ -90,6 +91,7 @@ class ImageEmbeddingWorker {
       url: process.env.QDRANT_URL || "http://localhost:6333",
     });
     this.minioClient = new MinIOClient();
+    this.backendClient = new BackendClient();
     this.extractor = null;
   }
 

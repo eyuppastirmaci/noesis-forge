@@ -1,8 +1,9 @@
-import { RabbitMQConnection } from "../utils/rabbitmq.js";
+import { RabbitMQConnection } from "../messaging/rabbitmq.js";
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { ModelManager } from "../utils/model-manager.js";
-import { MinIOClient } from "../utils/minio-client.js";
-import logger from "../utils/logger.js";
+import { ModelManager } from "../models/model-manager.js";
+import { MinIOClient } from "../storage/minio-client.js";
+import BackendClient from "../api/backend-client.js";
+import logger from "../logging/logger.js";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.min.mjs";
 import crypto from "crypto";
 import path from "path";
@@ -37,6 +38,7 @@ class TextEmbeddingWorker {
       url: process.env.QDRANT_URL || "http://localhost:6333",
     });
     this.minioClient = new MinIOClient();
+    this.backendClient = new BackendClient();
     this.extractor = null;
     this.modelManager = new ModelManager();
   }
@@ -128,6 +130,12 @@ class TextEmbeddingWorker {
       if (!chunks && storage_path) {
         logger.debug({ document_id }, "Extracting text from storage");
         chunksToProcess = await this.extractTextFromMinIO(storage_path);
+        
+        // Save extracted text to database
+        if (chunksToProcess && chunksToProcess.length > 0) {
+          const fullText = chunksToProcess.map(chunk => chunk.text).join('\n');
+          await this.backendClient.saveExtractedText(document_id, fullText);
+        }
       }
 
       if (!chunksToProcess || chunksToProcess.length === 0) {

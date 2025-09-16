@@ -106,7 +106,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	api := r.engine.Group("/api/v1")
 	api.Use(middleware.APISecurityHeaders())
 
-	// Register routes - now dependencies are injected properly
+	// Register routes
 	RegisterHealthRoutes(api, db)
 	RegisterAuthRoutes(api, r.authService, r.redisClient)
 	RegisterRoleRoutes(api, r.roleService, r.authService)
@@ -123,6 +123,10 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	// User Share routes
 	userShareHandler := handlers.NewUserShareHandler(r.userShareService, r.config)
 	RegisterUserShareRoutes(api, userShareHandler, r.authService)
+
+	// Internal routes for workers (no authentication required)
+	internalHandler := handlers.NewInternalHandler(r.documentService, db)
+	RegisterInternalRoutes(api, internalHandler)
 }
 
 func (r *Router) GetEngine() *gin.Engine {

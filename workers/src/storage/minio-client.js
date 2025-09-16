@@ -1,5 +1,5 @@
 import { Client as MinioClient } from "minio";
-import logger from "./logger.js";
+import logger from "../logging/logger.js";
 
 export class MinIOClient {
   constructor() {

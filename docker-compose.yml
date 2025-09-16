@@ -205,7 +205,7 @@ services:
       context: ./workers
       dockerfile: Dockerfile
       target: runtime
-    command: ["src/text-embedding/index.js"]
+    command: ["src/embedding/text-embedding.js"]
     restart: unless-stopped
     environment:
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
@@ -216,6 +216,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=noesis-documents
+      - INTERNAL_API_URL=http://host.docker.internal:8000/api/v1
     networks:
       - noesis-network
     volumes:
@@ -233,7 +234,7 @@ services:
       context: ./workers
       dockerfile: Dockerfile
       target: runtime
-    command: ["src/image-embedding/index.js"]
+    command: ["src/embedding/image-embedding.js"]
     restart: unless-stopped
     environment:
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
@@ -244,6 +245,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=noesis-documents
+      - INTERNAL_API_URL=http://host.docker.internal:8000/api/v1
     networks:
       - noesis-network
     volumes:

@@ -107,7 +107,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - ✅ RabbitMQ setup
 - ✅ Embedding worker (BGE-M3)
 - ✅ Multimodal embeddings (SigLIP2 for images)
-- ☐ Text extraction service
+- ✅ Text extraction service
 - ✅ Qdrant vector storage setup
 - ☐ Content summarization (Automatic document summaries)
 - ☐ GPU support for models (Enable GPU acceleration for model inference)
