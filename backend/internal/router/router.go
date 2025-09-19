@@ -9,23 +9,25 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/queue"
 	"github.com/eyuppastirmaci/noesis-forge/internal/redis"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type Router struct {
-	engine           *gin.Engine
-	config           *config.Config
-	authService      *services.AuthService
-	roleService      *services.RoleService
-	documentService  *services.DocumentService
-	favoriteService  *services.FavoriteService
-	minioService     *services.MinIOService
-	redisClient      *redis.Client
-	shareService     *services.ShareService
-	userShareService *services.UserShareService
-	queuePublisher   *queue.Publisher
+	engine                *gin.Engine
+	config                *config.Config
+	authService           *services.AuthService
+	roleService           *services.RoleService
+	documentService       *services.DocumentService
+	favoriteService       *services.FavoriteService
+	minioService          *services.MinIOService
+	redisClient           *redis.Client
+	shareService          *services.ShareService
+	userShareService      *services.UserShareService
+	processingTaskService *services.ProcessingTaskService
+	queuePublisher        *queue.Publisher
 }
 
 func New(
@@ -36,6 +38,7 @@ func New(
 	userShareService *services.UserShareService,
 	minioService *services.MinIOService,
 	queuePublisher *queue.Publisher,
+	processingTaskService *services.ProcessingTaskService,
 ) *Router {
 	// Setup Gin mode
 	if cfg.Environment == "production" {
@@ -60,17 +63,18 @@ func New(
 	favoriteService := services.NewFavoriteService(db)
 
 	return &Router{
-		engine:           engine,
-		config:           cfg,
-		authService:      authService,
-		roleService:      roleService,
-		documentService:  documentService,
-		favoriteService:  favoriteService,
-		minioService:     minioService,
-		redisClient:      redisClient,
-		shareService:     shareService,
-		userShareService: userShareService,
-		queuePublisher:   queuePublisher,
+		engine:                engine,
+		config:                cfg,
+		authService:           authService,
+		roleService:           roleService,
+		documentService:       documentService,
+		favoriteService:       favoriteService,
+		minioService:          minioService,
+		redisClient:           redisClient,
+		shareService:          shareService,
+		userShareService:      userShareService,
+		processingTaskService: processingTaskService,
+		queuePublisher:        queuePublisher,
 	}
 }
 
@@ -110,7 +114,7 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterHealthRoutes(api, db)
 	RegisterAuthRoutes(api, r.authService, r.redisClient)
 	RegisterRoleRoutes(api, r.roleService, r.authService)
-	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService, r.queuePublisher)
+	RegisterDocumentRoutes(api, r.documentService, r.minioService, r.authService, r.userShareService, r.processingTaskService, r.queuePublisher)
 	RegisterFavoriteRoutes(api, r.favoriteService, r.authService)
 	RegisterCommentRoutes(api, db, r.authService, r.redisClient)
 	RegisterActivityRoutes(api, db, r.authService)
@@ -125,10 +129,16 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	RegisterUserShareRoutes(api, userShareHandler, r.authService)
 
 	// Internal routes for workers (no authentication required)
-	internalHandler := handlers.NewInternalHandler(r.documentService, db)
+	internalHandler := handlers.NewInternalHandler(r.documentService, r.processingTaskService, db)
 	RegisterInternalRoutes(api, internalHandler)
 }
 
 func (r *Router) GetEngine() *gin.Engine {
 	return r.engine
+}
+
+func (r *Router) SetupWebSocket(wsServer *websocket.Server) {
+	// Add WebSocket endpoint
+	r.engine.GET("/socket.io/*any", gin.WrapH(wsServer.GetServer()))
+	r.engine.POST("/socket.io/*any", gin.WrapH(wsServer.GetServer()))
 }

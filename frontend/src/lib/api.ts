@@ -225,6 +225,15 @@ class ApiClient {
   async healthCheck(): Promise<SuccessResponse<any>> {
     return this.get("/health");
   }
+
+  // Processing Queue endpoints
+  async getProcessingQueue(limit: number = 10, offset: number = 0): Promise<SuccessResponse<any>> {
+    return this.get(`/documents/processing-queue?limit=${limit}&offset=${offset}`);
+  }
+
+  async getDocumentProcessingStatus(documentId: string): Promise<SuccessResponse<any>> {
+    return this.get(`/documents/${documentId}/processing-status`);
+  }
 }
 
 // Singleton instance

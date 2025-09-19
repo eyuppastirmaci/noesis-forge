@@ -79,6 +79,7 @@ func RunMigrations(db *gorm.DB, dbName string) error {
 		&models.ShareInvitation{},
 		&models.DocumentComment{},
 		&models.DocumentActivity{},
+		&models.ProcessingTask{},
 	)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to run migrations")

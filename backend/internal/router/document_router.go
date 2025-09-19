@@ -15,9 +15,10 @@ func RegisterDocumentRoutes(
 	minioService *services.MinIOService,
 	authService *services.AuthService,
 	userShareService *services.UserShareService,
+	processingTaskService *services.ProcessingTaskService,
 	queuePublisher *queue.Publisher,
 ) {
-	documentHandler := handlers.NewDocumentHandler(documentService, minioService, userShareService, queuePublisher)
+	documentHandler := handlers.NewDocumentHandler(documentService, minioService, userShareService, processingTaskService, queuePublisher)
 
 	documents := r.Group("/documents")
 	documents.Use(middleware.AuthMiddleware(authService))
@@ -41,5 +42,9 @@ func RegisterDocumentRoutes(
 		documents.GET("/:id/preview", validations.ValidateDocumentID(), documentHandler.GetDocumentPreview)
 		documents.GET("/:id/thumbnail", validations.ValidateDocumentID(), documentHandler.GetDocumentThumbnail)
 		documents.GET("/:id/revisions", validations.ValidateDocumentID(), documentHandler.GetDocumentRevisions)
+
+		// Processing queue and status operations
+		documents.GET("/processing-queue", documentHandler.GetUserProcessingQueue)
+		documents.GET("/:id/processing-status", validations.ValidateDocumentID(), documentHandler.GetDocumentProcessingStatus)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/postgres"
 	"github.com/eyuppastirmaci/noesis-forge/internal/router"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/websocket"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -21,6 +22,9 @@ type App struct {
 	DB     *gorm.DB
 	Router *router.Router
 	Redis  *redis.Client
+
+	// WebSocket
+	WebSocketServer *websocket.Server
 
 	// Repositories
 	DocumentRepo       interfaces.DocumentRepository
@@ -102,9 +106,19 @@ func New() (*App, error) {
 		log.Fatal("Failed to initialize queue publisher:", err)
 	}
 
+	// Initialize WebSocket server
+	webSocketServer := websocket.NewServer()
+	webSocketServer.SetupHandlers()
+
+	// Initialize ProcessingTaskService with WebSocket server
+	processingTaskService := services.NewProcessingTaskService(db, webSocketServer)
+
 	// Initialize router with services
-	r := router.New(cfg, db, documentService, authService, userShareService, minioService, queuePublisher)
+	r := router.New(cfg, db, documentService, authService, userShareService, minioService, queuePublisher, processingTaskService)
 	r.SetupRoutes(db)
+
+	// Add WebSocket endpoint to router
+	r.SetupWebSocket(webSocketServer)
 
 	logrus.Info("Application initialized successfully")
 	logrus.Infof("MinIO endpoint: %s", cfg.MinIO.Endpoint)
@@ -115,6 +129,7 @@ func New() (*App, error) {
 		DB:                 db,
 		Router:             r,
 		Redis:              customRedisClient,
+		WebSocketServer:    webSocketServer,
 		DocumentRepo:       documentRepo,
 		DocumentSearchRepo: documentSearchRepo,
 		AuthService:        authService,

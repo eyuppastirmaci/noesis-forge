@@ -17,26 +17,13 @@ class SummaryWorker {
   }
 
   async initialize() {
-    logger.info("Initializing summary worker");
 
     try {
       // Load smaller, more compatible summarization model
-      logger.info("Loading DistilBART summarization model for better compatibility");
       this.summarizer = await this.modelManager.ensureModel(
         "summarization",
-        "sshleifer/distilbart-cnn-12-6", // Smaller, faster, more compatible
+        "sshleifer/distilbart-cnn-12-6",
         { quantized: true }
-      );
-      logger.info("DistilBART summarization model loaded successfully");
-      
-      logger.info(
-        { 
-          model: "sshleifer/distilbart-cnn-12-6",
-          maxLength: this.maxLength,
-          minLength: this.minLength,
-          maxInputLength: this.maxInputLength
-        },
-        "Summary worker initialization completed"
       );
     } catch (error) {
       logger.error(
@@ -49,22 +36,22 @@ class SummaryWorker {
 
 
   async start() {
-    logger.info("Starting summary worker");
-
     await this.initialize();
     await this.rabbitmq.connect();
     await this.rabbitmq.consumeQueue(
       "document.summarization",
       this.processDocument.bind(this)
     );
-
-    logger.info("Summary worker started and listening for messages");
   }
 
   async processDocument({ document_id, extracted_text, storage_path }) {
-    logger.info(
-      { document_id },
-      "Processing document for summarization"
+    // Mark summarization as processing
+    await this.backendClient.updateProcessingTask(
+      document_id,
+      "summarization",
+      "processing",
+      0,
+      "summary-worker"
     );
 
     try {
@@ -84,15 +71,6 @@ class SummaryWorker {
         return;
       }
 
-      logger.debug(
-        { 
-          document_id, 
-          textLength: textToSummarize.length,
-          preview: textToSummarize.substring(0, 200) + "..."
-        },
-        "Generating summary for document text"
-      );
-
       // Generate summary using DistilBART
       const summary = await this.generateSummary(textToSummarize);
       
@@ -105,17 +83,28 @@ class SummaryWorker {
       const saveSuccess = await this.backendClient.saveSummary(document_id, summary);
       
       if (saveSuccess) {
-        logger.info(
-          { 
-            document_id, 
-            summaryLength: summary.length 
-          },
-          "Document summary generated and saved successfully"
+        // Mark summarization as completed
+        await this.backendClient.updateProcessingTask(
+          document_id,
+          "summarization",
+          "completed",
+          100,
+          "summary-worker"
         );
       } else {
         logger.error(
           { document_id },
           "Failed to save generated summary to database"
+        );
+        
+        // Mark summarization as failed
+        await this.backendClient.updateProcessingTask(
+          document_id,
+          "summarization",
+          "failed",
+          0,
+          "summary-worker",
+          "Failed to save summary to database"
         );
       }
 
@@ -124,6 +113,17 @@ class SummaryWorker {
         { document_id, error: error.message },
         "Error processing document for summarization"
       );
+      
+      // Mark summarization as failed
+      await this.backendClient.updateProcessingTask(
+        document_id,
+        "summarization",
+        "failed",
+        0,
+        "summary-worker",
+        error.message
+      );
+      
       throw error;
     }
   }
@@ -134,17 +134,6 @@ class SummaryWorker {
       const truncatedText = text.length > this.maxInputLength 
         ? text.substring(0, this.maxInputLength) + "...[content truncated for processing]"
         : text;
-
-      logger.debug(
-        { 
-          model: "sshleifer/distilbart-cnn-12-6",
-          originalLength: text.length,
-          processedLength: truncatedText.length,
-          maxOutputLength: this.maxLength,
-          minOutputLength: this.minLength
-        },
-        "Generating summary using DistilBART model"
-      );
 
       // Use DistilBART summarization model - smaller and more compatible
       const summaryResult = await this.summarizer(truncatedText, {
@@ -162,16 +151,6 @@ class SummaryWorker {
 
       const generatedSummary = summaryResult[0].summary_text.trim();
       
-      logger.info(
-        { 
-          summaryLength: generatedSummary.length,
-          originalTextLength: text.length,
-          compressionRatio: Math.round((generatedSummary.length / text.length) * 100) + "%",
-          model: "sshleifer/distilbart-cnn-12-6"
-        },
-        "Summary generated successfully with DistilBART"
-      );
-
       return generatedSummary;
 
     } catch (error) {
@@ -188,17 +167,14 @@ class SummaryWorker {
 
 
   async stop() {
-    logger.info("Stopping summary worker");
     if (this.rabbitmq) {
       await this.rabbitmq.close();
     }
-    logger.info("Summary worker stopped successfully");
   }
 }
 
 // Graceful shutdown handlers
 process.on("SIGINT", async () => {
-  logger.info("Received SIGINT, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }
@@ -206,7 +182,6 @@ process.on("SIGINT", async () => {
 });
 
 process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }

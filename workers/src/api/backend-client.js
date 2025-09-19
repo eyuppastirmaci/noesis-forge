@@ -128,6 +128,44 @@ class BackendClient {
   }
 
   /**
+   * Updates processing task status in the backend
+   * @param {string} documentId - The document ID
+   * @param {string} taskType - Task type (text-embedding, image-embedding, summarization)
+   * @param {string} status - Task status (pending, processing, completed, failed)
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {string} workerId - Worker identifier
+   * @param {string} errorMessage - Error message if failed
+   * @returns {Promise<boolean>} - Success status
+   */
+  async updateProcessingTask(documentId, taskType, status, progress = 0, workerId = '', errorMessage = '') {
+    try {
+      const response = await this.client.patch(
+        `/internal/documents/${documentId}/processing-task`,
+        {
+          task_type: taskType,
+          status: status,
+          progress: progress,
+          worker_id: workerId,
+          error_message: errorMessage
+        }
+      );
+      return true;
+    } catch (error) {
+      logger.error(
+        { 
+          document_id: documentId,
+          task_type: taskType,
+          error: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText
+        },
+        "Failed to update processing task status"
+      );
+      return false;
+    }
+  }
+
+  /**
    * Get the configured backend URL
    * @returns {string} - The backend base URL
    */

@@ -68,12 +68,18 @@ export type {
   DocumentSortDirection,
   DocumentFilterStatus,
   DocumentFilterType,
+  ProcessingTask,
+  ProcessingQueueItem,
+  ProcessingQueueResponse,
+  DocumentProcessingProgress,
 } from "./document";
 
 export {
   DocumentStatus,
   DocumentType,
   DocumentErrorCode,
+  ProcessingTaskType,
+  ProcessingTaskStatus,
   DOCUMENT_ENDPOINTS,
   DOCUMENT_QUERY_KEYS,
   DOCUMENT_MUTATION_KEYS,

@@ -96,20 +96,15 @@ class ImageEmbeddingWorker {
   }
 
   async initialize() {
-    logger.info("Initializing image embedding worker");
-
     try {
       // Load the image feature extraction model
-      logger.info("Loading image feature extraction model");
       this.extractor = await pipeline(
         "image-feature-extraction",
         "Xenova/siglip-base-patch16-224",
         { quantized: true }
       );
-      logger.info("Image extraction model loaded successfully");
 
       await this.ensureQdrantCollection();
-      logger.info("Worker initialization completed");
     } catch (error) {
       logger.error({ error: error.message }, "Failed to initialize worker");
       throw error;
@@ -126,14 +121,9 @@ class ImageEmbeddingWorker {
       );
 
       if (!collectionExists) {
-        logger.info({ collectionName }, "Creating new Qdrant collection");
         await this.qdrantClient.createCollection(collectionName, {
           vectors: { size: 768, distance: "Cosine" },
         });
-        logger.info(
-          { collectionName },
-          "Qdrant collection created successfully"
-        );
       }
     } catch (error) {
       logger.error(
@@ -145,24 +135,25 @@ class ImageEmbeddingWorker {
   }
 
   async start() {
-    logger.info("Starting image embedding worker");
-
     await this.initialize();
     await this.rabbitmq.connect();
     await this.rabbitmq.consumeQueue(
       "document.image.embedding",
       this.processDocument.bind(this)
     );
-
-    logger.info("Worker started and listening for messages");
   }
 
   async processDocument({ document_id, storage_path, bucket_name, images }) {
-    logger.info(
-      { document_id, storage_path },
-      "Processing document for image embeddings"
-    );
     let totalInserted = 0;
+
+    // Mark image embedding as processing
+    await this.backendClient.updateProcessingTask(
+      document_id,
+      "image-embedding",
+      "processing",
+      0,
+      "image-embedding-worker"
+    );
 
     try {
       let imagesToProcess = images;
@@ -175,11 +166,6 @@ class ImageEmbeddingWorker {
         return;
       }
 
-      logger.info(
-        { document_id, imageCount: imagesToProcess.length },
-        "Found images to process"
-      );
-
       // Process images in batches to manage memory usage
       const batchSize = 3;
       for (let i = 0; i < imagesToProcess.length; i += batchSize) {
@@ -188,15 +174,30 @@ class ImageEmbeddingWorker {
         totalInserted += batchInserted;
       }
 
-      logger.info(
-        { document_id, totalInserted },
-        "Document processing completed"
+      // Mark image embedding as completed
+      await this.backendClient.updateProcessingTask(
+        document_id,
+        "image-embedding",
+        "completed",
+        100,
+        "image-embedding-worker"
       );
     } catch (error) {
       logger.error(
         { document_id, error: error.message },
         "Error processing document"
       );
+      
+      // Mark image embedding as failed
+      await this.backendClient.updateProcessingTask(
+        document_id,
+        "image-embedding",
+        "failed",
+        0,
+        "image-embedding-worker",
+        error.message
+      );
+      
       throw error;
     }
   }
@@ -232,7 +233,6 @@ class ImageEmbeddingWorker {
 
       const images = [];
       const numPages = pdfDocument.numPages;
-      logger.info({ numPages }, "PDF loaded successfully");
 
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         try {
@@ -292,10 +292,6 @@ class ImageEmbeddingWorker {
       }
 
       await pdfDocument.destroy();
-      logger.info(
-        { extractedImages: images.length, totalPages: numPages },
-        "PDF image extraction completed"
-      );
       return images;
     } catch (error) {
       logger.error({ error: error.message }, "PDF extraction failed");
@@ -338,11 +334,6 @@ class ImageEmbeddingWorker {
 
     // Insert embeddings into vector database
     await this.qdrantClient.upsert("documents_images", { wait: true, points });
-    logger.info(
-      { document_id, inserted: points.length },
-      "Batch embeddings inserted successfully"
-    );
-
     return points.length;
   }
 
@@ -416,17 +407,14 @@ class ImageEmbeddingWorker {
   }
 
   async stop() {
-    logger.info("Stopping image embedding worker");
     if (this.rabbitmq) {
       await this.rabbitmq.close();
     }
-    logger.info("Worker stopped successfully");
   }
 }
 
 // Graceful shutdown handlers
 process.on("SIGINT", async () => {
-  logger.info("Received SIGINT, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }
@@ -434,7 +422,6 @@ process.on("SIGINT", async () => {
 });
 
 process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }

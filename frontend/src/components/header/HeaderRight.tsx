@@ -20,6 +20,7 @@ import Image from "next/image";
 import IconLinkButton from "../ui/IconLinkButton";
 import IconDropdownButton from "../ui/IconDropdownButton";
 import CustomTooltip from "../ui/CustomTooltip";
+import ProcessingQueueDropdown from "../ui/ProcessingQueueDropdown";
 import Button from "../ui/Button";
 
 export default function HeaderRight() {
@@ -124,10 +125,14 @@ export default function HeaderRight() {
       <div className="flex items-center gap-2 sm:gap-3 justify-end">
         {/* Settings - hidden on mobile */}
         <div className="hidden sm:block">
-          <IconLinkButton Icon={Settings} href="/settings" className="btn-settings" />
+          <IconLinkButton
+            Icon={Settings}
+            href="/settings"
+            className="btn-settings"
+          />
           <CustomTooltip anchorSelect=".btn-settings">Settings</CustomTooltip>
         </div>
-        
+
         <Link
           href="/auth/login"
           className="px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-foreground hover:text-foreground-secondary transition-colors"
@@ -135,7 +140,11 @@ export default function HeaderRight() {
           Sign In
         </Link>
         <Link href="/auth/register">
-          <Button variant="primary" size="sm" className="text-xs sm:text-sm px-2 sm:px-4">
+          <Button
+            variant="primary"
+            size="sm"
+            className="text-xs sm:text-sm px-2 sm:px-4"
+          >
             Sign Up
           </Button>
         </Link>
@@ -147,22 +156,22 @@ export default function HeaderRight() {
   const handleLogout = async () => {
     try {
       // Call frontend logout API route which handles both backend and NextAuth logout
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
+        credentials: "include",
       });
-      
+
       if (!response.ok) {
         // Logout API failed silently
       }
-      
+
       // Sign out from NextAuth (clears NextAuth session)
       await signOut({ redirect: true, callbackUrl: "/" });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       // Force logout even if there's an error
       await signOut({ redirect: true, callbackUrl: "/" });
     }
@@ -233,6 +242,14 @@ export default function HeaderRight() {
       ref={mobileMenuRef}
       className="absolute top-full right-0 mt-1 w-48 bg-background border border-border rounded-md shadow-lg z-50 animate-in fade-in-0 zoom-in-95 sm:hidden"
     >
+      <button
+        onClick={() => setIsMobileMenuOpen(false)}
+        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-gray-200 dark:hover:bg-gray-800 text-left"
+      >
+        <ListOrdered className="w-4 h-4" />
+        <span>Processing Queue</span>
+      </button>
+
       <div className="py-1">
         <Link
           href="/documents/recent"
@@ -242,21 +259,13 @@ export default function HeaderRight() {
           <FileClock className="w-4 h-4" />
           <span>Recent Documents</span>
         </Link>
-        
+
         <button
           onClick={() => setIsMobileMenuOpen(false)}
           className="flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-gray-200 dark:hover:bg-gray-800 text-left"
         >
           <Bell className="w-4 h-4" />
           <span>Notifications</span>
-        </button>
-
-        <button
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-gray-200 dark:hover:bg-gray-800 text-left"
-        >
-          <ListOrdered className="w-4 h-4" />
-          <span>Processing Queue</span>
         </button>
 
         <button
@@ -293,8 +302,12 @@ export default function HeaderRight() {
         {/* Mobile Layout */}
         <div className="flex items-center gap-1 sm:hidden">
           {/* Upload - always visible */}
-          <IconLinkButton Icon={FileUp} href="/documents/upload" className="btn-upload-mobile p-1.5" />
-          
+          <IconLinkButton
+            Icon={FileUp}
+            href="/documents/upload"
+            className="btn-upload-mobile p-1.5"
+          />
+
           {/* Mobile More Menu */}
           <div className="relative">
             <button
@@ -314,12 +327,15 @@ export default function HeaderRight() {
             className="flex items-center cursor-pointer p-1 rounded-lg hover:bg-background-secondary transition-colors"
             onClick={toggleDropdown}
           >
-            <div className="relative w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
-              backgroundColor: 'var(--avatar-background)',
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              borderColor: 'var(--avatar-border)'
-            }}>
+            <div
+              className="relative w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200"
+              style={{
+                backgroundColor: "var(--avatar-background)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+                borderColor: "var(--avatar-border)",
+              }}
+            >
               {session?.user.avatar ? (
                 <Image
                   src={session.user.avatar}
@@ -329,9 +345,12 @@ export default function HeaderRight() {
                   className="rounded-full object-cover"
                 />
               ) : (
-                <span className="text-xs font-medium select-none" style={{
-                  color: 'var(--avatar-text)'
-                }}>
+                <span
+                  className="text-xs font-medium select-none"
+                  style={{
+                    color: "var(--avatar-text)",
+                  }}
+                >
                   {avatarLetter}
                 </span>
               )}
@@ -342,8 +361,15 @@ export default function HeaderRight() {
         {/* Desktop Layout */}
         <div className="hidden sm:flex items-center gap-3 justify-end">
           {/* Upload */}
-          <IconLinkButton Icon={FileUp} href="/documents/upload" className="btn-upload" />
+          <IconLinkButton
+            Icon={FileUp}
+            href="/documents/upload"
+            className="btn-upload"
+          />
           <CustomTooltip anchorSelect=".btn-upload">Upload</CustomTooltip>
+
+          {/* Processing Queue */}
+          <ProcessingQueueDropdown className="btn-processing-queue" />
 
           {/* Recent Documents */}
           <IconDropdownButton
@@ -369,22 +395,12 @@ export default function HeaderRight() {
             Notifications
           </CustomTooltip>
 
-          {/* Processing Queue */}
-          <IconDropdownButton
-            Icon={ListOrdered}
-            dropdownItems={[
-              { label: "Articles are being researched...", onClick: () => {} },
-            ]}
-            className="btn-processing-queue"
-          />
-          <CustomTooltip anchorSelect=".btn-processing-queue" place="left">
-            Processing Queue
-          </CustomTooltip>
-
           {/* AI Status */}
           <IconDropdownButton
             Icon={Sparkle}
-            dropdownItems={[{ label: "Ollama is running...", onClick: () => {} }]}
+            dropdownItems={[
+              { label: "Ollama is running...", onClick: () => {} },
+            ]}
             className="btn-ai-status"
           />
           <CustomTooltip anchorSelect=".btn-ai-status" place="left">
@@ -398,16 +414,22 @@ export default function HeaderRight() {
             className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-background-secondary transition-colors"
             onClick={toggleDropdown}
           >
-            <div className="relative group w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200" style={{
-              backgroundColor: 'var(--avatar-background)',
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              borderColor: 'var(--avatar-border)'
-            }} onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--avatar-border-hover)';
-            }} onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--avatar-border)';
-            }}>
+            <div
+              className="relative group w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200"
+              style={{
+                backgroundColor: "var(--avatar-background)",
+                borderWidth: "1px",
+                borderStyle: "solid",
+                borderColor: "var(--avatar-border)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor =
+                  "var(--avatar-border-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--avatar-border)";
+              }}
+            >
               {session?.user.avatar ? (
                 <Image
                   src={session.user.avatar}
@@ -417,9 +439,12 @@ export default function HeaderRight() {
                   className="rounded-full object-cover"
                 />
               ) : (
-                <span className="text-sm font-medium select-none" style={{
-                  color: 'var(--avatar-text)'
-                }}>
+                <span
+                  className="text-sm font-medium select-none"
+                  style={{
+                    color: "var(--avatar-text)",
+                  }}
+                >
                   {avatarLetter}
                 </span>
               )}

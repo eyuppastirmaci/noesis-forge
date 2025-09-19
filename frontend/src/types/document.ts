@@ -306,3 +306,61 @@ export interface DocumentRevision {
   changeSummary: string; // JSON string describing changed fields
   createdAt: string;
 }
+
+// Processing Task Types
+export enum ProcessingTaskType {
+  TEXT_EMBEDDING = "text-embedding",
+  IMAGE_EMBEDDING = "image-embedding", 
+  SUMMARIZATION = "summarization",
+}
+
+export enum ProcessingTaskStatus {
+  PENDING = "pending",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed",
+}
+
+export interface ProcessingTask {
+  task_type: ProcessingTaskType;
+  status: ProcessingTaskStatus;
+  progress: number;
+  started_at?: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface ProcessingQueueItem {
+  document_id: string;
+  document_title: string;
+  document_type: DocumentType;
+  created_at: string;
+  tasks: ProcessingTask[];
+}
+
+export interface ProcessingQueueResponse {
+  queue_items: ProcessingQueueItem[];
+  total_count: number;
+  returned_count: number;
+  pagination: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  };
+}
+
+export interface DocumentProcessingProgress {
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number; // 0-100
+  is_completed: boolean;
+  task_details: {
+    [key in ProcessingTaskType]?: {
+      status: ProcessingTaskStatus;
+      progress: number;
+      error?: string;
+      started?: string;
+      completed?: string;
+    };
+  };
+}

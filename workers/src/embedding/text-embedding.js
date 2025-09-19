@@ -44,20 +44,15 @@ class TextEmbeddingWorker {
   }
 
   async initialize() {
-    logger.info("Initializing text embedding worker");
-
     try {
       // Load BGE-M3 model for text embeddings
-      logger.info("Loading BGE-M3 text embedding model");
       this.extractor = await this.modelManager.ensureModel(
         "feature-extraction",
         "Xenova/bge-m3",
         { quantized: true }
       );
-      logger.info("BGE-M3 model loaded successfully");
 
       await this.ensureQdrantCollection();
-      logger.info("Text embedding worker initialization completed");
     } catch (error) {
       logger.error(
         { error: error.message },
@@ -72,30 +67,15 @@ class TextEmbeddingWorker {
       const collectionName = "documents_text";
       const vectorSize = 1024;
 
-      logger.debug(
-        { collectionName, vectorSize },
-        "Checking Qdrant collection"
-      );
-
       const collections = await this.qdrantClient.getCollections();
       const collectionExists = collections.collections.some(
         (col) => col.name === collectionName
       );
 
       if (!collectionExists) {
-        logger.info(
-          { collectionName, vectorSize },
-          "Creating new Qdrant collection"
-        );
         await this.qdrantClient.createCollection(collectionName, {
           vectors: { size: vectorSize, distance: "Cosine" },
         });
-        logger.info(
-          { collectionName },
-          "Qdrant collection created successfully"
-        );
-      } else {
-        logger.debug({ collectionName }, "Qdrant collection already exists");
       }
     } catch (error) {
       logger.error(
@@ -106,34 +86,35 @@ class TextEmbeddingWorker {
   }
 
   async start() {
-    logger.info("Starting text embedding worker");
-
     await this.initialize();
     await this.rabbitmq.connect();
     await this.rabbitmq.consumeQueue(
       "document.text.embedding",
       this.processDocument.bind(this)
     );
-
-    logger.info("Worker started and listening for text embedding messages");
   }
 
   async processDocument({ document_id, storage_path, bucket_name, chunks }) {
-    logger.info(
-      { document_id, storage_path },
-      "Processing document for text embeddings"
+    // Mark text embedding as processing
+    await this.backendClient.updateProcessingTask(
+      document_id,
+      "text-embedding",
+      "processing",
+      0,
+      "text-embedding-worker"
     );
 
     try {
       let chunksToProcess = chunks;
 
       if (!chunks && storage_path) {
-        logger.debug({ document_id }, "Extracting text from storage");
         chunksToProcess = await this.extractTextFromMinIO(storage_path);
-        
+
         // Save extracted text to database
         if (chunksToProcess && chunksToProcess.length > 0) {
-          const fullText = chunksToProcess.map(chunk => chunk.text).join('\n');
+          const fullText = chunksToProcess
+            .map((chunk) => chunk.text)
+            .join("\n");
           await this.backendClient.saveExtractedText(document_id, fullText);
         }
       }
@@ -143,11 +124,6 @@ class TextEmbeddingWorker {
         return;
       }
 
-      logger.info(
-        { document_id, chunkCount: chunksToProcess.length },
-        "Found text chunks to process"
-      );
-
       // Process chunks in batches to optimize performance
       const batchSize = 16;
       const totalBatches = Math.ceil(chunksToProcess.length / batchSize);
@@ -156,16 +132,16 @@ class TextEmbeddingWorker {
         const batch = chunksToProcess.slice(i, i + batchSize);
         const batchIndex = Math.floor(i / batchSize) + 1;
 
-        logger.debug(
-          { document_id, batchIndex, totalBatches },
-          "Processing text batch"
-        );
         await this.processBatch(document_id, batch, i);
       }
 
-      logger.info(
-        { document_id, totalChunks: chunksToProcess.length },
-        "Document text processing completed"
+      // Mark text embedding as completed
+      await this.backendClient.updateProcessingTask(
+        document_id,
+        "text-embedding",
+        "completed",
+        100,
+        "text-embedding-worker"
       );
 
       // Trigger summary generation after text processing is complete
@@ -177,21 +153,29 @@ class TextEmbeddingWorker {
         { document_id, error: error.message },
         "Error processing document text embeddings"
       );
+
+      // Mark text embedding as failed
+      await this.backendClient.updateProcessingTask(
+        document_id,
+        "text-embedding",
+        "failed",
+        0,
+        "text-embedding-worker",
+        error.message
+      );
+
       throw error;
     }
   }
 
   async extractTextFromMinIO(storagePath) {
     try {
-      logger.debug({ storagePath }, "Downloading file from MinIO");
       const fileBuffer = await this.minioClient.downloadFile(storagePath);
       const pathname = storagePath.toLowerCase();
 
       if (pathname.endsWith(".pdf")) {
-        logger.debug({ storagePath }, "Extracting text from PDF");
         return await this.extractTextFromPDF(fileBuffer);
       } else if (pathname.endsWith(".txt")) {
-        logger.debug({ storagePath }, "Processing text file");
         const text = fileBuffer.toString("utf-8");
         return this.chunkText(text);
       } else {
@@ -212,8 +196,6 @@ class TextEmbeddingWorker {
 
   async extractTextFromPDF(pdfBuffer) {
     try {
-      logger.debug("Starting PDF text extraction");
-
       // Configure PDF.js font path
       const pdfjsDistRoot = path.dirname(
         require.resolve("pdfjs-dist/package.json")
@@ -227,7 +209,6 @@ class TextEmbeddingWorker {
 
       const chunks = [];
       const numPages = pdfDocument.numPages;
-      logger.info({ numPages }, "PDF loaded successfully for text extraction");
 
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         try {
@@ -257,10 +238,6 @@ class TextEmbeddingWorker {
         }
       }
 
-      logger.info(
-        { extractedChunks: chunks.length, totalPages: numPages },
-        "PDF text extraction completed"
-      );
       return chunks;
     } catch (error) {
       logger.error({ error: error.message }, "PDF text extraction failed");
@@ -348,11 +325,6 @@ class TextEmbeddingWorker {
       const chunkIndex = startIndex + i;
 
       try {
-        logger.debug(
-          { document_id, chunkIndex },
-          "Creating embedding for text chunk"
-        );
-
         // Generate embedding using BGE-M3 model
         const output = await this.extractor(chunk.text, {
           pooling: "mean",
@@ -387,40 +359,21 @@ class TextEmbeddingWorker {
       return;
     }
 
-    // Insert text embeddings into vector database
-    logger.debug(
-      { document_id, pointCount: points.length },
-      "Inserting text embeddings into Qdrant"
-    );
     await this.qdrantClient.upsert("documents_text", { wait: true, points });
-    logger.info(
-      { document_id, inserted: points.length },
-      "Text batch embeddings inserted successfully"
-    );
   }
 
   async triggerSummaryGeneration(document_id, chunks) {
     try {
       // Combine all chunks into full text
-      const fullText = chunks.map(chunk => chunk.text).join('\n');
-      
+      const fullText = chunks.map((chunk) => chunk.text).join("\n");
+
       const message = {
         document_id: document_id,
         extracted_text: fullText,
         timestamp: new Date().toISOString(),
       };
 
-      logger.debug(
-        { document_id, textLength: fullText.length },
-        "Triggering summary generation"
-      );
-
       await this.rabbitmq.publishToQueue("document.summarization", message);
-      
-      logger.info(
-        { document_id },
-        "Summary generation triggered successfully"
-      );
     } catch (error) {
       logger.error(
         { document_id, error: error.message },
@@ -430,17 +383,14 @@ class TextEmbeddingWorker {
   }
 
   async stop() {
-    logger.info("Stopping text embedding worker");
     if (this.rabbitmq) {
       await this.rabbitmq.close();
     }
-    logger.info("Text embedding worker stopped successfully");
   }
 }
 
 // Graceful shutdown handlers
 process.on("SIGINT", async () => {
-  logger.info("Received SIGINT, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }
@@ -448,7 +398,6 @@ process.on("SIGINT", async () => {
 });
 
 process.on("SIGTERM", async () => {
-  logger.info("Received SIGTERM, shutting down gracefully");
   if (worker) {
     await worker.stop();
   }

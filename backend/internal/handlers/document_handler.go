@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,13 +27,14 @@ import (
 )
 
 type DocumentHandler struct {
-	documentService  *services.DocumentService
-	minioService     *services.MinIOService
-	userShareService *services.UserShareService
-	queuePublisher   *queue.Publisher
+	documentService       *services.DocumentService
+	minioService          *services.MinIOService
+	userShareService      *services.UserShareService
+	processingTaskService *services.ProcessingTaskService
+	queuePublisher        *queue.Publisher
 }
 
-// Rrepresents the result of a document download operation
+// Represents the result of a document download operation
 type documentResult struct {
 	document *models.Document
 	content  []byte
@@ -43,13 +45,15 @@ func NewDocumentHandler(
 	documentService *services.DocumentService,
 	minioService *services.MinIOService,
 	userShareService *services.UserShareService,
+	processingTaskService *services.ProcessingTaskService,
 	queuePublisher *queue.Publisher,
 ) *DocumentHandler {
 	return &DocumentHandler{
-		documentService:  documentService,
-		minioService:     minioService,
-		userShareService: userShareService,
-		queuePublisher:   queuePublisher,
+		documentService:       documentService,
+		minioService:          minioService,
+		userShareService:      userShareService,
+		processingTaskService: processingTaskService,
+		queuePublisher:        queuePublisher,
 	}
 }
 
@@ -91,6 +95,13 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		status, code := h.mapServiceErrorToHTTP(err)
 		utils.ErrorResponse(c, status, code, err.Error())
 		return
+	}
+
+	// Create processing tasks for the document
+	if err := h.processingTaskService.CreateProcessingTasks(document.ID); err != nil {
+		logrus.Errorf("Failed to create processing tasks for document %s: %v", document.ID.String(), err)
+	} else {
+		logrus.Infof("Created processing tasks for document %s", document.ID.String())
 	}
 
 	if h.queuePublisher != nil {
@@ -303,7 +314,6 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 		return
 	}
 
-	// Get validated document ID from context
 	documentID, ok := validations.GetValidatedDocumentID(c)
 	if !ok {
 		logrus.Error("[DOWNLOAD_HANDLER] Failed to get validated document ID")
@@ -311,7 +321,6 @@ func (h *DocumentHandler) DownloadDocument(c *gin.Context) {
 		return
 	}
 
-	// Get document via service (handles access control)
 	document, err := h.documentService.DownloadDocument(c.Request.Context(), userID, documentID)
 	if err != nil {
 		logrus.Errorf("[DOWNLOAD_HANDLER] Service error: %v", err)
@@ -527,7 +536,6 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 		go func(idx int, f *multipart.FileHeader, meta validations.FileMetadata) {
 			defer wg.Done()
 
-			// Create individual request for each file using its metadata
 			uploadReq := &types.UploadDocumentRequest{
 				Title:       meta.Title,
 				Description: meta.Description,
@@ -535,8 +543,16 @@ func (h *DocumentHandler) BulkUploadDocuments(c *gin.Context) {
 				IsPublic:    meta.IsPublic,
 			}
 
-			// Delegate to service
 			document, uploadErr := h.documentService.UploadDocument(ctx, userID, f, uploadReq)
+
+			if uploadErr == nil && document != nil {
+				// Create processing tasks for the document
+				if err := h.processingTaskService.CreateProcessingTasks(document.ID); err != nil {
+					logrus.Errorf("Failed to create processing tasks for document %s: %v", document.ID.String(), err)
+				} else {
+					logrus.Infof("Created processing tasks for document %s", document.ID.String())
+				}
+			}
 
 			if uploadErr == nil && document != nil && h.queuePublisher != nil {
 				logrus.Infof("Publishing document %s to processing queue", document.ID)
@@ -945,4 +961,119 @@ func (h *DocumentHandler) createZipFromResults(resultChan chan documentResult, d
 	zipWriter.Close()
 
 	return &zipBuffer, successfulDownloads, failedDownloads
+}
+
+// GetUserProcessingQueue handles retrieving user's processing queue
+func (h *DocumentHandler) GetUserProcessingQueue(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get pagination parameters from query
+	limit := 10 // Default to 10
+	offset := 0 // Default to 0
+
+	if limitParam := c.Query("limit"); limitParam != "" {
+		if parsedLimit, err := strconv.Atoi(limitParam); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetParam := c.Query("offset"); offsetParam != "" {
+		if parsedOffset, err := strconv.Atoi(offsetParam); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	// Get user's processing history (including completed tasks) with pagination
+	tasks, totalCount, err := h.processingTaskService.GetUserProcessingHistory(userID, limit, offset)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch processing queue")
+		return
+	}
+
+	// Group tasks by document for better UI display
+	documentTasks := make(map[uuid.UUID][]models.ProcessingTask)
+	for _, task := range tasks {
+		documentTasks[task.DocumentID] = append(documentTasks[task.DocumentID], task)
+	}
+
+	// Convert to response format
+	var queueItems []gin.H
+	for _, task := range tasks {
+		if len(queueItems) == 0 || queueItems[len(queueItems)-1]["document_id"] != task.DocumentID.String() {
+			// New document entry
+			queueItem := gin.H{
+				"document_id":    task.DocumentID.String(),
+				"document_title": task.Document.Title,
+				"document_type":  task.Document.FileType,
+				"created_at":     task.CreatedAt,
+				"tasks":          []gin.H{},
+			}
+			queueItems = append(queueItems, queueItem)
+		}
+
+		// Add task to current document
+		currentItem := queueItems[len(queueItems)-1]
+		tasks := currentItem["tasks"].([]gin.H)
+		tasks = append(tasks, gin.H{
+			"task_type":    task.TaskType,
+			"status":       task.Status,
+			"progress":     task.Progress,
+			"started_at":   task.StartedAt,
+			"completed_at": task.CompletedAt,
+			"error":        task.ErrorMessage,
+		})
+		currentItem["tasks"] = tasks
+	}
+
+	data := gin.H{
+		"queue_items":    queueItems,
+		"total_count":    totalCount,
+		"returned_count": len(queueItems),
+		"pagination": gin.H{
+			"limit":    limit,
+			"offset":   offset,
+			"has_more": int64(offset+len(queueItems)) < totalCount,
+		},
+	}
+	utils.SuccessResponse(c, http.StatusOK, data, "Processing queue retrieved successfully")
+}
+
+// GetDocumentProcessingStatus handles retrieving processing status for a specific document
+func (h *DocumentHandler) GetDocumentProcessingStatus(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		utils.UnauthorizedResponse(c, "UNAUTHORIZED", err.Error())
+		return
+	}
+
+	// Get validated document ID from context
+	documentID, ok := validations.GetValidatedDocumentID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to get validated document ID")
+		return
+	}
+
+	// Verify user owns the document
+	_, err = h.documentService.GetDocument(c.Request.Context(), userID, documentID)
+	if err != nil {
+		if strings.Contains(err.Error(), "document not found") || strings.Contains(err.Error(), "access denied") {
+			utils.NotFoundResponse(c, "DOCUMENT_NOT_FOUND", "Document not found")
+			return
+		}
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error())
+		return
+	}
+
+	// Get processing progress
+	progress, err := h.processingTaskService.GetProcessingProgress(documentID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch processing status")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, progress, "Document processing status retrieved successfully")
 }

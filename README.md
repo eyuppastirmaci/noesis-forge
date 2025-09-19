@@ -99,18 +99,18 @@ Core document features work, but many AI capabilities are still being built. Con
 
 **Basic Search**
 - ✅ Search input component
-- ✅ Search results page (integrated in documents list)
+- ✅ Search results page
 - ✅ PostgreSQL full-text search
 - ✅ Backend: Search service basics
 
 **Document Processing Pipeline**
 - ✅ RabbitMQ setup
-- ✅ Embedding worker (BGE-M3)
-- ✅ Multimodal embeddings (SigLIP2 for images)
+- ✅ Embedding worker
+- ✅ Multimodal embeddings
 - ✅ Text extraction service
 - ✅ Qdrant vector storage setup
-- ☐ Content summarization (Automatic document summaries)
-- ☐ GPU support for models (Enable GPU acceleration for model inference)
+- ✅ Automatic document summarization
+- ☐ GPU support for models
 
 ### Phase 4: AI Features & Model Comparison
 

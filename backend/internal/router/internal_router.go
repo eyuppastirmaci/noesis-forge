@@ -13,4 +13,6 @@ func RegisterInternalRoutes(api *gin.RouterGroup, internalHandler *handlers.Inte
 	internal.PATCH("/documents/:id/extracted-text", internalHandler.UpdateExtractedText)
 	internal.PATCH("/documents/:id/summary", internalHandler.UpdateSummary)
 	internal.PATCH("/documents/:id/status", internalHandler.UpdateStatus)
+	internal.PATCH("/documents/:id/processing-task", internalHandler.UpdateProcessingTask)
+	internal.GET("/documents/:id/processing-status", internalHandler.GetProcessingStatus)
 }
