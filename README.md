@@ -1,35 +1,33 @@
-![noesis_forge_logo](https://github.com/user-attachments/assets/3b1e5cbb-17e3-43eb-a5f2-3f5bff36ba04)
+![NoesisForge Logo](./.github/assets/logo.svg)
 
 ## 🌟 Overview
 
-**NoesisForge** is a local RAG platform that transforms how you interact with documents. Search intelligently, match similar documents, auto-categorize your files, generate summaries, and chat with your content - all through a self-hosted solution that ensures complete privacy and control over your data.
+**NoesisForge** is a local RAG platform that transforms how you interact with documents. Search intelligently, match similar documents, auto-categorize your files, generate summaries, and chat with your content all through a self-hosted solution that ensures complete privacy and control over your data.
 
 ## 📸 Screenshots
 
-![list](https://github.com/user-attachments/assets/f59d7462-f806-44da-86be-deb5b0251972)
+![Upload Process](./.github/assets/upload-process.png)
 
-![annotation](https://github.com/user-attachments/assets/f45c3fb3-98c8-4b5b-93d8-2a8f228f5530)
+![List](./.github/assets/list.png)
+
+![Annotation](./.github/assets/annotation.png)
 
 ## 🚧 Development Status
 
 **This is a learning-oriented project currently under active development. Not recommended for production use.**
 
-Core document features work, but many AI capabilities are still being built. Contributions and feedback are welcome as we continue developing the platform.
-
 ## ✨ Key Features
 
 - **Document Management**: Multi-format support (PDF, DOCX, TXT), intelligent processing, version control
-- **Advanced Search**: Semantic search, vector similarity, full-text search with context-aware results
-- **AI Models**: Pre-built models (BGE-M3, SigLIP2, ColPaLI), custom model testing, A/B comparison
-- **Intelligence**: Document classification, layout analysis, content summarization, local Q&A
-- **Security**: Self-hosted, local processing, JWT authentication, role-based access
-- **Analytics**: Usage tracking, performance metrics, model comparison dashboards
+- **Search**: Full-text search with PostgreSQL, basic semantic search foundation
+- **Document Processing**: Text extraction, embedding generation, automatic summarization
+- **RAG & Conversational AI**: Chat with your documents, intelligent retrieval with context, source citations, document similarity matching
+- **Security**: Self-hosted, local processing, JWT authentication
 
 ## 🎯 Perfect For
 
-- **Research Institutions**: Academic paper analysis, domain-specific model testing, retrieval strategy comparison
-- **Enterprise Teams**: Self-hosted document intelligence, custom model development, privacy-compliant deployment
-- **ML Engineers**: Model performance benchmarking, embedding research, custom pipeline development
+- **Research Institutions**: Academic paper management, document organization and basic search
+- **Enterprise Teams**: Self-hosted document management with privacy-compliant deployment
 
 ## 🗺️ Development Roadmap
 
@@ -105,39 +103,15 @@ Core document features work, but many AI capabilities are still being built. Con
 
 **Document Processing Pipeline**
 - ✅ RabbitMQ setup
-- ✅ Embedding worker
-- ✅ Multimodal embeddings
+- ✅ Embedding worker (BGE-M3)
+- ✅ Multimodal embeddings (SigLIP2)
 - ✅ Text extraction service
 - ✅ Qdrant vector storage setup
 - ✅ Automatic document summarization
 - ☐ GPU support for models
+- ☐ Built-in models management
 
-### Phase 4: AI Features & Model Comparison
-
-**Advanced Embedding Pipeline**
-- ☐ ColPaLI v1.2-hf integration (unified multimodal model)
-- ☐ DiT document classification model integration  
-- ☐ LayoutLM structured document processing
-- ☐ A/B testing framework for model comparison
-- ☐ Performance benchmarking dashboard
-- ☐ Dynamic model selection based on document type
-
-**Model Performance Analytics**
-- ☐ Embedding strategy comparison (dual vs unified models)
-- ☐ Classification accuracy metrics
-- ☐ Retrieval quality scoring (NDCG, MRR, Precision@K)
-- ☐ Latency and resource usage monitoring
-- ☐ Model performance alerts and recommendations
-
-**Custom Model Integration**
-- ☐ Custom model upload interface
-- ☐ Model validation and testing pipeline
-- ☐ Custom model performance evaluation
-- ☐ Model comparison dashboard (accuracy vs latency)
-- ☐ Smart model selection algorithm
-- ☐ Automatic model switching based on document type and performance
-
-### Phase 5: Advanced Search & Document Intelligence
+### Phase 4: Advanced Search & Document Intelligence
 
 **Advanced Search**
 - ☐ Vector similarity search
@@ -162,9 +136,9 @@ Core document features work, but many AI capabilities are still being built. Con
 - ☐ Semantic search within specific categories
 - ☐ Document similarity matching by category
 
-### Phase 6: Conversational RAG & Chat Experience
+### Phase 5: Conversational RAG & Chat Experience
 
-**Chat UI (Frontend)**
+**Chat UI (Frontend)**
 - ☐ Streaming responses with markdown + code highlighting
 - ☐ Source citation chips linking to document pages
 - ☐ Follow‑up quick‑reply suggestions
@@ -177,13 +151,13 @@ Core document features work, but many AI capabilities are still being built. Con
 - ☐ Per user conversation memory
 
 **Advanced RAG Features**
-- ☐ “Ask‑about‑this‑page/selection” context injection
+- ☐ "Ask‑about‑this‑page/selection" context injection
 - ☐ Citations with bounding‑box coordinates for PDF viewer highlights
 - ☐ Dynamic tool selection (summarize, translate, extract table) via function calls
 - ☐ Caching layer for identical queries
 - ☐ Safety / guardrail prompts & profanity filtering
 
-### Phase 7: CI/CD & DevOps
+### Phase 6: CI/CD & DevOps
 
 - ☐ Jenkins pipeline setup
 - ☐ Automated testing (unit, integration)
@@ -197,13 +171,13 @@ Core document features work, but many AI capabilities are still being built. Con
 
 - **Backend**: Go 1.24.2 + Gin, PostgreSQL, Redis, MinIO, JWT authentication
 - **Frontend**: Next.js 15 + React 19, Tailwind CSS, TypeScript, Redux Toolkit
-- **AI/ML**: BGE-M3, SigLIP2, ColPaLI, Ollama (local LLM), Qdrant vector database
+- **AI/ML**: BGE-M3, SigLIP2, Ollama (local LLM), Qdrant vector database
 - **Infrastructure**: Docker + Docker Compose, Air (dev), Prometheus + Grafana (monitoring)
 - **CI/CD**: Jenkins 2.504.3 (automated testing, building, deployment)
 
 ## 🏗️ Architecture
 
-![noesis-forge-architecture](https://github.com/user-attachments/assets/b401c60f-32aa-4f03-9c6c-5bc3b131b6ed)
+![NoesisForge Architecture](./.github/assets/architecture.jpg)
 
 ## 🚀 Getting Started
 
@@ -212,9 +186,7 @@ Core document features work, but many AI capabilities are still being built. Con
 - **Docker** & Docker Compose
 - **Jenkins** 2.504.3 (for automated tests, builds and deployments)
 
-### Quick Setup
-
-#### Docker Installation
+#### Installation
 
 ##### 1. Clone the repository
 ```bash
@@ -230,36 +202,15 @@ docker compose --profile infra --profile workers --profile app build
 # Start all services (database, storage, backend, frontend)
 docker compose --profile infra --profile workers --profile app up -d
 ```
-
-##### 3. Wait for services to be ready
-```bash
-# Check service status
-docker compose ps
-
-# View logs if needed
-docker compose logs -f backend
-docker compose logs -f frontend
-```
-
 ## 🚀 Access Your Application
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin123)
-- **Redis**: http://localhost:6379 or (CLI: `redis-cli` | GUI: [RedisInsight](https://redis.io/insight/))
-- **Database**: on port 5432 or (PgAdmin or any PostgreSQL client)
+- **Redis**: http://localhost:6379 or (redis-cli | [RedisInsight](https://redis.io/insight/))
+- **Database**: on port 5432 or any SQL client
 - **Qdrant**: http://localhost:6333/dashboard#/welcome
 - **Jenkins**: http://localhost:8080 (Future/Planned)
-
-### 📥 Download Models
-
-```bash
-# Navigate to the workers directory
-cd workers
-
-# Download all required models
-npm run download-models
-```
 
 ## 🚀 Deployment
 
@@ -294,9 +245,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **[Beijing Academy of Artificial Intelligence (BAAI)](https://huggingface.co/Xenova/bge-m3)** for BGE-M3 multilingual embedding model
 - **[Google Research](https://huggingface.co/Xenova/siglip-base-patch16-224)** for SigLIP2 vision-language model
-- **[Vidore Research](https://huggingface.co/vidore/colpali-v1.2-hf)** for ColPaLI v1.2-hf multimodal embedding model
-- **[Nomic AI](https://huggingface.co/nomic-ai/nomic-embed-multimodal-7b)** for Nomic Embed Multimodal model
-- **[Microsoft Research](https://huggingface.co/microsoft)** for DiT document classification and LayoutLM document understanding models
 - **[Ollama](https://ollama.com/)** for making local LLM deployment accessible and efficient
 - **[Qdrant](https://qdrant.tech/)** team for the excellent vector database with hybrid retrieval support
 - **[Hugging Face](https://huggingface.co/)** for providing a platform for AI model sharing

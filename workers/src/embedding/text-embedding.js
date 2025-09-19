@@ -1,3 +1,4 @@
+import { env } from "@huggingface/transformers";
 import { RabbitMQConnection } from "../messaging/rabbitmq.js";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { ModelManager } from "../models/model-manager.js";
@@ -45,14 +46,14 @@ class TextEmbeddingWorker {
 
   async initialize() {
     try {
-      // Load BGE-M3 model for text embeddings
-      this.extractor = await this.modelManager.ensureModel(
-        "feature-extraction",
-        "Xenova/bge-m3",
+      // Load BGE-M3 model for text embeddings from built-in models
+      this.extractor = await this.modelManager.loadBuiltinModel(
+        "text-embedding",
         { quantized: true }
       );
 
       await this.ensureQdrantCollection();
+      logger.info("Text embedding worker initialized with built-in BGE-M3 model");
     } catch (error) {
       logger.error(
         { error: error.message },

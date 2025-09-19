@@ -1,3 +1,4 @@
+import { env } from "@huggingface/transformers";
 import { RabbitMQConnection } from "../messaging/rabbitmq.js";
 import { ModelManager } from "../models/model-manager.js";
 import BackendClient from "../api/backend-client.js";
@@ -17,14 +18,14 @@ class SummaryWorker {
   }
 
   async initialize() {
-
     try {
-      // Load smaller, more compatible summarization model
-      this.summarizer = await this.modelManager.ensureModel(
+      // Load DistilBART summarization model from built-in models
+      this.summarizer = await this.modelManager.loadBuiltinModel(
         "summarization",
-        "sshleifer/distilbart-cnn-12-6",
         { quantized: true }
       );
+      
+      logger.info("Summary worker initialized with built-in DistilBART model");
     } catch (error) {
       logger.error(
         { error: error.message },

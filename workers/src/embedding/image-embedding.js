@@ -2,6 +2,7 @@ import { env, pipeline, RawImage } from "@huggingface/transformers";
 import { RabbitMQConnection } from "../messaging/rabbitmq.js";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { MinIOClient } from "../storage/minio-client.js";
+import { ModelManager } from "../models/model-manager.js";
 import BackendClient from "../api/backend-client.js";
 import logger from "../logging/logger.js";
 import sharp from "sharp";
@@ -80,10 +81,6 @@ try {
   );
 }
 
-// Configure Hugging Face transformers environment
-env.allowRemoteModels = true;
-env.localModelPath = process.env.MODELS_PATH || "/app/models";
-
 class ImageEmbeddingWorker {
   constructor() {
     this.rabbitmq = new RabbitMQConnection();
@@ -92,21 +89,22 @@ class ImageEmbeddingWorker {
     });
     this.minioClient = new MinIOClient();
     this.backendClient = new BackendClient();
+    this.modelManager = new ModelManager();
     this.extractor = null;
   }
 
   async initialize() {
     try {
-      // Load the image feature extraction model
-      this.extractor = await pipeline(
-        "image-feature-extraction",
-        "Xenova/siglip-base-patch16-224",
+      // Load SigLIP image feature extraction model from built-in models
+      this.extractor = await this.modelManager.loadBuiltinModel(
+        "image-embedding",
         { quantized: true }
       );
 
       await this.ensureQdrantCollection();
+      logger.info("Image embedding worker initialized with built-in SigLIP model");
     } catch (error) {
-      logger.error({ error: error.message }, "Failed to initialize worker");
+      logger.error({ error: error.message }, "Failed to initialize image embedding worker");
       throw error;
     }
   }

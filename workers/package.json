@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "Document processing workers for Noesis Forge",
   "type": "module",
-  "scripts": {
-    "download-models": "node scripts/download-models.js"
-  },
   "dependencies": {
     "@huggingface/transformers": "^3.6.3",
     "@qdrant/js-client-rest": "^1.15.0",
