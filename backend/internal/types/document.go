@@ -58,6 +58,7 @@ type DocumentResponse struct {
 	DownloadCount    int64                 `json:"downloadCount"`
 	PageCount        *int                  `json:"pageCount,omitempty"`
 	UserID           uuid.UUID             `json:"userID"`
+	Summary          string                `json:"summary"`
 	ProcessedAt      *time.Time            `json:"processedAt,omitempty"`
 	CreatedAt        time.Time             `json:"createdAt"`
 	UpdatedAt        time.Time             `json:"updatedAt"`

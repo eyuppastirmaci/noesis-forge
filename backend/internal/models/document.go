@@ -46,7 +46,8 @@ type Document struct {
 	HasThumbnail  bool   `json:"hasThumbnail" gorm:"default:false"` // Whether thumbnail exists
 
 	// Processing info
-	ExtractedText string     `json:"-" gorm:"type:text"` // Extracted text content
+	ExtractedText string     `json:"-" gorm:"type:text"`       // Extracted text content
+	Summary       string     `json:"summary" gorm:"type:text"` // AI-generated document summary
 	ProcessedAt   *time.Time `json:"processedAt,omitempty"`
 
 	// Versioning

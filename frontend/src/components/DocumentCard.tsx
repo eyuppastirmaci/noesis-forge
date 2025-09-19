@@ -386,6 +386,13 @@ const DocumentCard = memo(
               {document.title}
             </h3>
 
+            {/* Document Summary */}
+            {document.summary && (
+              <p className="text-xs text-foreground-secondary line-clamp-3 mb-2 italic">
+                {document.summary}
+              </p>
+            )}
+
             <div className="space-y-1.5 text-xs mt-auto text-foreground-secondary flex-grow flex flex-col justify-end">
               <div className="flex justify-between items-center">
                 <span>{formatFileSize(document.fileSize)}</span>

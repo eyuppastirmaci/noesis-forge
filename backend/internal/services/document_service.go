@@ -738,6 +738,7 @@ func (s *DocumentService) toDocumentResponse(doc *models.Document) *types.Docume
 		DownloadCount:    doc.DownloadCount,
 		PageCount:        doc.PageCount,
 		UserID:           doc.UserID,
+		Summary:          doc.Summary,
 		ProcessedAt:      doc.ProcessedAt,
 		CreatedAt:        doc.CreatedAt,
 		UpdatedAt:        doc.UpdatedAt,

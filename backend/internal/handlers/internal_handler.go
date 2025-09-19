@@ -32,6 +32,10 @@ type UpdateStatusRequest struct {
 	Status string `json:"status"`
 }
 
+type UpdateSummaryRequest struct {
+	Summary string `json:"summary"`
+}
+
 // Internal endpoint for workers to update extracted text
 func (h *InternalHandler) UpdateExtractedText(c *gin.Context) {
 	documentIDStr := c.Param("id")
@@ -100,4 +104,42 @@ func (h *InternalHandler) UpdateStatus(c *gin.Context) {
 		"status":      req.Status,
 		"updated":     true,
 	}, "Document status updated successfully")
+}
+
+// Internal endpoint for workers to update document summary
+func (h *InternalHandler) UpdateSummary(c *gin.Context) {
+	documentIDStr := c.Param("id")
+	documentID, err := uuid.Parse(documentIDStr)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_DOCUMENT_ID", "Invalid document ID")
+		return
+	}
+
+	var req UpdateSummaryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+		return
+	}
+
+	// Find document
+	var document models.Document
+	if err := h.db.Where("id = ?", documentID).First(&document).Error; err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "DOCUMENT_NOT_FOUND", "Document not found")
+		return
+	}
+
+	// Update summary
+	updates := map[string]interface{}{
+		"summary": req.Summary,
+	}
+
+	if err := h.db.Model(&document).Updates(updates).Error; err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "UPDATE_FAILED", "Failed to update document summary")
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, gin.H{
+		"document_id": documentID,
+		"updated":     true,
+	}, "Document summary updated successfully")
 }

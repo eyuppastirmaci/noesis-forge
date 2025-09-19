@@ -570,6 +570,19 @@ const DocumentDetailPage: React.FC = () => {
                       </div>
                     )}
 
+                    {document.summary && (
+                      <div>
+                        <h3 className="text-sm font-medium text-foreground-secondary mb-2">
+                          AI Summary
+                        </h3>
+                        <div className="bg-background-secondary rounded-lg p-4 border border-border">
+                          <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                            {document.summary}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <h3 className="text-sm font-medium text-foreground-secondary mb-2">
                         Original Filename

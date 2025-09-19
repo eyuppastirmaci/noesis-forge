@@ -34,6 +34,7 @@ export interface Document {
   downloadCount: number;
   pageCount?: number;
   userID: string;
+  summary?: string;
   processedAt?: string;
   createdAt: string;
   updatedAt: string;

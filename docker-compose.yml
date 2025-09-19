@@ -257,6 +257,32 @@ services:
       timeout: 10s
       retries: 3
 
+  summary-worker:
+    profiles: ["workers"]
+    build:
+      context: ./workers
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["src/summarization/summary-worker.js"]
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - MODELS_PATH=/app/models
+      - SUMMARY_MAX_LENGTH=200
+      - SUMMARY_MIN_LENGTH=50
+      - SUMMARY_MAX_INPUT=1000
+      - INTERNAL_API_URL=http://host.docker.internal:8000/api/v1
+    networks:
+      - noesis-network
+    volumes:
+      - ./workers/models:/app/models
+      - worker_cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "node"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:
   minio_data:

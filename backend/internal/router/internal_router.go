@@ -11,5 +11,6 @@ func RegisterInternalRoutes(api *gin.RouterGroup, internalHandler *handlers.Inte
 
 	// Internal worker endpoints (no authentication required for workers)
 	internal.PATCH("/documents/:id/extracted-text", internalHandler.UpdateExtractedText)
+	internal.PATCH("/documents/:id/summary", internalHandler.UpdateSummary)
 	internal.PATCH("/documents/:id/status", internalHandler.UpdateStatus)
 }

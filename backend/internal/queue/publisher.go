@@ -112,6 +112,7 @@ func (p *Publisher) PublishDocumentForProcessing(documentID, storagePath string)
 	queues := []string{
 		"document.text.embedding",
 		"document.image.embedding",
+		"document.summarization",
 	}
 
 	for _, queueName := range queues {

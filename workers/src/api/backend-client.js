@@ -46,6 +46,37 @@ class BackendClient {
   }
 
   /**
+   * Saves document summary to the backend database
+   * @param {string} documentId - The document ID
+   * @param {string} summary - The generated summary content
+   * @returns {Promise<boolean>} - Success status
+   */
+  async saveSummary(documentId, summary) {
+    try {
+      const response = await this.client.patch(
+        `/internal/documents/${documentId}/summary`,
+        {
+          summary: summary
+        }
+      );
+      return true;
+    } catch (error) {
+      logger.error(
+        { 
+          document_id: documentId, 
+          error: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          baseURL: this.baseURL
+        },
+        "Failed to save summary to database"
+      );
+      
+      return false;
+    }
+  }
+
+  /**
    * Updates document status in the backend
    * @param {string} documentId - The document ID  
    * @param {string} status - The new status (ready, failed, processing)

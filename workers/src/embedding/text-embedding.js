@@ -167,6 +167,11 @@ class TextEmbeddingWorker {
         { document_id, totalChunks: chunksToProcess.length },
         "Document text processing completed"
       );
+
+      // Trigger summary generation after text processing is complete
+      if (chunksToProcess && chunksToProcess.length > 0) {
+        await this.triggerSummaryGeneration(document_id, chunksToProcess);
+      }
     } catch (error) {
       logger.error(
         { document_id, error: error.message },
@@ -392,6 +397,36 @@ class TextEmbeddingWorker {
       { document_id, inserted: points.length },
       "Text batch embeddings inserted successfully"
     );
+  }
+
+  async triggerSummaryGeneration(document_id, chunks) {
+    try {
+      // Combine all chunks into full text
+      const fullText = chunks.map(chunk => chunk.text).join('\n');
+      
+      const message = {
+        document_id: document_id,
+        extracted_text: fullText,
+        timestamp: new Date().toISOString(),
+      };
+
+      logger.debug(
+        { document_id, textLength: fullText.length },
+        "Triggering summary generation"
+      );
+
+      await this.rabbitmq.publishToQueue("document.summarization", message);
+      
+      logger.info(
+        { document_id },
+        "Summary generation triggered successfully"
+      );
+    } catch (error) {
+      logger.error(
+        { document_id, error: error.message },
+        "Failed to trigger summary generation"
+      );
+    }
   }
 
   async stop() {
