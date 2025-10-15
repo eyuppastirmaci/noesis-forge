@@ -38,15 +38,13 @@
 - ✅ Login functionality
 - ✅ JWT authentication
 - ✅ Password hashing and security
-- ☐ Role-based access control (RBAC)
-- ☐ Protected routes middleware
+- ✅ Protected routes middleware
 - ☐ Data encryption (End-to-end data protection)
 
 **Sidebar & Layout System**
 - ✅ `AuthenticatedLayout` component
 - ✅ `PublicLayout` component
 - ✅ `Sidebar` component (collapsible, responsive)
-- ☐ Route protection (`PrivateRoute` wrapper)
 - ✅ Navigation state management
 
 **Dashboard**

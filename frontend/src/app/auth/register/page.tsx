@@ -1,8 +1,18 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { RegisterForm } from "./register-form";
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  // Check if user is already authenticated
+  const session = await getServerSession();
+  
+  if (session) {
+    // User is already logged in, redirect to dashboard
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen flex items-start justify-center pt-20">
       <div className="w-full max-w-md">

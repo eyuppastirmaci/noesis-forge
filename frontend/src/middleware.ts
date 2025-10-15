@@ -5,38 +5,52 @@ import type { NextRequestWithAuth } from "next-auth/middleware"
 export default withAuth(
   async function middleware(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl
-    
-    // Skip token validation for auth pages and initial login process
-    if (pathname.startsWith('/auth/') || pathname === '/' || pathname.startsWith('/api/')) {
-      return NextResponse.next()
+    const token = req.nextauth.token
+
+    // Auth pages that should redirect to dashboard if user is already logged in
+    const authPages = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/register-success']
+    const isAuthPage = authPages.some(page => pathname.startsWith(page))
+
+    // If user is authenticated and tries to access auth pages, redirect to dashboard
+    if (token && isAuthPage) {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
-    // Skip token validation in middleware - it will be handled by the session validator hook
+    // If user is authenticated and on root, redirect to dashboard
+    if (token && pathname === '/') {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    }
 
     return NextResponse.next()
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // Allow access if there's a valid token
-        if (token) return true
-        
-        // Check if the request is for a protected route
         const { pathname } = req.nextUrl
         
-        // Allow access to auth pages and public routes
-        if (pathname.startsWith('/auth/') || 
-            pathname === '/' ||
-            pathname.startsWith('/api/') ||
+        // Allow access to static files and API routes
+        if (pathname.startsWith('/api/') ||
             pathname.startsWith('/_next/') ||
-            pathname === '/favicon.ico') {
+            pathname === '/favicon.ico' ||
+            pathname.startsWith('/assets/')) {
           return true
         }
         
-        // Require authentication for all other routes
-        return false
+        // Protected routes require authentication
+        const protectedPaths = ['/dashboard', '/documents', '/profile', '/settings']
+        const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path))
+        
+        if (isProtectedPath && !token) {
+          return false // Will redirect to login page
+        }
+        
+        // For all other routes (including /auth/* and /), let middleware handle the logic
+        return true
       }
     },
+    pages: {
+      signIn: '/auth/login', // Redirect unauthenticated users here
+    }
   }
 )
 
