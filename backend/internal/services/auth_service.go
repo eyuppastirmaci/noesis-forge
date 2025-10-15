@@ -81,6 +81,17 @@ type UpdateProfileRequest struct {
 	AlternateEmail *string `json:"alternateEmail,omitempty"`
 	Phone          *string `json:"phone,omitempty"`
 	Department     *string `json:"department,omitempty"`
+	// E2EE encrypted fields
+	EncryptedEmail      *string `json:"encryptedEmail,omitempty"`
+	EncryptedEmailIV    *string `json:"encryptedEmailIV,omitempty"`
+	EncryptedAltEmail   *string `json:"encryptedAltEmail,omitempty"`
+	EncryptedAltEmailIV *string `json:"encryptedAltEmailIV,omitempty"`
+	EncryptedPhone      *string `json:"encryptedPhone,omitempty"`
+	EncryptedPhoneIV    *string `json:"encryptedPhoneIV,omitempty"`
+	EncryptedDepartment *string `json:"encryptedDepartment,omitempty"`
+	EncryptedDeptIV     *string `json:"encryptedDeptIV,omitempty"`
+	EncryptedBio        *string `json:"encryptedBio,omitempty"`
+	EncryptedBioIV      *string `json:"encryptedBioIV,omitempty"`
 }
 
 // Auth methods
@@ -105,15 +116,22 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*mode
 		return nil, fmt.Errorf("default role not found")
 	}
 
+	// Generate encryption salt for E2EE
+	encryptionSalt, err := utils.GenerateEncryptionSalt()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate encryption salt: %w", err)
+	}
+
 	// Create user
 	user := &models.User{
-		Email:         req.Email,
-		Username:      req.Username,
-		Name:          req.Name,
-		Password:      req.Password, // Will be hashed by BeforeCreate hook
-		RoleID:        defaultRole.ID,
-		Status:        models.StatusPending,
-		EmailVerified: false,
+		Email:          req.Email,
+		Username:       req.Username,
+		Name:           req.Name,
+		Password:       req.Password, // Will be hashed by BeforeCreate hook
+		RoleID:         defaultRole.ID,
+		Status:         models.StatusPending,
+		EmailVerified:  false,
+		EncryptionSalt: encryptionSalt, // Store salt for client-side key derivation
 	}
 
 	if err := s.db.Create(user).Error; err != nil {
@@ -177,6 +195,25 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*models.Use
 	if s.config.Environment == "production" && !user.EmailVerified {
 		// For security, return standard error instead of revealing verification status
 		return nil, nil, errors.New(standardError)
+	}
+
+	// Check if user has encryption salt, if not generate one
+	// This enables E2EE for existing users on their next login
+	if user.EncryptionSalt == "" {
+		encryptionSalt, err := utils.GenerateEncryptionSalt()
+		if err != nil {
+			s.logger.WithError(err).Error("Failed to generate encryption salt during login")
+			// Don't fail login, just log the error
+		} else {
+			user.EncryptionSalt = encryptionSalt
+			// Update user in database with new salt
+			if err := s.db.Model(&user).Update("encryption_salt", encryptionSalt).Error; err != nil {
+				s.logger.WithError(err).Error("Failed to save encryption salt during login")
+				// Don't fail login, just log the error
+			} else {
+				s.logger.Infof("Generated encryption salt for existing user: %s", user.Email)
+			}
+		}
 	}
 
 	// Generate tokens
@@ -273,20 +310,53 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, req *
 		}
 		updates["username"] = *req.Username
 	}
-	if req.Bio != nil {
+
+	// Handle Bio - clear plaintext if encrypted version is provided
+	if req.EncryptedBio != nil && req.EncryptedBioIV != nil {
+		updates["encrypted_bio"] = *req.EncryptedBio
+		updates["encrypted_bio_iv"] = *req.EncryptedBioIV
+		updates["bio"] = "" // Clear plaintext when encrypted is saved
+	} else if req.Bio != nil {
+		// Only update plaintext if encrypted version is not provided
 		updates["bio"] = *req.Bio
 	}
+
 	if req.Avatar != nil {
 		updates["avatar"] = *req.Avatar
 	}
-	if req.AlternateEmail != nil {
+
+	// Handle Alternate Email - clear plaintext if encrypted version is provided
+	if req.EncryptedAltEmail != nil && req.EncryptedAltEmailIV != nil {
+		updates["encrypted_alt_email"] = *req.EncryptedAltEmail
+		updates["encrypted_alt_email_iv"] = *req.EncryptedAltEmailIV
+		updates["alternate_email"] = "" // Clear plaintext
+	} else if req.AlternateEmail != nil {
 		updates["alternate_email"] = *req.AlternateEmail
 	}
-	if req.Phone != nil {
+
+	// Handle Phone - clear plaintext if encrypted version is provided
+	if req.EncryptedPhone != nil && req.EncryptedPhoneIV != nil {
+		updates["encrypted_phone"] = *req.EncryptedPhone
+		updates["encrypted_phone_iv"] = *req.EncryptedPhoneIV
+		updates["phone"] = "" // Clear plaintext
+	} else if req.Phone != nil {
 		updates["phone"] = *req.Phone
 	}
-	if req.Department != nil {
+
+	// Handle Department - clear plaintext if encrypted version is provided
+	if req.EncryptedDepartment != nil && req.EncryptedDeptIV != nil {
+		updates["encrypted_department"] = *req.EncryptedDepartment
+		updates["encrypted_dept_iv"] = *req.EncryptedDeptIV
+		updates["department"] = "" // Clear plaintext
+	} else if req.Department != nil {
 		updates["department"] = *req.Department
+	}
+
+	// Handle Email - clear plaintext if encrypted version is provided
+	if req.EncryptedEmail != nil && req.EncryptedEmailIV != nil {
+		updates["encrypted_email"] = *req.EncryptedEmail
+		updates["encrypted_email_iv"] = *req.EncryptedEmailIV
+		updates["email"] = "" // Clear plaintext
 	}
 
 	if len(updates) > 0 {

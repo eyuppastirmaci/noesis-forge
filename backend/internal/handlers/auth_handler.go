@@ -93,14 +93,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	data := gin.H{
 		"user": gin.H{
-			"id":            user.ID,
-			"email":         user.Email,
-			"username":      user.Username,
-			"name":          user.Name,
-			"avatar":        user.Avatar,
-			"avatarUrl":     avatarURL,
-			"emailVerified": user.EmailVerified,
-			"status":        user.Status,
+			"id":             user.ID,
+			"email":          user.Email,
+			"username":       user.Username,
+			"name":           user.Name,
+			"avatar":         user.Avatar,
+			"avatarUrl":      avatarURL,
+			"emailVerified":  user.EmailVerified,
+			"status":         user.Status,
+			"encryptionSalt": user.EncryptionSalt, // For client-side key derivation
 			"role": gin.H{
 				"id":          user.Role.ID,
 				"name":        user.Role.Name,
@@ -179,7 +180,50 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	// Generate avatar URL if avatar path exists
 	avatarURL, _ := h.authService.GetAvatarURL(c.Request.Context(), user.Avatar)
 
-	// Attach avatarUrl to response without modifying original user struct
+	// Add encrypted fields if they exist
+	encryptedFields := make(map[string]interface{})
+	hasEncryptedData := false
+
+	if user.EncryptedEmail != "" && user.EncryptedEmailIV != "" {
+		encryptedFields["primaryEmail"] = gin.H{
+			"encrypted": user.EncryptedEmail,
+			"iv":        user.EncryptedEmailIV,
+		}
+		hasEncryptedData = true
+	}
+
+	if user.EncryptedAltEmail != "" && user.EncryptedAltEmailIV != "" {
+		encryptedFields["alternateEmail"] = gin.H{
+			"encrypted": user.EncryptedAltEmail,
+			"iv":        user.EncryptedAltEmailIV,
+		}
+		hasEncryptedData = true
+	}
+
+	if user.EncryptedPhone != "" && user.EncryptedPhoneIV != "" {
+		encryptedFields["phone"] = gin.H{
+			"encrypted": user.EncryptedPhone,
+			"iv":        user.EncryptedPhoneIV,
+		}
+		hasEncryptedData = true
+	}
+
+	if user.EncryptedDepartment != "" && user.EncryptedDeptIV != "" {
+		encryptedFields["department"] = gin.H{
+			"encrypted": user.EncryptedDepartment,
+			"iv":        user.EncryptedDeptIV,
+		}
+		hasEncryptedData = true
+	}
+
+	if user.EncryptedBio != "" && user.EncryptedBioIV != "" {
+		encryptedFields["bio"] = gin.H{
+			"encrypted": user.EncryptedBio,
+			"iv":        user.EncryptedBioIV,
+		}
+		hasEncryptedData = true
+	}
+
 	userMap := gin.H{
 		"id":             user.ID,
 		"email":          user.Email,
@@ -199,8 +243,14 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 			"displayName": user.Role.DisplayName,
 			"permissions": user.Role.Permissions,
 		},
-		"createdAt": user.CreatedAt,
-		"updatedAt": user.UpdatedAt,
+		"createdAt":      user.CreatedAt,
+		"updatedAt":      user.UpdatedAt,
+		"encryptionSalt": user.EncryptionSalt, // Always include salt
+	}
+
+	// Only include encryptedFields if there's encrypted data
+	if hasEncryptedData {
+		userMap["encryptedFields"] = encryptedFields
 	}
 
 	data := gin.H{

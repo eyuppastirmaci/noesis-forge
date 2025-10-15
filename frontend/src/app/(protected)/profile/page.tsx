@@ -12,6 +12,8 @@ import { toast } from "@/utils/toastUtils";
 import { useSession } from "next-auth/react";
 import { ENV } from "@/config/env";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import { E2EEKeyManager } from "@/lib/crypto/keyManager";
+import { ProfileEncryption } from "@/lib/crypto/profileEncryption";
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   title,
@@ -63,7 +65,6 @@ export default function ProfilePage() {
 
   const {
     update: updateSession,
-    data: sessionData,
   } = useSession();
 
   // Fetch profile data on mount
@@ -77,13 +78,45 @@ export default function ProfilePage() {
         const apiRes = await res.json();
         const user = apiRes.data?.user;
         if (!user) throw new Error("Invalid response");
+        
         setName(user.name || "");
         setUsername(user.username || "");
-        setPrimaryEmail(user.email || "");
         setBio(user.bio || "");
-        setAltEmail(user.alternateEmail || "");
-        setPhone(user.phone || "");
-        setDepartment(user.department || "");
+        
+        // Try to decrypt encrypted fields if master key is available
+        const masterKey = await E2EEKeyManager.getMasterKeyFromSession();
+        if (masterKey && user.encryptedFields) {
+          try {
+            const decrypted = await ProfileEncryption.decryptProfileData(
+              user.encryptedFields,
+              masterKey
+            );
+            
+            // Use decrypted values if available, otherwise fallback to plaintext
+            setPrimaryEmail(decrypted.primaryEmail || user.email || "");
+            setAltEmail(decrypted.alternateEmail || user.alternateEmail || "");
+            setPhone(decrypted.phone || user.phone || "");
+            setDepartment(decrypted.department || user.department || "");
+            // Bio is already set above, but decrypt if available
+            if (decrypted.bio) {
+              setBio(decrypted.bio);
+            }
+          } catch (decryptError) {
+            console.error("Failed to decrypt profile fields:", decryptError);
+            // Fallback to plaintext values
+            setPrimaryEmail(user.email || "");
+            setAltEmail(user.alternateEmail || "");
+            setPhone(user.phone || "");
+            setDepartment(user.department || "");
+          }
+        } else {
+          // No encryption or no master key - use plaintext
+          setPrimaryEmail(user.email || "");
+          setAltEmail(user.alternateEmail || "");
+          setPhone(user.phone || "");
+          setDepartment(user.department || "");
+        }
+        
         if (user.avatarUrl) {
           setAvatar(user.avatarUrl);
         } else {
@@ -94,7 +127,6 @@ export default function ProfilePage() {
         if (fetchedRole.toLowerCase() === "user") {
           setCanEditRole(false);
         }
-        // Optionally set avatar, phone, department, etc. when backend supports them
       } catch (err) {
         console.error(err);
         toast.error("Failed to load profile");
@@ -108,15 +140,59 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      const body = {
+      const body: any = {
         name,
         username,
         bio,
-        // backend may accept these additional fields if implemented
         phone,
         department,
         alternateEmail: altEmail,
       };
+
+      // Try to encrypt sensitive fields if master key is available
+      const masterKey = await E2EEKeyManager.getMasterKeyFromSession();
+      
+      if (masterKey) {
+        try {
+          const encrypted = await ProfileEncryption.encryptProfileData(
+            {
+              primaryEmail,
+              alternateEmail: altEmail,
+              phone,
+              department,
+              bio,
+            },
+            masterKey
+          );
+
+          // Add encrypted fields to request body
+          if (encrypted.primaryEmail) {
+            body.encryptedEmail = encrypted.primaryEmail.encrypted;
+            body.encryptedEmailIV = encrypted.primaryEmail.iv;
+          }
+          if (encrypted.alternateEmail) {
+            body.encryptedAltEmail = encrypted.alternateEmail.encrypted;
+            body.encryptedAltEmailIV = encrypted.alternateEmail.iv;
+          }
+          if (encrypted.phone) {
+            body.encryptedPhone = encrypted.phone.encrypted;
+            body.encryptedPhoneIV = encrypted.phone.iv;
+          }
+          if (encrypted.department) {
+            body.encryptedDepartment = encrypted.department.encrypted;
+            body.encryptedDeptIV = encrypted.department.iv;
+          }
+          if (encrypted.bio) {
+            body.encryptedBio = encrypted.bio.encrypted;
+            body.encryptedBioIV = encrypted.bio.iv;
+          }
+          
+        } catch (encryptError) {
+          toast.error("Failed to encrypt sensitive data");
+          setIsSaving(false);
+          return;
+        }
+      }
 
       const res = await fetch(`${ENV.API_URL}/auth/profile`, {
         method: "PUT",

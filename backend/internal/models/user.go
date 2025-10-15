@@ -37,6 +37,19 @@ type User struct {
 	UpdatedAt       time.Time      `json:"updatedAt"`
 	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
 
+	// E2EE Fields
+	EncryptionSalt      string `json:"-" gorm:"type:text"`
+	EncryptedEmail      string `json:"-" gorm:"type:text"`
+	EncryptedEmailIV    string `json:"-" gorm:"type:text"`
+	EncryptedAltEmail   string `json:"-" gorm:"type:text"`
+	EncryptedAltEmailIV string `json:"-" gorm:"type:text"`
+	EncryptedPhone      string `json:"-" gorm:"type:text"`
+	EncryptedPhoneIV    string `json:"-" gorm:"type:text"`
+	EncryptedDepartment string `json:"-" gorm:"type:text"`
+	EncryptedDeptIV     string `json:"-" gorm:"type:text"`
+	EncryptedBio        string `json:"-" gorm:"type:text"`
+	EncryptedBioIV      string `json:"-" gorm:"type:text"`
+
 	// Relations
 	RoleID uuid.UUID `json:"roleID" gorm:"type:uuid;not null"`
 	Role   Role      `json:"role,omitempty" gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`

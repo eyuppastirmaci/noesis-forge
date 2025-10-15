@@ -92,6 +92,12 @@ func RunMigrations(db *gorm.DB, dbName string) error {
 		return err
 	}
 
+	// Add E2EE encrypted fields to users table
+	if err := migrations.MigrateE2EEFields(db); err != nil {
+		logrus.WithError(err).Error("Failed to add E2EE fields")
+		return err
+	}
+
 	logrus.Info("Database migrations completed successfully")
 	return nil
 }

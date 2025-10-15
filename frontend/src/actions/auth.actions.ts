@@ -52,6 +52,7 @@ export interface LoginState {
     username: string
     email: string
     avatar?: string
+    encryptionSalt?: string
   }
   tokens?: {
     accessToken: string
@@ -87,6 +88,7 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
         username: response.data.user.username,
         email: response.data.user.email,
         avatar: (response.data.user as any)?.avatarUrl ?? (response.data.user as any)?.avatar ?? "",
+        encryptionSalt: (response.data.user as any)?.encryptionSalt, // Pass salt to client
       },
       tokens: response.data.tokens, // Include tokens for client-side cookie setting
       redirectTo: '/dashboard'
@@ -116,8 +118,8 @@ export async function loginAction(prevState: LoginState, formData: FormData): Pr
       }
       
       // Also check if fieldErrors are in the response data
-      if (error.response?.data?.data?.fieldErrors) {
-        const responseData = error.response.data.data.fieldErrors
+      if (error.response) {
+        const responseData = (error.response as any)?.data?.data?.fieldErrors
         if (responseData && typeof responseData === 'object') {
           fieldErrors = { ...fieldErrors, ...responseData }
         }
@@ -207,8 +209,8 @@ export async function registerAction(prevState: RegisterState, formData: FormDat
       }
       
       // Also check if fieldErrors are in the response data
-      if (error.response?.data?.data?.fieldErrors) {
-        const responseData = error.response.data.data.fieldErrors
+      if (error.response) {
+        const responseData = (error.response as any)?.data?.data?.fieldErrors
         if (responseData && typeof responseData === 'object') {
           fieldErrors = { ...fieldErrors, ...responseData }
         }

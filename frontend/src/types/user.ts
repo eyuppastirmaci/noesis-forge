@@ -19,6 +19,15 @@ export interface User {
   updatedAt: string;
   roleID: string;
   role?: Role;
+  // E2EE fields
+  encryptionSalt?: string;
+  encryptedFields?: {
+    email?: { encrypted: string; iv: string };
+    alternateEmail?: { encrypted: string; iv: string };
+    phone?: { encrypted: string; iv: string };
+    department?: { encrypted: string; iv: string };
+    bio?: { encrypted: string; iv: string };
+  };
 }
 
 export interface PublicUser {

@@ -29,31 +29,49 @@ export function LoginForm() {
   // Handle successful login redirect
   useEffect(() => {
     if (state.success && state.credentials && state.user && state.tokens) {
-      // Set cookies client-side using utility function
-      if (state.tokens) {
-        setAuthTokens(state.tokens);
-      }
-
-      // Update NextAuth session with user credentials and info
-      signIn("credentials", {
-        identifier: state.credentials.identifier,
-        password: state.credentials.password,
-        // Pass user info as additional data (custom fields)
-        name: state.user.name,
-        username: state.user.username,
-        email: state.user.email,
-        avatar: state.user.avatar,
-        redirect: false,
-      }).then((result) => {
-        const userName = state.user?.name || state.user?.username || "User";
-        if (result?.ok) {
-          toast.info(`Welcome ${userName}`);
-          router.push(state.redirectTo || "/dashboard");
-        } else {
-          // Even if NextAuth fails, we have cookies, so just redirect
-          toast.info(`Welcome ${userName}`);
-          router.push(state.redirectTo || "/dashboard");
+      // Derive E2EE master key on client-side (after successful login)
+      const deriveKey = async () => {
+        if ((state.user as any)?.encryptionSalt && state.credentials?.password) {
+          try {
+            const { handleLoginEncryption } = await import('@/lib/crypto/loginEncryption');
+            await handleLoginEncryption(
+              state.credentials!.password,
+              (state.user as any).encryptionSalt
+            );
+          } catch (error) {
+            console.error('Failed to derive master key on client:', error);
+          }
         }
+      };
+      
+      // Derive key first, then proceed with authentication
+      deriveKey().then(() => {
+        // Set cookies client-side using utility function
+        if (state.tokens) {
+          setAuthTokens(state.tokens);
+        }
+
+        // Update NextAuth session with user credentials and info
+        signIn("credentials", {
+          identifier: state.credentials!.identifier,
+          password: state.credentials!.password,
+          // Pass user info as additional data (custom fields)
+          name: state.user!.name,
+          username: state.user!.username,
+          email: state.user!.email,
+          avatar: state.user!.avatar,
+          redirect: false,
+        }).then((result) => {
+          const userName = state.user?.name || state.user?.username || "User";
+          if (result?.ok) {
+            toast.info(`Welcome ${userName}`);
+            router.push(state.redirectTo || "/dashboard");
+          } else {
+            // Even if NextAuth fails, we have cookies, so just redirect
+            toast.info(`Welcome ${userName}`);
+            router.push(state.redirectTo || "/dashboard");
+          }
+        });
       });
     }
   }, [state.success, state.credentials, state.user, state.tokens, state.redirectTo, router]);
