@@ -182,9 +182,10 @@
 ### Prerequisites
 
 - **Docker** & Docker Compose
-- **Jenkins** 2.504.3 (for automated tests, builds and deployments)
+- **Node.js** For running npm scripts
+- **Jenkins** 2.504.3 (for automated tests, builds and deployments - Future/Planned)
 
-#### Installation
+### Installation
 
 ##### 1. Clone the repository
 ```bash
@@ -192,14 +193,26 @@ git clone https://github.com/eyuppastirmaci/noesis-forge.git
 cd noesis-forge
 ```
 
-##### 2. Build and start all services with Docker Compose
-```bash
-# Build the images first (recommended for first-time setup)
-docker compose --profile infra --profile workers --profile app build
+##### 2. Start the application
 
-# Start all services (database, storage, backend, frontend)
-docker compose --profile infra --profile workers --profile app up -d
+**Development Mode** (with hot reload):
+```bash
+npm run dev
 ```
+This starts infrastructure services (database, Redis, MinIO, RabbitMQ, Qdrant) with Docker, and runs backend (Air) and frontend (Next.js dev server) in separate terminals.
+
+**Production Mode**:
+```bash
+npm run start:stack
+```
+This starts all services including the built application containers.
+
+**Stop All Services**:
+```bash
+npm run down
+```
+This stops and removes all Docker containers.
+
 ## 🚀 Access Your Application
 
 - **Frontend**: http://localhost:3000
@@ -213,23 +226,6 @@ docker compose --profile infra --profile workers --profile app up -d
 ## 🚀 Deployment
 
 ### Jenkins CI/CD Setup (Future/Planned)
-
-##### 1. Install and Run Jenkins
-```bash
-# Run Jenkins with Docker
-docker run -d --name jenkins \
-  -p 8080:8080 -p 50000:50000 \
-  -v jenkins_home:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  jenkins/jenkins:lts
-```
-
-##### 2. Run Jenkinsfile
-```bash
-# Access Jenkins: http://localhost:8080
-# Create Pipeline job → Point to repository → Run Jenkinsfile
-# Build, test, and deploy will happen automatically
-```
 
 ## 📄 License
 
