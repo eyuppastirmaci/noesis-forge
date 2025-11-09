@@ -95,6 +95,41 @@ class TextEmbeddingWorker {
     );
   }
 
+  /**
+   * Generate a single embedding for the provided text.
+   * Reuses the already initialised extractor that powers document processing.
+   * @param {string} text
+   * @returns {Promise<Float32Array>}
+   */
+  async generateEmbedding(text) {
+    if (!text || typeof text !== "string") {
+      throw new Error("Text must be a non-empty string to generate embedding");
+    }
+
+    if (!this.extractor) {
+      await this.initialize();
+    }
+
+    const output = await this.extractor(text, {
+      pooling: "mean",
+      normalize: true,
+    });
+
+    if (output?.data instanceof Float32Array) {
+      return output.data;
+    }
+
+    if (Array.isArray(output?.data)) {
+      return Float32Array.from(output.data);
+    }
+
+    if (Array.isArray(output)) {
+      return Float32Array.from(output);
+    }
+
+    throw new Error("Embedding model returned an unexpected format");
+  }
+
   async processDocument({ document_id, storage_path, bucket_name, chunks }) {
     // Mark text embedding as processing
     await this.backendClient.updateProcessingTask(
@@ -405,11 +440,17 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-const worker = new TextEmbeddingWorker();
-worker.start().catch((error) => {
-  logger.error(
-    { error: error.message },
-    "Failed to start text embedding worker"
-  );
-  process.exit(1);
-});
+// Export the class for reuse in query embedding
+export { TextEmbeddingWorker };
+
+// Only start the worker if this file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const worker = new TextEmbeddingWorker();
+  worker.start().catch((error) => {
+    logger.error(
+      { error: error.message },
+      "Failed to start text embedding worker"
+    );
+    process.exit(1);
+  });
+}

@@ -2,6 +2,7 @@
   "scripts": {
     "dev": "powershell -ExecutionPolicy Bypass -File ./run.ps1 dev || bash ./run.sh dev",
     "start:stack": "powershell -ExecutionPolicy Bypass -File ./run.ps1 start || bash ./run.sh start",
-    "down": "powershell -ExecutionPolicy Bypass -File ./run.ps1 down || bash ./run.sh down"
+    "down": "powershell -ExecutionPolicy Bypass -File ./run.ps1 down || bash ./run.sh down",
+    "build": "powershell -ExecutionPolicy Bypass -File ./run.ps1 build || bash ./run.sh build"
   }
 }

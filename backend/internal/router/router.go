@@ -28,6 +28,7 @@ type Router struct {
 	userShareService      *services.UserShareService
 	processingTaskService *services.ProcessingTaskService
 	queuePublisher        *queue.Publisher
+	searchService         *services.SearchService
 }
 
 func New(
@@ -39,6 +40,7 @@ func New(
 	minioService *services.MinIOService,
 	queuePublisher *queue.Publisher,
 	processingTaskService *services.ProcessingTaskService,
+	searchService *services.SearchService,
 ) *Router {
 	// Setup Gin mode
 	if cfg.Environment == "production" {
@@ -75,6 +77,7 @@ func New(
 		userShareService:      userShareService,
 		processingTaskService: processingTaskService,
 		queuePublisher:        queuePublisher,
+		searchService:         searchService,
 	}
 }
 
@@ -127,6 +130,12 @@ func (r *Router) SetupRoutes(db *gorm.DB) {
 	// User Share routes
 	userShareHandler := handlers.NewUserShareHandler(r.userShareService, r.config)
 	RegisterUserShareRoutes(api, userShareHandler, r.authService)
+
+	// Search routes (if SearchService is available)
+	if r.searchService != nil {
+		RegisterSearchRoutes(api, r.searchService, r.authService)
+		logrus.Info("Search routes registered with vector similarity support")
+	}
 
 	// Internal routes for workers (no authentication required)
 	internalHandler := handlers.NewInternalHandler(r.documentService, r.processingTaskService, db)

@@ -57,3 +57,14 @@ frontend/next-env.d.ts
 
 workers/node_modules
 workers/models/*
+
+# ==================================
+# ===      DEV SCRIPT FILES     ===
+# ==================================
+
+.dev-pids.txt
+
+# ==================================
+# ===          CURSOR            ===
+# ==================================
+.cursorignore

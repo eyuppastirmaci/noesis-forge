@@ -17,12 +17,7 @@ type Config struct {
 	MinIO    MinIOConfig
 	Redis    RedisConfig
 	RabbitMQ RabbitMQConfig
-	// Qdrant   QdrantConfig
-	// Ollama   OllamaConfig
-	// Email    EmailConfig
-	// Metrics  MetricsConfig
-	// Logging  LoggingConfig
-	// Auth     AuthPolicyConfig
+	Qdrant   QdrantConfig
 }
 
 type ServerConfig struct {
@@ -92,7 +87,9 @@ type RabbitMQConfig struct {
 }
 
 type QdrantConfig struct {
-	URL              string        `envconfig:"QDRANT_URL" default:"http://localhost:6333"`
+	Host             string        `envconfig:"QDRANT_HOST" default:"localhost"`
+	GrpcPort         int           `envconfig:"QDRANT_GRPC_PORT" default:"6334"`
+	UseTLS           bool          `envconfig:"QDRANT_USE_TLS" default:"false"`
 	APIKey           string        `envconfig:"QDRANT_API_KEY"`
 	CollectionPrefix string        `envconfig:"QDRANT_COLLECTION_PREFIX" default:"noesis"`
 	VectorSize       int           `envconfig:"QDRANT_VECTOR_SIZE" default:"1024"`

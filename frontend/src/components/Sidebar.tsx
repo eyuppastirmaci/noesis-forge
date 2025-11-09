@@ -14,22 +14,18 @@ import {
   Clock,
   Heart,
   Search,
-  SearchX,
   History,
   MessageSquare,
   MessageCircle,
-  BarChart3,
-  FileBarChart,
   User,
   Sliders,
-  FileSearch,
   ChevronDown,
   ChevronRight,
   BookOpen,
   SearchIcon,
   MessageSquareText,
-  BarChart,
   SettingsIcon,
+  Scan,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -71,26 +67,17 @@ const sidebarSections: SidebarSection[] = [
     icon: SearchIcon,
     items: [
       { label: 'Search', href: '/search', icon: Search },
-      { label: 'Advanced Search', href: '/search/advanced', icon: SearchX },
+      { label: 'Similarity Matching', href: '/search/matching', icon: Scan },
       { label: 'Search History', href: '/search/history', icon: History },
     ],
   },
   {
-    title: 'Chat & AI',
+    title: 'Chat',
     icon: MessageSquareText,
     items: [
       { label: 'Chat with Documents', href: '/chat', icon: MessageSquare },
       { label: 'New Chat', href: '/chat/new', icon: MessageCircle },
       { label: 'Chat History', href: '/chat/history', icon: History },
-    ],
-  },
-  {
-    title: 'Analytics',
-    icon: BarChart,
-    items: [
-      { label: 'Model Performance', href: '/analytics/models', icon: BarChart3 },
-      { label: 'Search Analytics', href: '/analytics/search', icon: FileSearch },
-      { label: 'Document Stats', href: '/analytics/documents', icon: FileBarChart },
     ],
   },
   {

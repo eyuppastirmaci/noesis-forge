@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log"
 
 	"github.com/eyuppastirmaci/noesis-forge/internal/config"
@@ -11,6 +12,7 @@ import (
 	"github.com/eyuppastirmaci/noesis-forge/internal/repositories/postgres"
 	"github.com/eyuppastirmaci/noesis-forge/internal/router"
 	"github.com/eyuppastirmaci/noesis-forge/internal/services"
+	"github.com/eyuppastirmaci/noesis-forge/internal/vectordb"
 	"github.com/eyuppastirmaci/noesis-forge/internal/websocket"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -106,6 +108,25 @@ func New() (*App, error) {
 		log.Fatal("Failed to initialize queue publisher:", err)
 	}
 
+	// Initialize Qdrant client for vector search
+	qdrantClient, err := vectordb.NewQdrantClient(cfg.Qdrant.Host, cfg.Qdrant.GrpcPort, cfg.Qdrant.UseTLS)
+	if err != nil {
+		logrus.Warnf("Failed to initialize Qdrant client, vector search disabled: %v", err)
+		qdrantClient = nil
+	} else {
+		// Initialize Qdrant collections
+		if err := qdrantClient.InitializeCollections(context.Background()); err != nil {
+			logrus.Warnf("Failed to initialize Qdrant collections: %v", err)
+		}
+	}
+
+	// Initialize SearchService if Qdrant is available
+	var searchService *services.SearchService
+	if qdrantClient != nil {
+		searchService = services.NewSearchService(qdrantClient, queuePublisher, documentRepo)
+		logrus.Info("Search service initialized with Qdrant support")
+	}
+
 	// Initialize WebSocket server
 	webSocketServer := websocket.NewServer()
 	webSocketServer.SetupHandlers()
@@ -114,7 +135,7 @@ func New() (*App, error) {
 	processingTaskService := services.NewProcessingTaskService(db, webSocketServer)
 
 	// Initialize router with services
-	r := router.New(cfg, db, documentService, authService, userShareService, minioService, queuePublisher, processingTaskService)
+	r := router.New(cfg, db, documentService, authService, userShareService, minioService, queuePublisher, processingTaskService, searchService)
 	r.SetupRoutes(db)
 
 	// Add WebSocket endpoint to router

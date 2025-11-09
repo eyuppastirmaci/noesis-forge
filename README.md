@@ -12,6 +12,8 @@
 
 ![Annotation](./.github/assets/annotation.png)
 
+![Search](./.github/assets/search.png)
+
 ## 🚧 Development Status
 
 **This is a learning-oriented project currently under active development. Not recommended for production use.**
@@ -111,11 +113,12 @@
 
 ### Phase 4: Advanced Search & Document Intelligence
 
-**Advanced Search**
-- ☐ Vector similarity search
-- ☐ Hybrid search
-- ☐ Search filters enhancement
-- ☐ Search history
+**Search & Similarity**
+- ✅ Vector similarity search (semantic search)
+- ☐ Similarity Matching (document comparison)
+- ☐ Hybrid search (content, summary, fts, vector)
+- ☐ Search filters
+- ☐ Search history tracking
 
 **Intelligent Document Classification**
 - ☐ Document type classifier model integration
@@ -194,6 +197,11 @@ cd noesis-forge
 ```
 
 ##### 2. Start the application
+
+**Docker Build** (for first time running or whenever docker files changes):
+```bash
+npm run build
+```
 
 **Development Mode** (with hot reload):
 ```bash

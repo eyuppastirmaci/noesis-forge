@@ -7,11 +7,16 @@ import {
   isSuccessResponse,
 } from "@/types";
 import { API_CONFIG } from "@/config/api";
-import { getCookieValue } from "@/utils";
+import { getCookieValue, setCookie, deleteCookie } from "@/utils";
 
 class ApiClient {
   private client: AxiosInstance;
   private baseURL: string;
+  private isRefreshing: boolean = false;
+  private failedQueue: Array<{
+    resolve: (value?: any) => void;
+    reject: (reason?: any) => void;
+  }> = [];
 
   constructor(baseURL: string = API_CONFIG.BASE_URL) {
     this.baseURL = baseURL;
@@ -23,6 +28,18 @@ class ApiClient {
     });
 
     this.setupInterceptors();
+  }
+
+  private processQueue(error: any, token: string | null = null): void {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve(token);
+      }
+    });
+
+    this.failedQueue = [];
   }
 
   private setupInterceptors(): void {
@@ -70,18 +87,47 @@ class ApiClient {
         }
 
         const { response } = error;
+        const originalRequest = error.config;
 
-        if (response.status === 401 && !error.config._retry) {
-          error.config._retry = true;
+        // Handle 401 errors with token refresh
+        if (response.status === 401 && !originalRequest._retry) {
+          if (this.isRefreshing) {
+            // If already refreshing, queue this request
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            })
+              .then((token) => {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                return this.client.request(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          this.isRefreshing = true;
 
           try {
-            await this.refreshToken();
-            // Retry the original request - cookies will be automatically included
-            return this.client.request(error.config);
+            const newAccessToken = await this.refreshToken();
+            
+            // Update the Authorization header with the new token
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            
+            // Process queued requests
+            this.processQueue(null, newAccessToken);
+            
+            // Retry the original request with the new token
+            return this.client.request(originalRequest);
           } catch (refreshError) {
+            // Process queued requests with error
+            this.processQueue(refreshError, null);
+            
             // Handle refresh failure by clearing auth and redirecting
             this.handleAuthFailure();
             throw refreshError;
+          } finally {
+            this.isRefreshing = false;
           }
         }
 
@@ -140,26 +186,54 @@ class ApiClient {
     }
   }
 
-  private async refreshToken(): Promise<void> {
+  private async refreshToken(): Promise<string> {
     try {
       const refreshToken = getCookieValue('refresh_token');
       if (!refreshToken) {
+        console.error("No refresh token available");
         throw new Error("No refresh token available");
       }
 
+      console.log("clearAttempting to refresh token...");
       const response = await axios.post(`${this.baseURL}/auth/refresh`, {
         refreshToken
       }, {
         withCredentials: true
       });
 
-      // Tokens are handled by auth service when login/refresh is called
-    } catch (error) {
+      // Update cookies with new tokens from response
+      if (response.data?.data?.tokens) {
+        const { accessToken, refreshToken: newRefreshToken, expiresIn } = response.data.data.tokens;
+        
+        // Set new access token cookie
+        setCookie('access_token', accessToken, { 
+          maxAge: expiresIn 
+        });
+        
+        // Set new refresh token cookie (7 days)
+        const refreshMaxAge = 7 * 24 * 60 * 60;
+        setCookie('refresh_token', newRefreshToken, { 
+          maxAge: refreshMaxAge 
+        });
+        
+        console.log("[API] Token refreshed successfully");
+        // Return the new access token
+        return accessToken;
+      }
+      
+      console.error("[API] No tokens in refresh response");
+      throw new Error("No tokens in refresh response");
+    } catch (error: any) {
+      console.error("[API] Token refresh failed:", error.message);
       throw new Error("Your session has expired. Please login again.");
     }
   }
 
   private handleAuthFailure(): void {
+    // Clear auth cookies
+    deleteCookie('access_token');
+    deleteCookie('refresh_token');
+    
     // Redirect to login page in browser environment
     if (typeof window !== "undefined") {
       window.location.href = "/auth/login";
